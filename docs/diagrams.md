@@ -615,6 +615,3 @@ classDiagram
 ```
 
 ---
-
-## 5. Use Case
-
