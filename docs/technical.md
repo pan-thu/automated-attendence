@@ -234,6 +234,8 @@ The project utilizes a specific set of modern technologies chosen for their effi
   - **Cloud Firestore:** A NoSQL, document-based database for all application data.
   - **Firebase Authentication:** Handles secure user registration, login, and session management.
   - **Cloud Functions for Firebase:** Executes all secure, server-side business logic written in TypeScript.
+  - ✅ `setUserRole`: Callable function that promotes/demotes users by attaching Firebase Auth custom claims and syncing `USERS`.
+  - ✅ `seedFirestore.ts`: CLI seeding utility (`npm run seed:firestore`) that reads `.env` credentials, grants the initial admin claim, and populates `USERS` and `COMPANY_SETTINGS` defaults.
   - **Cloud Storage:** Used for storing files, such as medical certificates uploaded for leave requests.
 - **Node.js:** The runtime environment for executing Cloud Functions.
 - **TypeScript:** Provides static typing for robust and maintainable Cloud Functions code.
@@ -326,6 +328,7 @@ The database is structured into several collections to normalize data and ensure
 #### **7. Environment Setup & Deployment**
 
 1.  **Prerequisites:** Install Node.js, Flutter SDK, Firebase CLI, and Vercel CLI.
+    -  Cloud Functions requires Node.js 22 LTS locally and in deployment. Ensure your local version and `functions/package.json` `engines.node` are set to `"22"`.
 2.  **Project Setup:** Clone repositories and install dependencies (`npm install`, `flutter pub get`).
 3.  **Firebase Configuration:** Create a Firebase project and store configuration keys in `.env` files. These files must not be committed to version control.
 4.  **Deployment:**
@@ -333,3 +336,5 @@ The database is structured into several collections to normalize data and ensure
     - **Firestore Rules:** `firebase deploy --only firestore:rules`
     - **React Admin Dashboard:** `vercel deploy --prod`
     - **Flutter Mobile App:** Build and deploy through the Google Play Store and Apple App Store.
+5.  **Data Seeding:** Provide a service-account JSON via `.env` (`GOOGLE_APPLICATION_CREDENTIALS`) and run `npm run seed:firestore` to create the initial admin and baseline company settings locally.
+

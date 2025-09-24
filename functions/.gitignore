@@ -1,0 +1,8 @@
+node_modules
+lib
+.runtimeconfig.json
+.env
+.env.local
+.env.*
+google-credentials.json
+

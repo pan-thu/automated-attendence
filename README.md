@@ -23,48 +23,46 @@ The project is built on a secure and scalable client-server architecture, with F
 
 *(This is a placeholder image. You would replace this with a screenshot of the Mermaid diagram from your documentation.)*
 
-For more detailed diagrams and documentation, please see the `/docs` folder, which includes:
-- `technical.md`: The main technical specification.
-- `geofencing.md`: A deep dive into the geofencing logic.
-- `use_cases.md`: Detailed use case diagrams and descriptions.
+For more detailed diagrams and documentation, please see the `/docs` folder.
 
-## 🗂️ File Structure
+## 🗂️ Repository Structure
 
-The project is organized into two main parts: `admin` (the web dashboard) and `client` (the mobile app).
+```
+.
+├── admin/               # Next.js admin dashboard (React, TypeScript)
+├── client/              # Flutter mobile app for employees
+├── functions/           # Firebase Cloud Functions (TypeScript) and seed scripts
+├── docs/                # Architecture, technical specs, task tracking
+└── README.md
+```
 
-### Admin Dashboard Structure
+### `functions/`
+```
+functions/
+├── src/
+│   ├── index.ts              # Firebase callable/function exports (`setUserRole`, etc.)
+│   └── scripts/
+│       └── seedFirestore.ts  # CLI to seed USERS and COMPANY_SETTINGS
+├── tsconfig.json
+├── package.json
+└── .env.example (see docs for required vars)
+```
+
+### `admin/`
 ```
 admin/
-├── src/
-│   ├── app/                # Next.js App Router (Routes)
-│   ├── components/         # Reusable React components
-│   │   ├── auth/           # Authentication-related components (LoginForm)
-│   │   ├── layout/         # Main layout components (Sidebar, Header)
-│   │   └── ui/             # Components from shadcn/ui
-│   ├── hooks/              # Custom React hooks (e.g., useAuth)
-│   ├── lib/                # Library and helper functions
-│   │   ├── firebase/       # Firebase configuration and services
-│   │   └── utils.ts        # Utility functions
-│   └── types/              # Shared TypeScript type definitions
+├── src/app/            # Next.js App Router entrypoints
+├── src/components/     # Layout, auth, and UI components
+├── src/lib/            # Firebase config/utilities
 └── package.json
 ```
 
-### Client Mobile App Structure
+### `client/`
 ```
 client/
-├── android/              # Android-specific files
-├── ios/                  # iOS-specific files
-├── lib/                  # Main Dart source code
-│   ├── api/              # Services that talk to Firebase
-│   │   ├── auth_service.dart
-│   │   └── attendance_service.dart
-│   ├── models/           # Data models (User, AttendanceRecord)
-│   ├── providers/        # State management providers
-│   ├── screens/          # UI for each app screen
-│   │   ├── auth/         # Login, register screens
-│   │   └── home/         # Main home screen
-│   ├── widgets/          # Reusable custom widgets
-│   └── main.dart         # App entry point
+├── lib/                # Flutter business logic, models, screens
+├── android/            # Android platform files
+├── ios/                # iOS platform files
 └── pubspec.yaml
 ```
 
@@ -77,89 +75,68 @@ client/
 | **Web Dashboard** | React, Next.js, TypeScript, Tailwind CSS, Shadcn/ui, `firebase` (Web SDK) |
 | **DevOps** | Git, GitHub, Vercel (for Web App), Firebase CLI |
 
-## 🚀 Getting Started
-
-To get a local copy up and running, follow these simple steps.
+## 🛠️ Getting Started
 
 ### Prerequisites
 
-- **Node.js** (v18 or later)
-- **Flutter SDK** (v3.x or later)
-- **Firebase CLI:** `npm install -g firebase-tools`
-- **Vercel CLI:** `npm install -g vercel`
+- **Node.js** 22 LTS (required for Firebase Functions)
+- **Flutter SDK** 3.x or later
+- **Firebase CLI** `npm install -g firebase-tools`
+- **Vercel CLI** `npm install -g vercel`
 
 ### Installation & Setup
 
-1.  **Clone the repositories** (assuming separate repos for web and mobile):
-    ```bash
-    git clone https://github.com/your-username/attendance-app-mobile.git
-    git clone https://github.com/your-username/attendance-app-dashboard.git
-    ```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/automated-attendance.git
+   cd automated-attendance
+   ```
 
-2.  **Set up the Firebase Project:**
-    - Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
-    - Enable **Authentication** (Email/Password method).
-    - Create a **Cloud Firestore** database.
-    - Enable **Cloud Storage**.
-    - Upgrade your project to the **Blaze (Pay-as-you-go) plan**. This is required to use Cloud Functions, but you will not be charged as long as you stay within the generous free tier.
+2. **Install dependencies**
+   ```bash
+   # Admin dashboard
+   cd admin
+   npm install
 
-3.  **Configure Environment Variables:**
-    - In your Firebase project settings, find your Firebase config keys for a **Web App**.
-    - In the root of your `attendance-dashboard` project, create a `.env.local` file:
-      ```dotenv
-      # .env.local
-      NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-      NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-      # ... and so on for all keys
-      ```
-    - For the Flutter project, run `flutterfire configure` to generate the `lib/firebase_options.dart` file automatically.
+   # Firebase functions
+   cd ../functions
+   npm install
 
-4.  **Install Dependencies:**
-    - For the Web Dashboard:
-      ```bash
-      cd attendance-dashboard
-      npm install
-      ```
-    - For the Mobile App:
-      ```bash
-      cd attendance_mobile_app
-      flutter pub get
-      ```
+   # Flutter mobile app
+   cd ../client
+   flutter pub get
+   ```
 
-5.  **Run the Applications:**
-    - To start the Web Dashboard:
-      ```bash
-      npm run dev
-      ```
-    - To run the Mobile App on a connected device or emulator:
-      ```bash
-      flutter run
-      ```
+3. **Configure Firebase project**
+   - Enable Authentication (Email/Password), Firestore, and Cloud Storage.
+   - Download a service-account JSON for seeding (Firebase Console → Project settings → Service accounts).
 
-## 🚢 Deployment
+4. **Environment variables**
+   - `admin/.env.local`: contains `NEXT_PUBLIC_FIREBASE_*` keys.
+   - `client`: run `flutterfire configure` to generate `lib/firebase_options.dart`.
+   - `functions/.env` (or `.env.local`):
+     ```dotenv
+     GOOGLE_APPLICATION_CREDENTIALS=C:/path/to/service-account.json
+     SEED_ADMIN_UID=your-admin-uid
+     ```
 
--   **Backend (Firebase):**
-    - Deploy Cloud Functions, Firestore rules, and storage rules using the Firebase CLI.
-      ```bash
-      firebase deploy
-      ```
+5. **Seed Firestore (optional but recommended)**
+   ```bash
+   cd functions
+   npm run seed:firestore
+   ```
+   This seeds `USERS/<adminUid>` and `COMPANY_SETTINGS/main`, and applies the `admin` custom claim via the service account.
 
--   **Web Dashboard (Vercel):**
-    - The project is configured for seamless deployment on Vercel. Push your code to a GitHub repository and link it to a Vercel project. For manual deployments:
-      ```bash
-      vercel deploy --prod
-      ```
+6. **Run the applications**
+   ```bash
+   # Admin dashboard
+   cd admin
+   npm run dev
 
--   **Mobile App (Flutter):**
-    - Build the release version and deploy it to the respective app stores.
-      ```bash
-      # For Android
-      flutter build appbundle
-
-      # For iOS
-      flutter build ipa
-      ```
+   # Flutter mobile app
+   cd ../client
+   flutter run
+   ```
 
 ## 🗺️ Project Roadmap
 
@@ -182,6 +159,14 @@ This project is prioritized using the MoSCoW method to ensure that critical feat
     -   Automated Reminder Notifications
     -   Penalty Dispute Workflow
     -   Comprehensive Audit Log Viewer
+
+## 📦 Deployment & Tooling
+
+- **Firebase Functions:** `npm run build && firebase deploy --only functions`
+- **Firestore Rules:** `firebase deploy --only firestore:rules`
+- **Admin Dashboard:** `vercel deploy --prod`
+- **Flutter App:** `flutter build appbundle` (Android) / `flutter build ipa` (iOS)
+- **Data Seeding:** `cd functions && npm run seed:firestore`
 
 ## 🤝 Contributing
 
