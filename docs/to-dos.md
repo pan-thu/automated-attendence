@@ -5,8 +5,8 @@
 ## Phase 1: Backend (Firebase & Cloud Functions)
 
 ### 1.1. Authentication & Authorization
--   [ ] **Firebase Auth Setup:**
-    -   [ ] Configure the Email/Password sign-in provider in the Firebase console.
+-   [x] **Firebase Auth Setup:**
+    -   [x] Configure the Email/Password sign-in provider in the Firebase console.
     -   [x] Create the first admin user manually in the console for initial access (use seeding script to sync Firestore metadata).
 -   [x] **Custom Claims for Roles:**
     -   [x] Create a Cloud Function `setUserRole` to assign custom claims (`{ role: 'admin' }`) to a user. This will be triggered by an admin from the dashboard later but needs to exist first for securing other functions.
@@ -16,12 +16,12 @@
 -   [x] **Initial Schema Setup:**
     -   [x] Seed the `COMPANY_SETTINGS/main` document with defaults (via `npm run seed:firestore`).
     -   [x] Seed the `USERS` collection with the initial admin user (via `npm run seed:firestore`).
-    -   [ ] Create `ATTENDANCE_RECORDS` collection structure
-    -   [ ] Create `LEAVE_REQUESTS` collection structure  
-    -   [ ] Create `PENALTIES` collection structure
-    -   [ ] Create `VIOLATION_HISTORY` collection structure
-    -   [ ] Create `NOTIFICATIONS` collection structure
-    -   [ ] Create `AUDIT_LOGS` collection structure
+    -   [x] Create `ATTENDANCE_RECORDS` collection structure
+    -   [x] Create `LEAVE_REQUESTS` collection structure  
+    -   [x] Create `PENALTIES` collection structure
+    -   [x] Create `VIOLATION_HISTORY` collection structure
+    -   [x] Create `NOTIFICATIONS` collection structure
+    -   [x] Create `AUDIT_LOGS` collection structure
 -   [ ] **Firestore Security Rules (`firestore.rules`):**
     -   [ ] **Default Deny:** Start with `allow read, write: if false;` globally.
     -   [ ] **USERS collection:**
