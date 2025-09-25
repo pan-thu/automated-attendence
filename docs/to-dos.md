@@ -22,29 +22,26 @@
     -   [x] Create `VIOLATION_HISTORY` collection structure
     -   [x] Create `NOTIFICATIONS` collection structure
     -   [x] Create `AUDIT_LOGS` collection structure
--   [ ] **Firestore Security Rules (`firestore.rules`):**
-    -   [ ] **Default Deny:** Start with `allow read, write: if false;` globally.
-    -   [ ] **USERS collection:**
+-   [x] **Firestore Security Rules (`firestore.rules`):**
+    -   [x] **Default Deny:** Start with `allow read, write: if false;` globally.
+    -   [x] **USERS collection:**
         -   Allow authenticated users to read their own document.
         -   Allow users with an `admin` custom claim to read/write any document in the `USERS` collection.
-    -   [ ] **COMPANY_SETTINGS collection:**
+    -   [x] **COMPANY_SETTINGS collection:**
         -   Allow any authenticated user to read the `main` document.
         -   Allow only users with an `admin` custom claim to write to the `main` document.
-    -   [ ] **ATTENDANCE_RECORDS, LEAVE_REQUESTS, PENALTIES:**
+    -   [x] **ATTENDANCE_RECORDS, LEAVE_REQUESTS, PENALTIES:**
         -   Allow employees to read their own records.
         -   Allow admins to read/write all records.
         -   Deny all client-side writes to sensitive fields that should only be modified by Cloud Functions (e.g., leave status, penalty amount).
-    -   [ ] **VIOLATION_HISTORY & AUDIT_LOGS:**
+    -   [x] **VIOLATION_HISTORY & AUDIT_LOGS:**
         -   Allow only admins to read.
         -   Deny all client-side writes (Cloud Functions only).
-    -   [ ] **NOTIFICATIONS collection:**
+    -   [x] **NOTIFICATIONS collection:**
         -   Allow employees to read their own notifications.
         -   Allow admins to create announcements via Cloud Functions only.
 
 ### 1.3. Cloud Functions (Core Business Logic)
-
-All functions should be written in TypeScript. We will need to initialize a `functions` directory for this.
-
 -   [ ] **Employee Management Functions (Callable):**
     -   [ ] `createEmployee(data)`: Creates a user in Firebase Auth and a corresponding document in Firestore `USERS`. Sets the `employee` custom claim. *Security: Admin only.*
     -   [ ] `updateEmployee(data)`: Updates a user's document in the Firestore `USERS` collection. *Security: Admin only.*
