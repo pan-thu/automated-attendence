@@ -21,6 +21,10 @@ export interface CompanySettingsInput {
   geoFencingEnabled?: boolean;
 }
 
+export interface CompanySettings extends CompanySettingsInput {
+  workplace_center?: FirebaseFirestore.GeoPoint;
+}
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
@@ -339,6 +343,15 @@ export const updateCompanySettings = async (
   }
 
   await firestore.collection(SETTINGS_COLLECTION).doc('main').set(payload, { merge: true });
+};
+
+export const getCompanySettings = async (): Promise<CompanySettings> => {
+  const snapshot = await firestore.collection(SETTINGS_COLLECTION).doc('main').get();
+  if (!snapshot.exists) {
+    return {} as CompanySettings;
+  }
+
+  return snapshot.data() as CompanySettings;
 };
 
 

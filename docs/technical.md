@@ -268,7 +268,7 @@ The project utilizes a specific set of modern technologies chosen for their effi
 All critical business logic is executed within Firebase Cloud Functions to ensure security and data integrity. Key callable and scheduled services include:
 - `handleClockIn`: Validates geofence proximity, time windows, and attendance rules before committing updates to `ATTENDANCE_RECORDS` and logging outcomes.
 - Administrative callables: `setUserRole`, `createEmployee`, `updateEmployee`, `toggleUserStatus`, `manualSetAttendance`, `handleLeaveApproval`, `updateCompanySettings`, `waivePenalty`, `calculateMonthlyViolations`, `generateAttendanceReport`, `getDashboardStats`, `sendNotification`, and `sendBulkNotification`.
-- Automations: Daily reminder jobs, monthly penalty calculations, and analytics synchronisation triggered via Cloud Scheduler, consuming data from `COMPANY_SETTINGS`, `ATTENDANCE_RECORDS`, `LEAVE_REQUESTS`, `PENALTIES`, `VIOLATION_HISTORY`, and `AUDIT_LOGS`.
+- Automations: Daily reminder jobs, scheduled notifications, monthly penalty calculations, and analytics synchronisation triggered via Cloud Scheduler, consuming data from `COMPANY_SETTINGS`, `ATTENDANCE_RECORDS`, `LEAVE_REQUESTS`, `PENALTIES`, `VIOLATION_HISTORY`, and `AUDIT_LOGS`.
 
 **4.2. Core Logic: The Configurable Three-Check Attendance System**
 The system's logic is highly flexible, driven by rules stored in the `COMPANY_SETTINGS` collection in Firestore. This allows administrators to adjust business rules without requiring a code deployment.

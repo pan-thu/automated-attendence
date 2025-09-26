@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { admin } from './firebase';
 import { assertAdmin, requireAuthUid, CallableContext, assertAuthenticated } from './utils/auth';
 import { assertPayload, assertString, assertEmail, assertBoolean } from './utils/validators';
@@ -18,10 +19,15 @@ import {
 import {
   generateAttendanceReport as generateAttendanceReportService,
   getDashboardStats as getDashboardStatsService,
+  aggregateDailyAttendance,
+  aggregateMonthlyAttendance,
 } from './services/analytics';
 import {
   queueNotification,
   queueBulkNotifications,
+  getEmployeesNeedingClockInReminder,
+  getEmployeesWithPendingActions,
+  getActiveEmployees,
 } from './services/notifications';
 import { handleClockIn as handleClockInService } from './services/clockInUtils';
 import { recordAuditLog } from './services/audit';
@@ -503,3 +509,86 @@ export const handleClockIn = functions.https.onCall(async (data, context) => {
 
   return result;
 });
+
+export const scheduledPenaltyAutomation = onSchedule(
+  {
+    schedule: '0 2 1 * *',
+    timeZone: 'UTC',
+  },
+  async () => {
+    const now = new Date();
+    const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    await calculateMonthlyViolationsService({ month });
+  }
+);
+
+export const scheduledDailyClockInReminder = onSchedule(
+  {
+    schedule: '30 8 * * *',
+    timeZone: 'UTC',
+  },
+  async () => {
+    const today = new Date();
+    const dateKey = today.toISOString().slice(0, 10);
+    const targets = await getEmployeesNeedingClockInReminder(dateKey);
+    if (targets.length === 0) {
+      return;
+    }
+
+    await queueBulkNotifications({
+      userIds: targets,
+      userId: '',
+      title: 'Clock-In Reminder',
+      message: 'Friendly reminder: please clock in for today.',
+      category: 'attendance',
+      metadata: { dateKey },
+    });
+  }
+);
+
+export const scheduledPendingActionDigest = onSchedule(
+  {
+    schedule: '0 14 * * *',
+    timeZone: 'UTC',
+  },
+  async () => {
+    const admins = await getEmployeesWithPendingActions();
+    if (admins.length === 0) {
+      return;
+    }
+
+    await queueBulkNotifications({
+      userIds: admins,
+      userId: '',
+      title: 'Pending Approvals',
+      message: 'You have pending leave requests awaiting review.',
+      category: 'admin',
+    });
+  }
+);
+
+export const scheduledDailyAnalyticsSync = onSchedule(
+  {
+    schedule: '15 0 * * *',
+    timeZone: 'UTC',
+  },
+  async () => {
+    const yesterday = new Date();
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const dateKey = yesterday.toISOString().slice(0, 10);
+    await aggregateDailyAttendance(dateKey);
+  }
+);
+
+export const scheduledMonthlyAnalyticsSync = onSchedule(
+  {
+    schedule: '30 1 1 * *',
+    timeZone: 'UTC',
+  },
+  async () => {
+    const lastMonth = new Date();
+    lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1);
+    const monthKey = `${lastMonth.getUTCFullYear()}-${String(lastMonth.getUTCMonth() + 1).padStart(2, '0')}`;
+    await aggregateMonthlyAttendance(monthKey);
+  }
+);

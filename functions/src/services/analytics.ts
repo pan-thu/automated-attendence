@@ -3,6 +3,7 @@ import { firestore } from '../utils/firestore';
 
 const ATTENDANCE_COLLECTION = 'ATTENDANCE_RECORDS';
 const LEAVE_COLLECTION = 'LEAVE_REQUESTS';
+const ANALYTICS_COLLECTION = 'ANALYTICS_SUMMARY';
 
 export interface AttendanceReportInput {
   userId?: string;
@@ -66,6 +67,54 @@ export const getDashboardStats = async (input: DashboardStatsInput) => {
     },
     pendingLeaves: leaveSnap.size,
   };
+};
+
+export const aggregateDailyAttendance = async (date: string) => {
+  const stats = await getDashboardStats({ date });
+  const docId = `${date}`;
+  const ref = firestore.collection(ANALYTICS_COLLECTION).doc(docId);
+
+  await ref.set({
+    date,
+    attendance: stats.attendance,
+    pendingLeaves: stats.pendingLeaves,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return stats;
+};
+
+export const aggregateMonthlyAttendance = async (month: string) => {
+  const [yearStr, monthStr] = month.split('-');
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
+
+  const start = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
+  const end = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59));
+
+  const attendanceSnap = await firestore
+    .collection(ATTENDANCE_COLLECTION)
+    .where('attendanceDate', '>=', admin.firestore.Timestamp.fromDate(start))
+    .where('attendanceDate', '<=', admin.firestore.Timestamp.fromDate(end))
+    .get();
+
+  const present = attendanceSnap.docs.filter((doc) => doc.get('status') === 'present').length;
+  const absent = attendanceSnap.docs.filter((doc) => doc.get('status') === 'absent').length;
+  const halfDay = attendanceSnap.docs.filter((doc) => doc.get('status') === 'half_day_absent').length;
+
+  const analyticsDoc = {
+    month,
+    attendance: {
+      present,
+      absent,
+      halfDay,
+      total: attendanceSnap.size,
+    },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await firestore.collection(ANALYTICS_COLLECTION).doc(`monthly_${month}`).set(analyticsDoc);
+  return analyticsDoc;
 };
 
 

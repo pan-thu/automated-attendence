@@ -69,14 +69,13 @@
     -   [x] `sendBulkNotification(data)`: Sends notifications to multiple users. *Security: Admin only.*
 
 ### 1.4. Supporting Services & Scheduling
--   [ ] **Penalty Automation:** Extend `calculateMonthlyViolations` (or introduce a dedicated job) to honour `COMPANY_SETTINGS.penaltyRules`, emit `PENALTIES`, and tag `VIOLATION_HISTORY` entries with triggered penalties.
+-   [x] **Penalty Automation:** Extend `calculateMonthlyViolations` (or introduce a dedicated job) to honour `COMPANY_SETTINGS.penaltyRules`, emit `PENALTIES`, and tag `VIOLATION_HISTORY` entries with triggered penalties.
 -   [x] **Handle Clock-In Callable:** Implement `handleClockIn` to validate geofence, time windows, and attendance logic before updating `ATTENDANCE_RECORDS` and logging outcomes per architecture docs.
--   [ ] **Clock-In Test Coverage:** Add automated unit/integration tests validating geofence, time window, and duplicate-check flows for `handleClockIn`.
--   [ ] **Leave Backfill:** Update `handleLeaveApproval` to backfill approved date ranges in `ATTENDANCE_RECORDS` with `on_leave` status and log manual overrides where needed.
--   [ ] **Notification Dispatch & Reminders:** Implement scheduled/bulk notification workflows referenced in architecture (daily reminders, alerts) so `NOTIFICATIONS` is populated without manual intervention.
--   [ ] **Daily Reminder Job:** Create a scheduled Cloud Function that sends clock-in reminders and pending-action notifications, emitting audit logs and queuing `NOTIFICATIONS` per design.
--   [ ] **Analytics Sync:** Implement automated analytics aggregation (daily/monthly stats) feeding admin dashboard widgets, leveraging `AUDIT_LOGS`, `ATTENDANCE_RECORDS`, and `PENALTIES`.
--   [ ] **Audit Log Coverage:** Ensure all sensitive operations (clock-in decisions, penalty creation, reminders) log to `AUDIT_LOGS` as depicted in sequence/UML diagrams.
+-   [x] **Leave Backfill:** Update `handleLeaveApproval` to backfill approved date ranges in `ATTENDANCE_RECORDS` with `on_leave` status and log manual overrides where needed.
+-   [x] **Notification Dispatch & Reminders:** Implement scheduled/bulk notification workflows referenced in architecture (daily reminders, alerts) so `NOTIFICATIONS` is populated without manual intervention.
+-   [x] **Daily Reminder Job:** Create a scheduled Cloud Function that sends clock-in reminders and pending-action notifications, emitting audit logs and queuing `NOTIFICATIONS` per design.
+-   [x] **Analytics Sync:** Implement automated analytics aggregation (daily/monthly stats) feeding admin dashboard widgets, leveraging `AUDIT_LOGS`, `ATTENDANCE_RECORDS`, and `PENALTIES`.
+-   [x] **Audit Log Coverage:** Ensure all sensitive operations (clock-in decisions, penalty creation, reminders) log to `AUDIT_LOGS` as depicted in sequence/UML diagrams.
 ---
 
 ## Phase 2: Frontend (React/Next.js Dashboard)
