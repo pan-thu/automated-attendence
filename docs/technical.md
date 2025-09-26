@@ -239,6 +239,8 @@ The project utilizes a specific set of modern technologies chosen for their effi
   - **Cloud Storage:** Used for storing files, such as medical certificates uploaded for leave requests.
 - **Node.js:** The runtime environment for executing Cloud Functions.
 - **TypeScript:** Provides static typing for robust and maintainable Cloud Functions code.
+- **Input Validation:** All configuration inputs (e.g., company settings) are validated server-side before being persisted to Firestore, ensuring data integrity and safeguarding automated workflows.
+- **Clock-In Callable:** The `handleClockIn` callable Cloud Function now orchestrates geofence, time-window, and attendance updates in a single server-authoritative flow, emitting audit logs and user notifications for every successful check-in.
 
 **3.2. Mobile App (Flutter)**
 
@@ -290,54 +292,4 @@ The database is structured into several collections to normalize data and ensure
 
 - **`USERS`**: Stores all user-related information.
 
-  - `userId` (PK), `email` (UK), `fullName`, `role` ("employee", "admin"), `department`, `position`, `isActive`, `fullLeaveBalance`, `halfLeaveBalance`, `medicalLeaveBalance`, `maternityLeaveBalance`, `phoneNumber`, `profileImageUrl`, `createdAt`, `updatedAt`.
-
-- **`ATTENDANCE_RECORDS`**: A record for each employee for each working day.
-
-  - `recordId` (PK: `{userId}_{YYYY-MM-DD}`), `userId` (FK), `attendanceDate`, `status` ("present", "absent", etc.), `check1_timestamp`, `check1_status`, `check1_location`, `check2_timestamp`, `check2_status`, `check2_location`, `check3_timestamp`, `check3_status`, `check3_location`, `totalWorkingHours`, `notes`, `isManualEntry`, `approvedBy` (FK).
-
-- **`LEAVE_REQUESTS`**: Manages all employee leave submissions.
-
-  - `requestId` (PK), `userId` (FK), `leaveType`, `startDate`, `endDate`, `totalDays`, `reason`, `status` ("pending", "approved", etc.), `approvedBy` (FK), `documentUrl`.
-
-- **`PENALTIES`**: Contains records of all financial penalties applied to users.
-
-  - `penaltyId` (PK), `userId` (FK), `dateIncurred`, `violationType`, `amount`, `status` ("active", "waived", etc.), `approvedBy` (FK).
-
-- **`VIOLATION_HISTORY`**: A log of every individual attendance violation.
-
-  - `historyId` (PK), `userId` (FK), `violationDate`, `violationType`, `monthlyCount`, `penaltyTriggered`, `penaltyId` (FK).
-
-- **`COMPANY_SETTINGS`**: A singleton document (ID: "main") that configures the system's behavior.
-
-  - `companyName`, `workplace_center` (GeoPoint), `workplace_radius` (number), `timeWindows` (object), `gracePeriods` (object), `penaltyRules` (object), `leavePolicy` (object), `timezone`, `workingDays`, `holidays`.
-
-- **`NOTIFICATIONS`**: Stores user-facing notifications.
-
-  - `notificationId` (PK), `userId` (FK), `title`, `message`, `category`, `isRead`, `relatedId`.
-
-- **`AUDIT_LOGS`**: Tracks significant actions taken within the system for security and compliance.
-  - `logId` (PK), `userId` (FK), `action`, `resource`, `resourceId`, `oldValues`, `newValues`, `timestamp`, `status`.
-
-#### **6. Security Considerations**
-
-1.  **Authentication:** All access is gated by Firebase Authentication.
-2.  **Authorization:** Firestore Security Rules must be written to reflect the complex model and roles ("admin", "employee").
-    - Employees can read their own documents across all relevant collections.
-    - Admins have read/write access to most collections for management purposes.
-    - **Crucially, no client can directly write to `AUDIT_LOGS`, `PENALTIES`, or `VIOLATION_HISTORY`. These collections are written to exclusively by trusted server-side Cloud Functions.**
-3.  **Data Integrity:** All business logic is executed in Cloud Functions, providing a secure, server-authoritative environment.
-
-#### **7. Environment Setup & Deployment**
-
-1.  **Prerequisites:** Install Node.js, Flutter SDK, Firebase CLI, and Vercel CLI.
-    -  Cloud Functions requires Node.js 22 LTS locally and in deployment. Ensure your local version and `functions/package.json` `engines.node` are set to `"22"`.
-2.  **Project Setup:** Clone repositories and install dependencies (`npm install`, `flutter pub get`).
-3.  **Firebase Configuration:** Create a Firebase project and store configuration keys in `.env` files. These files must not be committed to version control.
-4.  **Deployment:**
-    - **Cloud Functions:** `firebase deploy --only functions`
-    - **Firestore Rules:** `firebase deploy --only firestore:rules`
-    - **React Admin Dashboard:** `vercel deploy --prod`
-    - **Flutter Mobile App:** Build and deploy through the Google Play Store and Apple App Store.
-5.  **Data Seeding:** Provide a service-account JSON via `.env` (`GOOGLE_APPLICATION_CREDENTIALS`) and run `npm run seed:firestore` to create the initial admin and baseline company settings locally.
-
+  - `

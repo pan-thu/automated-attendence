@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions';
 import { admin } from './firebase';
-import { assertAdmin, requireAuthUid, CallableContext } from './utils/auth';
+import { assertAdmin, requireAuthUid, CallableContext, assertAuthenticated } from './utils/auth';
 import { assertPayload, assertString, assertEmail, assertBoolean } from './utils/validators';
 import {
   createEmployee as createEmployeeService,
@@ -23,6 +23,7 @@ import {
   queueNotification,
   queueBulkNotifications,
 } from './services/notifications';
+import { handleClockIn as handleClockInService } from './services/clockInUtils';
 import { recordAuditLog } from './services/audit';
 
 type SupportedRole = 'admin' | 'employee';
@@ -469,6 +470,35 @@ export const sendBulkNotification = functions.https.onCall(async (data, context)
     status: 'success',
     performedBy: requireAuthUid(ctx),
     metadata: { count: result.count },
+  });
+
+  return result;
+});
+
+export const handleClockIn = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAuthenticated(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const userId = requireAuthUid(ctx);
+
+  const latitude = payload.latitude as number;
+  const longitude = payload.longitude as number;
+  const isMocked = payload.isMocked as boolean | undefined;
+  const timestamp = payload.timestamp as string | undefined;
+
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+    throw new functions.https.HttpsError('invalid-argument', 'Valid latitude and longitude are required.');
+  }
+
+  const clockInTimestamp = timestamp ?? new Date().toISOString();
+
+  const result = await handleClockInService({
+    userId,
+    payload: {
+      timestamp: clockInTimestamp,
+      location: { latitude, longitude },
+      isMocked,
+    },
   });
 
   return result;
