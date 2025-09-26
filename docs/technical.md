@@ -263,7 +263,10 @@ The project utilizes a specific set of modern technologies chosen for their effi
 #### **4. Detailed Geofencing & Core Logic Implementation**
 
 **4.1. The Role of Firebase Cloud Functions**
-All critical business logic is executed within Firebase Cloud Functions to ensure security and data integrity. The primary function `handleClockIn` is an HTTPS Callable Function.
+All critical business logic is executed within Firebase Cloud Functions to ensure security and data integrity. Key callable and scheduled services include:
+- `handleClockIn`: Validates geofence proximity, time windows, and attendance rules before committing updates to `ATTENDANCE_RECORDS` and logging outcomes.
+- Administrative callables: `setUserRole`, `createEmployee`, `updateEmployee`, `toggleUserStatus`, `manualSetAttendance`, `handleLeaveApproval`, `updateCompanySettings`, `waivePenalty`, `calculateMonthlyViolations`, `generateAttendanceReport`, `getDashboardStats`, `sendNotification`, and `sendBulkNotification`.
+- Automations: Daily reminder jobs, monthly penalty calculations, and analytics synchronisation triggered via Cloud Scheduler, consuming data from `COMPANY_SETTINGS`, `ATTENDANCE_RECORDS`, `LEAVE_REQUESTS`, `PENALTIES`, `VIOLATION_HISTORY`, and `AUDIT_LOGS`.
 
 **4.2. Core Logic: The Configurable Three-Check Attendance System**
 The system's logic is highly flexible, driven by rules stored in the `COMPANY_SETTINGS` collection in Firestore. This allows administrators to adjust business rules without requiring a code deployment.
@@ -277,9 +280,9 @@ The system's logic is highly flexible, driven by rules stored in the `COMPANY_SE
 
 **4.3. Penalty & Leave System**
 
-- **Violation Tracking:** Every time a negative status (`late`, `early_leave`) is recorded in an attendance document, or a day is finalized as `absent` or `half_day_absent`, a corresponding document is created in the `VIOLATION_HISTORY` collection.
-- **Penalty Incurrence:** A separate, scheduled Cloud Function (`calculateMonthlyPenalties`) can be run at the end of each month. This function reads the `VIOLATION_HISTORY` for each user, applies the `penaltyRules` from `COMPANY_SETTINGS`, and creates documents in the `PENALTIES` collection if the violation count exceeds the configured threshold.
-- **Leave Logic:** When an admin approves a leave request via the dashboard, a Cloud Function (`handleLeaveApproval`) is triggered. This function validates the request, deducts the balance from the user's profile, updates the leave request status, and can retroactively create `ATTENDANCE_RECORDS` with the status "on_leave" for the approved dates.
+- **Violation Tracking:** Negative attendance outcomes (`late`, `early_leave`, `absent`, `half_day_absent`) create or update entries in `VIOLATION_HISTORY`, preserving a detailed history of infractions.
+- **Penalty Incurrence:** A scheduled Cloud Function evaluates accumulated violations, applies `penaltyRules` defined in `COMPANY_SETTINGS`, and emits `PENALTIES` documents when thresholds are reached.
+- **Leave Logic:** `handleLeaveApproval` validates requests, adjusts user leave balances, updates request metadata, and backfills `ATTENDANCE_RECORDS` with `on_leave` status for approved ranges while logging the action.
 
 #### **5. Database Schema (Firestore Data Model)**
 

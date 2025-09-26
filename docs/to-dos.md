@@ -68,6 +68,13 @@
     -   [x] `sendNotification(data)`: Sends push notifications to users for leave approvals, penalties, etc. *Security: Admin only.*
     -   [x] `sendBulkNotification(data)`: Sends notifications to multiple users. *Security: Admin only.*
 
+### 1.4. Supporting Services & Scheduling
+-   [ ] **Penalty Automation:** Extend `calculateMonthlyViolations` (or introduce a dedicated job) to honour `COMPANY_SETTINGS.penaltyRules`, emit `PENALTIES`, and tag `VIOLATION_HISTORY` entries with triggered penalties.
+-   [ ] **Leave Backfill:** Update `handleLeaveApproval` to backfill approved date ranges in `ATTENDANCE_RECORDS` with `on_leave` status and log manual overrides where needed.
+-   [ ] **Notification Dispatch & Reminders:** Implement scheduled/bulk notification workflows referenced in architecture (daily reminders, alerts) so `NOTIFICATIONS` is populated without manual intervention.
+-   [ ] **Daily Reminder Job:** Create a scheduled Cloud Function that sends clock-in reminders and pending-action notifications, emitting audit logs and queuing `NOTIFICATIONS` per design.
+-   [ ] **Analytics Sync:** Implement automated analytics aggregation (daily/monthly stats) feeding admin dashboard widgets, leveraging `AUDIT_LOGS`, `ATTENDANCE_RECORDS`, and `PENALTIES`.
+-   [ ] **Audit Log Coverage:** Ensure all sensitive operations (clock-in decisions, penalty creation, reminders) log to `AUDIT_LOGS` as depicted in sequence/UML diagrams.
 ---
 
 ## Phase 2: Frontend (React/Next.js Dashboard)
@@ -170,6 +177,16 @@ With the backend logic in place, we can build the user interface for admins.
 
 ---
 
-## Meta/Infra Status
-- 2025-09-24: Set Cloud Functions `engines.node` to `22` and `main` to `lib/index.js`. Built TypeScript and verified `setUserRole` loads in Functions shell. Emulator warns host Node 22 in use, which is acceptable locally.
-- 2025-09-24: Added Firestore seeding script (`npm run seed:firestore`) that loads `.env`, grants admin claim, and seeds `USERS`/`COMPANY_SETTINGS`.
+## Phase 3: Employee Callables (Mobile App)
+
+-   [ ] **Clock-In Workflow:** Build the `handleClockIn` callable to validate geofence, time windows, and attendance rules before updating `ATTENDANCE_RECORDS` and logging to `AUDIT_LOGS`/`VIOLATION_HISTORY`.
+-   [ ] **Profile Management:** Expose `updateEmployeeProfile` so employees can edit allowable fields (phone, photo) with server-side validation and audit logging.
+-   [ ] **Attendance History Retrieval:** Implement `getAttendanceHistory` for self-service access to `ATTENDANCE_RECORDS`, including check details and daily statuses.
+-   [ ] **Violation & Penalty Summary:** Provide `getViolationSummary` / `getPenaltySummary` callables returning the employee’s `VIOLATION_HISTORY` and `PENALTIES` records.
+-   [ ] **Leave Submission:** Create `submitLeaveRequest` (and optional `cancelLeaveRequest`) so employees can file requests, upload documents, and trigger notification workflows.
+-   [ ] **Notification Management:** Add `listNotifications` and `markNotificationRead` callables to let employees view and acknowledge items in `NOTIFICATIONS`.
+-   [ ] **Device Token Registration:** Support a callable (or HTTPS endpoint) to register push notification tokens, ensuring reminders reach the mobile app.
+-   [ ] **Settings Sync:** Deliver `getCompanySettingsForEmployee` providing read-only fields (time windows, geofence radius, holidays) for client-side display.
+
+---
+
