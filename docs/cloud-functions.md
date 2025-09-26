@@ -23,6 +23,16 @@ This document summarizes the callable Cloud Functions exposed in `functions/src/
 | `getDashboardStats` | Provides day-level attendance stats and pending leave counts. | `{ date: 'YYYY-MM-DD' }` | `{ attendance: { present, absent, halfDay, total }, pendingLeaves }` |
 | `sendNotification` | Queues a notification for a specific user. | `{ userId, title, message, category?, type?, relatedId?, metadata? }` | `{ success: true }` |
 | `sendBulkNotification` | Queues notifications for multiple users at once. | `{ userIds: string[], title, message, category?, type?, relatedId?, metadata? }` | `{ count }` |
+| `handleClockIn` | Employee clock-in endpoint enforcing location validation before calling `handleClockInService`. | `{ latitude, longitude, timestamp?, isMocked? }` | `{ success: true, ... }` |
+
+## Scheduled Jobs (v2 Scheduler)
+| Function | Schedule (UTC) | Purpose |
+| --- | --- | --- |
+| `scheduledPenaltyAutomation` | `0 2 1 * *` | Triggers monthly violation aggregation on the first of each month. |
+| `scheduledDailyClockInReminder` | `30 8 * * *` | Sends reminders to employees who have not clocked in for the day. |
+| `scheduledPendingActionDigest` | `0 14 * * *` | Notifies admins about pending approvals. |
+| `scheduledDailyAnalyticsSync` | `15 0 * * *` | Aggregates attendance data for the previous day. |
+| `scheduledMonthlyAnalyticsSync` | `30 1 1 * *` | Aggregates monthly attendance metrics for the prior month. |
 
 Each callable logs an entry to `AUDIT_LOGS` containing the acting admin UID, target resource, and context.
 
