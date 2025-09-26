@@ -42,31 +42,31 @@
         -   Allow admins to create announcements via Cloud Functions only.
 
 ### 1.3. Cloud Functions (Core Business Logic)
--   [ ] **Employee Management Functions (Callable):**
-    -   [ ] `createEmployee(data)`: Creates a user in Firebase Auth and a corresponding document in Firestore `USERS`. Sets the `employee` custom claim. *Security: Admin only.*
-    -   [ ] `updateEmployee(data)`: Updates a user's document in the Firestore `USERS` collection. *Security: Admin only.*
-    -   [ ] `toggleUserStatus(data)`: Toggles `isActive` flag in Firestore and disables/enables the user in Firebase Auth. *Security: Admin only.*
+-   [x] **Employee Management Functions (Callable):**
+    -   [x] `createEmployee(data)`: Creates a user in Firebase Auth and a corresponding document in Firestore `USERS`. Sets the `employee` custom claim. *Security: Admin only.*
+    -   [x] `updateEmployee(data)`: Updates a user's document in the Firestore `USERS` collection. *Security: Admin only.*
+    -   [x] `toggleUserStatus(data)`: Toggles `isActive` flag in Firestore and disables/enables the user in Firebase Auth. *Security: Admin only.*
 
--   [ ] **Attendance Management Functions (Callable):**
-    -   [ ] `manualSetAttendance(data)`: Allows an admin to manually create or overwrite an attendance record. Requires a `reason` and logs the action to `AUDIT_LOGS`. *Security: Admin only.*
+-   [x] **Attendance Management Functions (Callable):**
+    -   [x] `manualSetAttendance(data)`: Allows an admin to manually create or overwrite an attendance record. Requires a `reason` and logs the action to `AUDIT_LOGS`. *Security: Admin only.*
 
--   [ ] **Leave Management Functions (Callable):**
-    -   [ ] `handleLeaveApproval(data)`: Takes `requestId` and `action` ('approve' or 'reject'). Updates the `LEAVE_REQUESTS` document, adjusts user's leave balance, populates `ATTENDANCE_RECORDS` if approved, and sends a notification. *Security: Admin only.*
+-   [x] **Leave Management Functions (Callable):**
+    -   [x] `handleLeaveApproval(data)`: Takes `requestId` and `action` ('approve' or 'reject'). Updates the `LEAVE_REQUESTS` document, adjusts user's leave balance, populates `ATTENDANCE_RECORDS` if approved, and sends a notification. *Security: Admin only.*
 
--   [ ] **Settings Management Functions (Callable):**
-    -   [ ] `updateCompanySettings(data)`: Updates the `COMPANY_SETTINGS` document. Performs validation on incoming data and logs the change to `AUDIT_LOGS`. *Security: Admin only.*
+-   [x] **Settings Management Functions (Callable):**
+    -   [x] `updateCompanySettings(data)`: Updates the `COMPANY_SETTINGS` document. Performs validation on incoming data and logs the change to `AUDIT_LOGS`. *Security: Admin only.*
 
--   [ ] **Penalty & Violation Functions:**
-    -   [ ] `waivePenalty(data)`: Callable function to update a penalty's status to `waived`. Requires a `waivedReason`. *Security: Admin only.*
-    -   [ ] `calculateMonthlyViolations(data)`: (Scheduled or Callable) Iterates through user attendance for a month, generates `VIOLATION_HISTORY`, and triggers penalty creation if thresholds are met. *Security: Admin only.*
+-   [x] **Penalty & Violation Functions:**
+    -   [x] `waivePenalty(data)`: Callable function to update a penalty's status to `waived`. Requires a `waivedReason`. *Security: Admin only.*
+    -   [x] `calculateMonthlyViolations(data)`: (Scheduled or Callable) Iterates through user attendance for a month, generates `VIOLATION_HISTORY`, and triggers penalty creation if thresholds are met. *Security: Admin only.*
 
--   [ ] **Analytics & Reporting Functions:**
-    -   [ ] `generateAttendanceReport(data)`: Generates attendance reports for specified date ranges and employees. *Security: Admin only.*
-    -   [ ] `getDashboardStats(data)`: Returns aggregated statistics for the admin dashboard. *Security: Admin only.*
+-   [x] **Analytics & Reporting Functions:**
+    -   [x] `generateAttendanceReport(data)`: Generates attendance reports for specified date ranges and employees. *Security: Admin only.*
+    -   [x] `getDashboardStats(data)`: Returns aggregated statistics for the admin dashboard. *Security: Admin only.*
 
--   [ ] **Notification Functions:**
-    -   [ ] `sendNotification(data)`: Sends push notifications to users for leave approvals, penalties, etc. *Security: Admin only.*
-    -   [ ] `sendBulkNotification(data)`: Sends notifications to multiple users. *Security: Admin only.*
+-   [x] **Notification Functions:**
+    -   [x] `sendNotification(data)`: Sends push notifications to users for leave approvals, penalties, etc. *Security: Admin only.*
+    -   [x] `sendBulkNotification(data)`: Sends notifications to multiple users. *Security: Admin only.*
 
 ---
 

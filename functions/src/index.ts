@@ -1,9 +1,29 @@
 import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
-
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+import { admin } from './firebase';
+import { assertAdmin, requireAuthUid, CallableContext } from './utils/auth';
+import { assertPayload, assertString, assertEmail, assertBoolean } from './utils/validators';
+import {
+  createEmployee as createEmployeeService,
+  updateEmployee as updateEmployeeService,
+  toggleUserStatus as toggleUserStatusService,
+  DEFAULT_LEAVE_KEYS,
+} from './services/users';
+import { setManualAttendance, ManualAttendanceInput } from './services/attendance';
+import { handleLeaveApproval as handleLeaveApprovalService } from './services/leaves';
+import { updateCompanySettings as updateCompanySettingsService } from './services/settings';
+import {
+  waivePenalty as waivePenaltyService,
+  calculateMonthlyViolations as calculateMonthlyViolationsService,
+} from './services/penalties';
+import {
+  generateAttendanceReport as generateAttendanceReportService,
+  getDashboardStats as getDashboardStatsService,
+} from './services/analytics';
+import {
+  queueNotification,
+  queueBulkNotifications,
+} from './services/notifications';
+import { recordAuditLog } from './services/audit';
 
 type SupportedRole = 'admin' | 'employee';
 
@@ -15,24 +35,35 @@ interface SetUserRolePayload {
 
 const allowedRoles: SupportedRole[] = ['admin', 'employee'];
 
-export const setUserRole = functions.https.onCall(async (request) => {
-  const { data, auth } = request;
-
-  if (!auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Authentication required to set user roles.');
+const extractLeaveBalances = (
+  input: unknown
+): Partial<Record<typeof DEFAULT_LEAVE_KEYS[number], number>> | undefined => {
+  if (!input || typeof input !== 'object') {
+    return undefined;
   }
 
-  const requesterRole = auth.token?.role as SupportedRole | undefined;
+  const result: Partial<Record<typeof DEFAULT_LEAVE_KEYS[number], number>> = {};
 
-  if (requesterRole !== 'admin') {
-    throw new functions.https.HttpsError('permission-denied', 'Only admins can assign user roles.');
-  }
+  DEFAULT_LEAVE_KEYS.forEach((key) => {
+    const value = (input as Record<string, unknown>)[key];
+    if (typeof value === 'number' && value >= 0) {
+      result[key] = value;
+    }
+  });
 
-  if (!data || typeof data !== 'object') {
-    throw new functions.https.HttpsError('invalid-argument', 'A payload with uid/email and role is required.');
-  }
+  return Object.keys(result).length > 0 ? result : undefined;
+};
 
-  const payload = data as Partial<SetUserRolePayload>;
+export const setUserRole = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+
+  const rawPayload = assertPayload<Record<string, unknown>>(data, 'A payload with uid/email and role is required.');
+  const payload: SetUserRolePayload = {
+    uid: rawPayload.uid as string | undefined,
+    email: rawPayload.email as string | undefined,
+    role: rawPayload.role as SupportedRole,
+  };
   const { uid, email, role } = payload;
 
   if (!role || !allowedRoles.includes(role)) {
@@ -64,6 +95,8 @@ export const setUserRole = functions.https.onCall(async (request) => {
 
   await admin.auth().setCustomUserClaims(userRecord.uid, mergedClaims);
 
+  const performedBy = requireAuthUid(ctx);
+
   try {
     await admin
       .firestore()
@@ -73,6 +106,7 @@ export const setUserRole = functions.https.onCall(async (request) => {
         {
           role,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedBy: performedBy,
         },
         { merge: true }
       );
@@ -83,11 +117,359 @@ export const setUserRole = functions.https.onCall(async (request) => {
   functions.logger.info('Role updated', {
     targetUid: userRecord.uid,
     newRole: role,
-    performedBy: auth.uid,
+    performedBy,
   });
 
   return {
     success: true,
     message: `Role for ${userRecord.uid} set to ${role}.`,
   };
+});
+
+export const createEmployee = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const email = assertEmail(payload.email);
+  const password = assertString(payload.password, 'password', { min: 8, max: 64 });
+  const fullName = assertString(payload.fullName, 'fullName', { min: 2, max: 120 });
+
+  const department = payload.department ? assertString(payload.department, 'department', { max: 80 }) : undefined;
+  const position = payload.position ? assertString(payload.position, 'position', { max: 80 }) : undefined;
+  const phoneNumber = payload.phoneNumber
+    ? assertString(payload.phoneNumber, 'phoneNumber', { max: 20 })
+    : undefined;
+
+  const leaveBalances = extractLeaveBalances(payload.leaveBalances);
+
+  const { uid } = await createEmployeeService(
+    {
+      email,
+      password,
+      fullName,
+      department,
+      position,
+      phoneNumber,
+      leaveBalances,
+    },
+    requireAuthUid(ctx)
+  );
+
+  await recordAuditLog({
+    action: 'create_employee',
+    resource: 'USERS',
+    resourceId: uid,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    newValues: { email, fullName, department, position },
+  });
+
+  return { uid };
+});
+
+export const updateEmployee = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const uid = assertString(payload.uid, 'uid');
+
+  const fullName = payload.fullName ? assertString(payload.fullName, 'fullName', { min: 2, max: 120 }) : undefined;
+  const department = payload.department
+    ? assertString(payload.department, 'department', { max: 80 })
+    : undefined;
+  const position = payload.position ? assertString(payload.position, 'position', { max: 80 }) : undefined;
+  const phoneNumber = payload.phoneNumber
+    ? assertString(payload.phoneNumber, 'phoneNumber', { max: 20 })
+    : undefined;
+
+  const leaveBalances = extractLeaveBalances(payload.leaveBalances);
+
+  await updateEmployeeService({
+    uid,
+    fullName,
+    department,
+    position,
+    phoneNumber,
+    leaveBalances,
+  });
+
+  await recordAuditLog({
+    action: 'update_employee',
+    resource: 'USERS',
+    resourceId: uid,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    newValues: {
+      fullName,
+      department,
+      position,
+      phoneNumber,
+      leaveBalances,
+    },
+  });
+
+  return { success: true };
+});
+
+export const toggleUserStatus = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const uid = assertString(payload.uid, 'uid');
+  const disable = !assertBoolean(payload.enable, 'enable');
+
+  await toggleUserStatusService(uid, disable);
+
+  await recordAuditLog({
+    action: 'toggle_user_status',
+    resource: 'USERS',
+    resourceId: uid,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    newValues: {
+      isActive: !disable,
+    },
+  });
+
+  return { success: true };
+});
+
+export const manualSetAttendance = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+
+  const userId = assertString(payload.userId, 'userId');
+  const attendanceDate = assertString(payload.attendanceDate, 'attendanceDate');
+  const status = assertString(payload.status, 'status');
+  const reason = assertString(payload.reason, 'reason', { min: 5, max: 255 });
+
+  await setManualAttendance({
+    userId,
+    attendanceDate,
+    status,
+    checks: Array.isArray(payload.checks)
+      ? (payload.checks as ManualAttendanceInput['checks'])
+      : undefined,
+    isManualEntry: true,
+    notes: payload.notes as string | undefined,
+    reason,
+    performedBy: requireAuthUid(ctx),
+  });
+
+  await recordAuditLog({
+    action: 'manual_set_attendance',
+    resource: 'ATTENDANCE_RECORDS',
+    resourceId: `${userId}_${attendanceDate}`,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    reason,
+    newValues: {
+      status,
+      notes: payload.notes,
+    },
+  });
+
+  return { success: true };
+});
+
+export const handleLeaveApproval = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const requestId = assertString(payload.requestId, 'requestId');
+  const action = assertString(payload.action, 'action');
+  if (!['approve', 'reject'].includes(action)) {
+    throw new functions.https.HttpsError('invalid-argument', 'Action must be approve or reject.');
+  }
+
+  try {
+    await handleLeaveApprovalService({
+      requestId,
+      action: action as 'approve' | 'reject',
+      reviewerId: requireAuthUid(ctx),
+      notes: payload.notes as string | undefined,
+    });
+  } catch (error) {
+    throw new functions.https.HttpsError('failed-precondition', (error as Error).message);
+  }
+
+  await recordAuditLog({
+    action: `leave_${action}`,
+    resource: 'LEAVE_REQUESTS',
+    resourceId: requestId,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    reason: (payload.notes as string | undefined) ?? undefined,
+  });
+
+  return { success: true };
+});
+
+export const updateCompanySettings = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+
+  await updateCompanySettingsService(payload, requireAuthUid(ctx));
+
+  await recordAuditLog({
+    action: 'update_company_settings',
+    resource: 'COMPANY_SETTINGS',
+    resourceId: 'main',
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    newValues: payload,
+  });
+
+  return { success: true };
+});
+
+export const waivePenalty = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const penaltyId = assertString(payload.penaltyId, 'penaltyId');
+  const waivedReason = assertString(payload.waivedReason, 'waivedReason', { min: 5, max: 200 });
+
+  await waivePenaltyService({
+    penaltyId,
+    waivedReason,
+    performedBy: requireAuthUid(ctx),
+  });
+
+  await recordAuditLog({
+    action: 'waive_penalty',
+    resource: 'PENALTIES',
+    resourceId: penaltyId,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    reason: waivedReason,
+  });
+
+  return { success: true };
+});
+
+export const calculateMonthlyViolations = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const month = assertString(payload.month, 'month');
+
+  const result = await calculateMonthlyViolationsService({
+    month,
+    userId: payload.userId as string | undefined,
+  });
+
+  await recordAuditLog({
+    action: 'calculate_monthly_violations',
+    resource: 'VIOLATION_HISTORY',
+    resourceId: month,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    metadata: { result },
+  });
+
+  return result;
+});
+
+export const generateAttendanceReport = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const startDate = assertString(payload.startDate, 'startDate');
+  const endDate = assertString(payload.endDate, 'endDate');
+
+  const result = await generateAttendanceReportService({
+    startDate,
+    endDate,
+    userId: payload.userId as string | undefined,
+  });
+
+  await recordAuditLog({
+    action: 'generate_attendance_report',
+    resource: 'ATTENDANCE_RECORDS',
+    resourceId: `${startDate}_${endDate}`,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    metadata: { total: result.total },
+  });
+
+  return result;
+});
+
+export const getDashboardStats = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const date = assertString(payload.date, 'date');
+
+  const result = await getDashboardStatsService({ date });
+
+  return result;
+});
+
+export const sendNotification = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const userId = assertString(payload.userId, 'userId');
+  const title = assertString(payload.title, 'title');
+  const message = assertString(payload.message, 'message');
+
+  await queueNotification({
+    userId,
+    title,
+    message,
+    category: payload.category as string | undefined,
+    type: payload.type as string | undefined,
+    relatedId: payload.relatedId as string | undefined,
+    metadata: payload.metadata as Record<string, unknown> | undefined,
+  });
+
+  await recordAuditLog({
+    action: 'send_notification',
+    resource: 'NOTIFICATIONS',
+    resourceId: userId,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    newValues: { title, message },
+  });
+
+  return { success: true };
+});
+
+export const sendBulkNotification = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data);
+  const userIds = payload.userIds as string[];
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    throw new functions.https.HttpsError('invalid-argument', 'userIds must be a non-empty array.');
+  }
+
+  const title = assertString(payload.title, 'title');
+  const message = assertString(payload.message, 'message');
+
+  const result = await queueBulkNotifications({
+    userIds,
+    userId: '',
+    title,
+    message,
+    category: payload.category as string | undefined,
+    type: payload.type as string | undefined,
+    relatedId: payload.relatedId as string | undefined,
+    metadata: payload.metadata as Record<string, unknown> | undefined,
+  });
+
+  await recordAuditLog({
+    action: 'send_bulk_notification',
+    resource: 'NOTIFICATIONS',
+    resourceId: 'bulk',
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+    metadata: { count: result.count },
+  });
+
+  return result;
 });
