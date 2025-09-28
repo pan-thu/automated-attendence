@@ -1,30 +1,36 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirect, useRouter, useSearchParams } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { LoginForm } from "@/components/auth/LoginForm";
 
 export default function LoginPage() {
   const { signIn, error, setError, loading, user } = useAuth();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const callbackUrl = useMemo(() => {
+    const redirectParam = searchParams?.get("redirect");
+    return redirectParam ? decodeURIComponent(redirectParam) : "/";
+  }, [searchParams]);
 
   if (user && !loading) {
-    redirect("/");
+    redirect(callbackUrl);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit() {
     setSubmitting(true);
     setError?.(null);
 
     try {
       await signIn(email, password);
-      redirect("/");
+      router.replace(callbackUrl);
     } catch (err) {
       console.error("Failed to sign in", err);
       setError?.("Invalid credentials or insufficient permissions.");
@@ -46,35 +52,27 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <label className="block text-sm font-medium text-muted-foreground">
-            Email
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              type="email"
-              required
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </label>
+        <LoginForm
+          email={email}
+          password={password}
+          submitting={submitting}
+          error={error}
+          onChange={(field, value) => {
+            if (field === "email") {
+              setEmail(value);
+            } else {
+              setPassword(value);
+            }
+          }}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSubmit();
+          }}
+        />
 
-          <label className="block text-sm font-medium text-muted-foreground">
-            Password
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              type="password"
-              required
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </label>
-
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-          <Button className="w-full" type="submit" disabled={submitting}>
-            {submitting ? "Signing in..." : "Sign in"}
-          </Button>
-        </form>
+        <div className="mt-4 text-center text-xs text-muted-foreground">
+          Trouble signing in? Contact your system administrator.
+        </div>
       </div>
     </div>
   );

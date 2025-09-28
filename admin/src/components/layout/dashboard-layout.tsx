@@ -9,9 +9,9 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { signOut, loading, user } = useAuth();
+  const { signOut, loading, user, checkingClaims } = useAuth();
 
-  if (loading) {
+  if (loading || checkingClaims) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         Loading...

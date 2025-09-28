@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { UserSummary } from "@/types";
 
 interface HeaderProps {
@@ -6,6 +8,17 @@ interface HeaderProps {
 }
 
 export function Header({ user, onLogout }: HeaderProps) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogout() {
+    try {
+      setLoading(true);
+      await onLogout();
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <header className="flex items-center justify-between border-b px-6 py-4">
       <div>
@@ -16,10 +29,13 @@ export function Header({ user, onLogout }: HeaderProps) {
         {user ? <span>{user.email ?? "Admin"}</span> : null}
         <button
           type="button"
-          onClick={onLogout}
-          className="rounded-md border border-border px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            void handleLogout();
+          }}
+          disabled={loading}
+          className="rounded-md border border-border px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-70"
         >
-          Logout
+          {loading ? "Logging out..." : "Logout"}
         </button>
       </div>
     </header>

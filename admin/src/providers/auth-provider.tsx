@@ -20,6 +20,7 @@ type AuthContextValue = {
   loading: boolean;
   error: string | null;
   isAdmin: boolean;
+  checkingClaims: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   setError?: (value: string | null) => void;
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkingClaims, setCheckingClaims] = useState<boolean>(false);
 
   const [authModule, setAuthModule] = useState<FirebaseAuthModule | null>(null);
   const [firebaseAuth, setFirebaseAuthInstance] = useState<ReturnType<typeof getFirebaseAuth> | null>(null);
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Auth is not ready yet");
       }
       setError(null);
+      setCheckingClaims(true);
       await authModule.signInWithEmailAndPassword(firebaseAuth, email, password);
     },
     [authModule, firebaseAuth]
@@ -78,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!firebaseAuth || !authModule) return;
     await authModule.signOut(firebaseAuth);
     setUser(null);
+    setCheckingClaims(false);
   }, [authModule, firebaseAuth]);
 
   useEffect(() => {
@@ -89,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!currentUser) {
         setUser(null);
         setLoading(false);
+        setCheckingClaims(false);
         return;
       }
 
@@ -113,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await authModule.signOut(firebaseAuth);
       } finally {
         setLoading(false);
+        setCheckingClaims(false);
       }
     });
 
@@ -123,13 +129,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
+      checkingClaims,
       isAdmin: Boolean(user),
       signIn,
       signOut,
       error,
       setError,
     }),
-    [user, loading, signIn, signOut, error]
+    [user, loading, signIn, signOut, error, checkingClaims]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

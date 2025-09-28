@@ -92,13 +92,13 @@ With the backend logic in place, we can build the user interface for admins.
     -   [x] Create a main content layout that uses the Sidebar and Header.
 
 ### 2.2. Authentication Module
--   [ ] **Login Page (`/login`):**
-    -   [ ] Build the UI for the login form (`LoginForm.tsx`).
-    -   [ ] Implement the `signInWithEmailAndPassword` logic.
-    -   [ ] On successful login, check for the `admin` custom claim. If not present, log the user out and show an "Access Denied" error.
-    -   [ ] Redirect to the dashboard (`/`) on successful admin login.
--   [ ] **Logout Functionality:**
-    -   [ ] Implement the logout button in the `Header` to call `signOut` and redirect to `/login`.
+-   [x] **Login Page (`/login`):**
+    -   [x] Build the UI for the login form (`LoginForm.tsx`).
+    -   [x] Implement the `signInWithEmailAndPassword` logic.
+    -   [x] On successful login, check for the `admin` custom claim. If not present, log the user out and show an "Access Denied" error.
+    -   [x] Redirect to the dashboard (`/`) on successful admin login.
+-   [x] **Logout Functionality:**
+    -   [x] Implement the logout button in the `Header` to call `signOut` and redirect to `/login`.
 
 ### 2.3. Dashboard Module (`/`)
 -   [ ] **UI Widgets:**

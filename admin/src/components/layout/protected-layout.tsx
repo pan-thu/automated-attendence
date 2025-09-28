@@ -10,16 +10,16 @@ interface ProtectedLayoutProps {
 }
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
-  const { user, loading } = useAuth();
+  const { user, loading, checkingClaims } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !checkingClaims && !user) {
       router.replace("/login");
     }
-  }, [loading, user, router]);
+  }, [loading, user, checkingClaims, router]);
 
-  if (loading || !user) {
+  if (loading || checkingClaims || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         Loading...
