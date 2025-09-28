@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useAuthContext } from "@/providers/auth-provider";
 
 export function useAuth() {
-  const [user, setUser] = useState(null);
-  // Add logic to interact with Firebase Auth
-  return { user };
+  return useAuthContext();
 }
