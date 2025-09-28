@@ -34,9 +34,12 @@ interface CalculateMonthlyViolationsInput {
 
 const violationStatusFields = ['status', 'check1_status', 'check2_status', 'check3_status'];
 
-const isViolation = (status: string | null | undefined) => {
-  if (!status) return false;
-  return ['late', 'early_leave', 'absent', 'half_day_absent', 'missed'].includes(status);
+const violationStatuses = ['late', 'early_leave', 'absent', 'half_day_absent', 'missed'] as const;
+
+type ViolationStatus = (typeof violationStatuses)[number];
+
+const isViolation = (status: string | null | undefined): status is ViolationStatus => {
+  return typeof status === 'string' && (violationStatuses as readonly string[]).includes(status);
 };
 
 export const calculateMonthlyViolations = async (input: CalculateMonthlyViolationsInput) => {
@@ -59,7 +62,7 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
 
   const snapshots = await attendanceQuery.get();
 
-  const violationMap = new Map<string, { count: number; violations: string[] }>();
+  const violationMap = new Map<string, { count: number; violations: Array<{ field: string; status: ViolationStatus }> }>();
 
   snapshots.forEach((doc) => {
     const data = doc.data();
@@ -78,7 +81,7 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
       const value = data[field] as string | undefined;
       if (isViolation(value)) {
         userViolations.count += 1;
-        userViolations.violations.push(field);
+        userViolations.violations.push({ field, status: value });
       }
     }
   });
@@ -101,7 +104,7 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
     let penaltyId: string | null = null;
 
     if (violationThreshold !== null && info.count >= violationThreshold) {
-      const violationType = inferMonthlyViolationType(info.violations);
+      const violationType = inferMonthlyViolationType(info.violations.map((entry) => entry.status));
       const amount = violationType ? penaltyAmounts[violationType] ?? 0 : 0;
 
       const penaltyRef = firestore.collection(PENALTIES_COLLECTION).doc();
@@ -131,21 +134,25 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
 };
 
 
-const inferMonthlyViolationType = (fields: string[]): string | null => {
-  if (fields.some((field) => field.includes('status'))) {
+const inferMonthlyViolationType = (statuses: ViolationStatus[]): string | null => {
+  if (statuses.some((status) => status === 'absent')) {
     return 'absent';
   }
 
-  if (fields.some((field) => field.includes('half_day'))) {
+  if (statuses.some((status) => status === 'half_day_absent')) {
     return 'half_day_absent';
   }
 
-  if (fields.some((field) => field.includes('late'))) {
+  if (statuses.some((status) => status === 'late')) {
     return 'late';
   }
 
-  if (fields.some((field) => field.includes('early'))) {
+  if (statuses.some((status) => status === 'early_leave')) {
     return 'early_leave';
+  }
+
+  if (statuses.some((status) => status === 'missed')) {
+    return 'missed';
   }
 
   return null;

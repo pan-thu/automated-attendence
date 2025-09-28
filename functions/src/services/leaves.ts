@@ -78,15 +78,23 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
 
     tx.update(leaveRef, updates);
 
-    if (action === 'approve') {
-      const userId = leaveData.userId as string;
-      const leaveType = leaveData.leaveType as string;
-      const totalDays = leaveData.totalDays as number;
-      const startDateTimestamp = leaveData.startDate as FirebaseFirestore.Timestamp | undefined;
-      const endDateTimestamp = leaveData.endDate as FirebaseFirestore.Timestamp | undefined;
-      const startUtc = startDateTimestamp ? asUtcDate(startDateTimestamp.toDate()) : asUtcDate(new Date());
-      const endUtc = endDateTimestamp ? asUtcDate(endDateTimestamp.toDate()) : startUtc;
+    const userId = leaveData.userId as string;
+    const leaveType = leaveData.leaveType as string;
+    const totalDays = leaveData.totalDays as number;
+    const startDateTimestamp = leaveData.startDate as FirebaseFirestore.Timestamp | undefined;
+    const endDateTimestamp = leaveData.endDate as FirebaseFirestore.Timestamp | undefined;
+    const startUtc = startDateTimestamp ? asUtcDate(startDateTimestamp.toDate()) : asUtcDate(new Date());
+    const endUtc = endDateTimestamp ? asUtcDate(endDateTimestamp.toDate()) : startUtc;
 
+    leaveSummary = {
+      userId,
+      startDate: startUtc,
+      endDate: endUtc,
+      totalDays,
+      leaveType,
+    };
+
+    if (action === 'approve') {
       const balanceField = leaveTypeFieldMap[leaveType];
       if (balanceField) {
         const userRef = firestore.collection(USERS_COLLECTION).doc(userId);
@@ -138,13 +146,6 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
         cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
       }
 
-      leaveSummary = {
-        userId,
-        startDate: startUtc,
-        endDate: endUtc,
-        totalDays,
-        leaveType,
-      };
     }
   });
 
@@ -171,7 +172,7 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
     await queueNotification({
       userId,
       title: 'Leave Rejected',
-      message: `Your ${leaveType} leave (${totalDays} day${totalDays > 1 ? 's' : ''}) from ${startKey} to ${endKey} was rejected. ${notes ? `Reason: ${notes}` : ''}`.trim(),
+      message: `Your ${leaveType} leave (${totalDays} day${totalDays > 1 ? 's' : ''}) from ${startKey} to ${endKey} was rejected.${notes ? ` Reason: ${notes}` : ''}`,
       category: 'leave',
       relatedId: requestId,
       metadata: { startDate: startKey, endDate: endKey, leaveType },
