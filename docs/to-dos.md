@@ -83,13 +83,13 @@
 With the backend logic in place, we can build the user interface for admins.
 
 ### 2.1. Project Foundation & Layout
--   [ ] **Cleanup:** Remove default Next.js starter page content from `src/app/page.tsx`.
--   [ ] **Auth Context:** Implement a proper `AuthContext` provider that wraps the application and provides user state, admin role status, and loading status.
--   [ ] **Protected Routes:** Create a higher-order component or layout component that checks for an authenticated admin user. Redirect to `/login` if not authenticated.
--   [ ] **Core Layout:**
-    -   [ ] Enhance `Sidebar.tsx` with actual navigation links (`Dashboard`, `Employees`, `Attendance`, `Leaves`, `Settings`).
-    -   [ ] Enhance `Header.tsx` to show the currently logged-in admin's name and a logout button.
-    -   [ ] Create a main content layout that uses the Sidebar and Header.
+-   [x] **Cleanup:** Remove default Next.js starter page content from `src/app/page.tsx`.
+-   [x] **Auth Context:** Implement a proper `AuthContext` provider that wraps the application and provides user state, admin role status, and loading status.
+-   [x] **Protected Routes:** Create a higher-order component or layout component that checks for an authenticated admin user. Redirect to `/login` if not authenticated.
+-   [x] **Core Layout:**
+    -   [x] Enhance `Sidebar.tsx` with actual navigation links (`Dashboard`, `Employees`, `Attendance`, `Leaves`, `Settings`).
+    -   [x] Enhance `Header.tsx` to show the currently logged-in admin's name and a logout button.
+    -   [x] Create a main content layout that uses the Sidebar and Header.
 
 ### 2.2. Authentication Module
 -   [ ] **Login Page (`/login`):**
