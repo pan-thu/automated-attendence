@@ -239,6 +239,7 @@ The project utilizes a specific set of modern technologies chosen for their effi
   - **Cloud Storage:** Used for storing files, such as medical certificates uploaded for leave requests.
 - **Node.js:** The runtime environment for executing Cloud Functions.
 - **TypeScript:** Provides static typing for robust and maintainable Cloud Functions code.
+- **date-fns / date-fns-tz:** Provide reliable time arithmetic and timezone conversions for attendance validation.
 - **Input Validation:** All configuration inputs (e.g., company settings) are validated server-side before being persisted to Firestore, ensuring data integrity and safeguarding automated workflows.
 - **Clock-In Callable:** The `handleClockIn` callable Cloud Function now orchestrates geofence, time-window, and attendance updates in a single server-authoritative flow, emitting audit logs and user notifications for every successful check-in.
 

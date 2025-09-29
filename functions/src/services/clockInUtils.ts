@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions';
+import { formatInTimeZone } from 'date-fns-tz';
 import { admin } from '../firebase';
-import { firestore } from '../utils/firestore';
+import { firestore, runTransaction } from '../utils/firestore';
 import { queueNotification } from './notifications';
 import { recordAuditLog } from './audit';
 import { CompanySettingsInput } from './settings';
@@ -66,11 +67,14 @@ const parseTimeToMinutes = (time: string): number => {
 };
 
 const getMinutesInTimezone = (iso: string, timezone?: string): number => {
-  const date = timezone
-    ? new Date(new Date(iso).toLocaleString('en-US', { timeZone: timezone }))
-    : new Date(iso);
+  if (!timezone) {
+    const date = new Date(iso);
+    return date.getUTCHours() * 60 + date.getUTCMinutes();
+  }
 
-  return date.getHours() * 60 + date.getMinutes();
+  const timeString = formatInTimeZone(iso, timezone, 'HH:mm');
+  const [hours, minutes] = timeString.split(':').map((value) => Number(value));
+  return hours * 60 + minutes;
 };
 
 interface CheckOutcome {
@@ -197,47 +201,56 @@ export const handleClockIn = async ({ userId, payload }: ClockInServiceInput): P
     }
   }
 
-  const slotOutcome = resolveSlotOutcome(payload.timestamp, settings);
-  if (!slotOutcome) {
-    throw new functions.https.HttpsError('failed-precondition', 'No active clock-in window.');
-  }
-
   const attendanceDate = normalizeDateKey(payload.timestamp);
   const attendanceDoc = getAttendanceDoc(userId, attendanceDate);
-  const snapshot = await attendanceDoc.get();
-  const data = snapshot.exists ? snapshot.data() ?? {} : {};
+  const transactionResult = await runTransaction(async (tx) => {
+    const slotOutcome = resolveSlotOutcome(payload.timestamp, settings);
+    if (!slotOutcome) {
+      throw new functions.https.HttpsError('failed-precondition', 'No active clock-in window.');
+    }
 
-  const existingStatus = data[`${slotOutcome.slot}_status`] as CheckStatus | undefined;
-  if (existingStatus && existingStatus !== 'missed') {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      `Clock-in already recorded for ${slotOutcome.slot}.`
-    );
-  }
+    const snapshot = await tx.get(attendanceDoc);
+    const data = snapshot.exists ? snapshot.data() ?? {} : {};
 
-  const updatedStatuses: Partial<Record<CheckSlot, CheckStatus>> = {
-    check1: data?.check1_status as CheckStatus | undefined,
-    check2: data?.check2_status as CheckStatus | undefined,
-    check3: data?.check3_status as CheckStatus | undefined,
-  };
-  updatedStatuses[slotOutcome.slot] = slotOutcome.status;
+    const existingStatus = data[`${slotOutcome.slot}_status`] as CheckStatus | undefined;
+    if (existingStatus && existingStatus !== 'missed') {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        `Clock-in already recorded for ${slotOutcome.slot}.`
+      );
+    }
 
-  const dayStatus = computeDailyStatus(updatedStatuses);
+    const updatedStatuses: Partial<Record<CheckSlot, CheckStatus>> = {
+      check1: data?.check1_status as CheckStatus | undefined,
+      check2: data?.check2_status as CheckStatus | undefined,
+      check3: data?.check3_status as CheckStatus | undefined,
+    };
+    updatedStatuses[slotOutcome.slot] = slotOutcome.status;
 
-  const updates: Record<string, unknown> = {
-    userId,
-    status: dayStatus,
-    [`${slotOutcome.slot}_status`]: slotOutcome.status,
-    [`${slotOutcome.slot}_timestamp`]: admin.firestore.Timestamp.fromDate(new Date(payload.timestamp)),
-    [`${slotOutcome.slot}_location`]: new admin.firestore.GeoPoint(
-      payload.location.latitude,
-      payload.location.longitude
-    ),
-    attendanceDate: admin.firestore.Timestamp.fromDate(new Date(`${attendanceDate}T00:00:00Z`)),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
+    const dayStatus = computeDailyStatus(updatedStatuses);
 
-  await attendanceDoc.set(updates, { merge: true });
+    const updates: Record<string, unknown> = {
+      userId,
+      status: dayStatus,
+      [`${slotOutcome.slot}_status`]: slotOutcome.status,
+      [`${slotOutcome.slot}_timestamp`]: admin.firestore.Timestamp.fromDate(new Date(payload.timestamp)),
+      [`${slotOutcome.slot}_location`]: new admin.firestore.GeoPoint(
+        payload.location.latitude,
+        payload.location.longitude
+      ),
+      attendanceDate: admin.firestore.Timestamp.fromDate(new Date(`${attendanceDate}T00:00:00Z`)),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    tx.set(attendanceDoc, updates, { merge: true });
+
+    return {
+      slotOutcome,
+      dayStatus,
+    };
+  });
+
+  const { slotOutcome, dayStatus } = transactionResult;
 
   await recordAuditLog({
     action: 'clock_in',

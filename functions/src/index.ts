@@ -98,6 +98,19 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('not-found', 'The specified user does not exist.');
   }
 
+  if (userRecord.customClaims?.role === 'admin' && role !== 'admin') {
+    const adminsSnap = await admin
+      .firestore()
+      .collection('USERS')
+      .where('role', '==', 'admin')
+      .count()
+      .get();
+
+    if (adminsSnap.data().count <= 1) {
+      throw new functions.https.HttpsError('failed-precondition', 'At least one admin must remain.');
+    }
+  }
+
   const mergedClaims = { ...(userRecord.customClaims ?? {}), role };
 
   await admin.auth().setCustomUserClaims(userRecord.uid, mergedClaims);
