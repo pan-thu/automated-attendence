@@ -391,6 +391,7 @@ export const generateAttendanceReport = functions.https.onCall(async (data, cont
     startDate,
     endDate,
     userId: payload.userId as string | undefined,
+    department: payload.department as string | undefined,
   });
 
   await recordAuditLog({

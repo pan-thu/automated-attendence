@@ -25,6 +25,9 @@ export function useAttendanceReport() {
         status: (entry.status as string | undefined) ?? "unknown",
         department: (entry.department as string | undefined) ?? null,
         position: (entry.position as string | undefined) ?? null,
+        isManualEntry: entry.isManualEntry === true,
+        reason: (entry.reason as string | undefined) ?? null,
+        notes: (entry.notes as string | undefined) ?? null,
       }));
       setRecords(mapped);
     } catch (err) {

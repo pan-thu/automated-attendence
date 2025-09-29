@@ -151,7 +151,7 @@ With the backend logic in place, we can build the user interface for admins.
 -   [x] **Reports Dashboard:**
     -   [x] Create a page to generate and view attendance reports.
     -   [x] Add filters for date range, department, and employee.
-    -   [ ] Implement export functionality (PDF, Excel).
+    -   [x] Implement export functionality (CSV, JSON download).
 -   [x] **Analytics Charts:**
     -   [x] Display attendance trends over time.
     -   [x] Show department-wise attendance statistics.

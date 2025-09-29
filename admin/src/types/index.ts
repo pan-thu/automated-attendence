@@ -171,6 +171,9 @@ export interface AttendanceReportRecord {
   status: AttendanceStatus | string;
   department?: string | null;
   position?: string | null;
+  isManualEntry?: boolean;
+  reason?: string | null;
+  notes?: string | null;
 }
 
 export interface AttendanceReportFilters {

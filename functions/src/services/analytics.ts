@@ -7,14 +7,41 @@ const ANALYTICS_COLLECTION = 'ANALYTICS_SUMMARY';
 
 export interface AttendanceReportInput {
   userId?: string;
+  department?: string;
   startDate: string; // ISO date string
   endDate: string; // ISO date string
 }
 
 const toTimestamp = (iso: string) => admin.firestore.Timestamp.fromDate(new Date(iso));
 
+const toIsoString = (value: unknown): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof admin.firestore.Timestamp) {
+    return value.toDate().toISOString();
+  }
+
+  if (typeof (value as { toDate?: () => Date }).toDate === 'function') {
+    try {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return null;
+};
+
+const USERS_COLLECTION = 'USERS';
+
 export const generateAttendanceReport = async (input: AttendanceReportInput) => {
-  const { userId, startDate, endDate } = input;
+  const { userId, department, startDate, endDate } = input;
 
   let query = firestore
     .collection(ATTENDANCE_COLLECTION)
@@ -26,11 +53,59 @@ export const generateAttendanceReport = async (input: AttendanceReportInput) => 
   }
 
   const snapshot = await query.get();
-  const records = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const attendanceRecords = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+  const uniqueUserIds = new Set<string>();
+  attendanceRecords.forEach((record) => {
+    const uid = record.userId as string | undefined;
+    if (uid) {
+      uniqueUserIds.add(uid);
+    }
+  });
+
+  const userDocs = await Promise.all(
+    Array.from(uniqueUserIds).map((uid) => firestore.collection(USERS_COLLECTION).doc(uid).get())
+  );
+
+  const userLookup = new Map<string, FirebaseFirestore.DocumentData>();
+  userDocs.forEach((doc) => {
+    if (doc.exists) {
+      userLookup.set(doc.id, doc.data() ?? {});
+    }
+  });
+
+  const filtered = attendanceRecords.filter((record) => {
+    if (!department) {
+      return true;
+    }
+
+    const userData = userLookup.get((record.userId as string) ?? '');
+    const userDepartment = typeof userData?.department === 'string' ? userData.department : null;
+    return userDepartment === department;
+  });
+
+  const normalized = filtered.map((record) => {
+    const uid = (record.userId as string | undefined) ?? '';
+    const userData = userLookup.get(uid) ?? {};
+
+    return {
+      id: record.id,
+      userId: uid,
+      status: record.status ?? 'unknown',
+      attendanceDate: toIsoString(record.attendanceDate),
+      isManualEntry: record.isManualEntry ?? false,
+      reason: record.manualReason ?? null,
+      notes: record.notes ?? null,
+      userName: (userData.fullName as string | undefined) ?? null,
+      userEmail: (userData.email as string | undefined) ?? null,
+      department: (userData.department as string | undefined) ?? null,
+      position: (userData.position as string | undefined) ?? null,
+    } as Record<string, unknown>;
+  });
 
   return {
-    total: records.length,
-    records,
+    total: normalized.length,
+    records: normalized,
   };
 };
 

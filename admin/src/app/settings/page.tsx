@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -39,11 +40,16 @@ export default function SettingsPage() {
     <ProtectedLayout>
       <DashboardLayout>
         <div className="flex flex-col gap-6 p-6">
-          <header className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold">Company Settings</h1>
-            <p className="text-sm text-muted-foreground">
-              View the active configuration for attendance, policies, geofencing, and more.
-            </p>
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl font-semibold">Company Settings</h1>
+              <p className="text-sm text-muted-foreground">
+                View the active configuration for attendance, policies, geofencing, and more.
+              </p>
+            </div>
+            <Button asChild>
+              <Link href="/settings/edit">Edit Settings</Link>
+            </Button>
           </header>
 
           {error ? (

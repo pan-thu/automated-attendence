@@ -8,6 +8,7 @@ const links: NavLink[] = [
   { label: "Employees", href: "/employees" },
   { label: "Attendance", href: "/attendance" },
   { label: "Leaves", href: "/leaves" },
+  { label: "Reports", href: "/reports" },
   { label: "Penalties", href: "/penalties" },
   { label: "Notifications", href: "/notifications" },
   { label: "Audit Logs", href: "/audit-logs" },

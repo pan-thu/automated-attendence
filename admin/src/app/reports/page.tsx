@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useAttendanceReport } from "@/hooks/useAttendanceReport";
+import { callGenerateAttendanceReport } from "@/lib/firebase/functions";
 
 const defaultFilters = {
   startDate: "",
@@ -29,6 +30,7 @@ export default function ReportsPage() {
   const [filters, setFilters] = useState(defaultFilters);
   const { records, loading, error, runReport } = useAttendanceReport();
   const [notes, setNotes] = useState("Attendance report generated via dashboard.");
+  const [exporting, setExporting] = useState<boolean>(false);
 
   const totalByStatus = useMemo(() => {
     return records.reduce<Record<string, number>>((acc, record) => {
@@ -51,6 +53,74 @@ export default function ReportsPage() {
       userId: filters.userId || undefined,
       department: filters.department || undefined,
     });
+  }
+
+  async function exportReport(format: "csv" | "json") {
+    if (!filters.startDate || !filters.endDate) {
+      setNotes("Please select a start and end date before exporting.");
+      return;
+    }
+
+    try {
+      setExporting(true);
+      const response = await callGenerateAttendanceReport({
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        userId: filters.userId || undefined,
+        department: filters.department || undefined,
+      });
+
+      const payload = response.data as { records?: Array<Record<string, unknown>> };
+      const entries = payload.records ?? [];
+
+      if (format === "json") {
+        const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `attendance-report-${filters.startDate}-to-${filters.endDate}.json`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      let csv = "Date,Employee,Email,Status,Department,Position\n";
+      entries.forEach((entry) => {
+        const date = entry.attendanceDate ?? "";
+        const userName = entry.userName ?? entry.userId ?? "";
+        const email = entry.userEmail ?? "";
+        const status = entry.status ?? "";
+        const department = entry.department ?? "";
+        const position = entry.position ?? "";
+
+        const row = [date, userName, email, status, department, position]
+          .map((value) => {
+            if (typeof value !== "string") {
+              return String(value ?? "");
+            }
+            if (value.includes(",") || value.includes("\"")) {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+          })
+          .join(",");
+
+        csv += `${row}\n`;
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `attendance-report-${filters.startDate}-to-${filters.endDate}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export attendance report", err);
+      setNotes("Export failed. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -125,7 +195,7 @@ export default function ReportsPage() {
 
                 {error ? <p className="md:col-span-2 text-sm text-destructive">{error}</p> : null}
 
-                <div className="md:col-span-2 flex justify-end gap-3">
+                <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
                   <Button
                     type="button"
                     variant="outline"
@@ -139,6 +209,26 @@ export default function ReportsPage() {
                   </Button>
                   <Button type="submit" disabled={loading}>
                     {loading ? "Generating..." : "Run Report"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={loading || exporting}
+                    onClick={() => {
+                      void exportReport("csv");
+                    }}
+                  >
+                    {exporting ? "Exporting..." : "Export CSV"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={loading || exporting}
+                    onClick={() => {
+                      void exportReport("json");
+                    }}
+                  >
+                    {exporting ? "Exporting..." : "Download JSON"}
                   </Button>
                 </div>
               </form>
