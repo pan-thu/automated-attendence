@@ -101,80 +101,81 @@ With the backend logic in place, we can build the user interface for admins.
     -   [x] Implement the logout button in the `Header` to call `signOut` and redirect to `/login`.
 
 ### 2.3. Dashboard Module (`/`)
--   [ ] **UI Widgets:**
-    -   [ ] Widget for "Today's Attendance Stats" (Present, Absent, On Leave).
-    -   [ ] Widget for "Pending Leave Requests" (Count with a link to the leaves page).
-    -   [ ] Widget for "Recent Violations".
--   [ ] **Data Fetching:** Fetch aggregated data from Firestore to populate the widgets.
+-   [x] **UI Widgets:**
+    -   [x] Widget for "Today's Attendance Stats" (Present, Absent, On Leave).
+    -   [x] Widget for "Pending Leave Requests" (Count with a link to the leaves page).
+    -   [x] Widget for "Recent Violations".
+-   [x] **Data Fetching:** Fetch aggregated data from Firestore to populate the widgets.
 
 ### 2.4. Employee Management Module (`/employees`)
--   [ ] **Employee List View:**
-    -   [ ] Create a page to display all users in a data table (using `shadcn/ui` Table).
-    -   [ ] Columns: Full Name, Email, Department, Position, Status (`Active`/`Inactive`).
-    -   [ ] Add a "Create Employee" button.
--   [ ] **Create Employee Form:**
-    -   [ ] Use a `Dialog` or a new page (`/employees/new`) for the form.
-    -   [ ] On submit, call the `createEmployee` Cloud Function.
--   [ ] **Edit Employee View:**
-    -   [ ] Create a page (`/employees/[id]`) to show and edit employee details, including leave balances.
-    -   [ ] Implement "Deactivate" / "Activate" button which calls `toggleUserStatus`.
-    -   [ ] On save, call the `updateEmployee` Cloud Function.
+-   [x] **Employee List View:**
+    -   [x] Create a page to display all users in a data table (using `shadcn/ui` Table).
+    -   [x] Columns: Full Name, Email, Department, Position, Status (`Active`/`Inactive`).
+    -   [x] Add a "Create Employee" button.
+-   [x] **Create Employee Form:**
+    -   [x] Use a `Dialog` or a new page (`/employees/new`) for the form.
+    -   [x] On submit, call the `createEmployee` Cloud Function.
+-   [x] **Edit Employee View:**
+    -   [x] Create a page (`/employees/[id]`) to show and edit employee details, including leave balances.
+    -   [x] Implement "Deactivate" / "Activate" button which calls `toggleUserStatus`.
+    -   [x] On save, call the `updateEmployee` Cloud Function.
 
 ### 2.5. Attendance Management Module (`/attendance`)
--   [ ] **Attendance Table View:**
-    -   [ ] Display all attendance records in a data table.
-    -   [ ] Implement filters by date range, employee, and status.
-    -   [ ] Implement a "Manual Entry" button.
--   [ ] **Manual Entry Form:**
-    -   [ ] A `Dialog` to manually create/edit a record with a mandatory "Reason" field.
-    -   [ ] On submit, call the `manualSetAttendance` Cloud Function.
-    -   [ ] Implement real-time Firestore listeners so table updates without manual refresh.
+-   [x] **Attendance Table View:**
+    -   [x] Display all attendance records in a data table.
+    -   [x] Implement filters by date range, employee, and status.
+    -   [x] Implement a "Manual Entry" button.
+-   [x] Implement real-time Firestore listeners so table updates without manual refresh.
+-   [x] **Manual Entry Form:**
+    -   [x] A `Dialog` to manually create/edit a record with a mandatory "Reason" field.
+    -   [x] On submit, call the `manualSetAttendance` Cloud Function.
+    -   [x] Implement real-time Firestore listeners so table updates without manual refresh.
 
 ### 2.6. Leave Management Module (`/leaves`)
--   [ ] **Leave Requests Table:**
-    -   [ ] Display all leave requests with filters for "Pending", "Approved", "Rejected".
--   [ ] **Leave Request Detail View:**
-    -   [ ] Clicking a request shows details and attached documents.
-    -   [ ] Add "Approve" and "Reject" buttons that call the `handleLeaveApproval` Cloud Function.
+-   [x] **Leave Requests Table:**
+    -   [x] Display all leave requests with filters for "Pending", "Approved", "Rejected".
+-   [x] **Leave Request Detail View:**
+    -   [x] Clicking a request shows details and attached documents.
+    -   [x] Add "Approve" and "Reject" buttons that call the `handleLeaveApproval` Cloud Function.
 
 ### 2.7. Settings Module (`/settings`)
--   [ ] **Settings Form:**
-    -   [ ] Create a multi-section form to manage all `COMPANY_SETTINGS`.
+-   [x] **Settings Form:**
+    -   [x] Create a multi-section form to manage all `COMPANY_SETTINGS`.
     -   [ ] **Geofencing:** Include an interactive map (e.g., React-Leaflet) to set the `workplace_center`.
-    -   [ ] **Time Windows & Grace Periods:** Inputs for start/end times.
-    -   [ ] **Penalty Rules:** Inputs for violation thresholds and amounts.
-    -   [ ] **Holidays:** A list editor to add/remove company holidays.
-    -   [ ] A "Save Settings" button that calls the `updateCompanySettings` Cloud Function.
+    -   [x] **Time Windows & Grace Periods:** Inputs for start/end times.
+    -   [x] **Penalty Rules:** Inputs for violation thresholds and amounts.
+    -   [x] **Holidays:** A list editor to add/remove company holidays.
+    -   [x] A "Save Settings" button that calls the `updateCompanySettings` Cloud Function.
 
 ### 2.8. Analytics & Reports Module (`/reports`)
--   [ ] **Reports Dashboard:**
-    -   [ ] Create a page to generate and view attendance reports.
-    -   [ ] Add filters for date range, department, and employee.
+-   [x] **Reports Dashboard:**
+    -   [x] Create a page to generate and view attendance reports.
+    -   [x] Add filters for date range, department, and employee.
     -   [ ] Implement export functionality (PDF, Excel).
--   [ ] **Analytics Charts:**
-    -   [ ] Display attendance trends over time.
-    -   [ ] Show department-wise attendance statistics.
-    -   [ ] Create violation and penalty analytics.
+-   [x] **Analytics Charts:**
+    -   [x] Display attendance trends over time.
+    -   [x] Show department-wise attendance statistics.
+    -   [x] Create violation and penalty analytics.
 
 ### 2.9. Penalties Module (`/penalties`)
--   [ ] **Penalties Management:**
-    -   [ ] Display all penalties in a data table.
-    -   [ ] Add filters for status, employee, and date range.
-    -   [ ] Implement "Waive Penalty" functionality.
-    -   [ ] Show penalty history and reasons.
+-   [x] **Penalties Management:**
+    -   [x] Display all penalties in a data table.
+    -   [x] Add filters for status, employee, and date range.
+    -   [x] Implement "Waive Penalty" functionality.
+    -   [x] Show penalty history and reasons.
 
 ### 2.10. Notifications Module (`/notifications`)
--   [ ] **Notifications Management:**
-    -   [ ] Display a feed of announcements and system notices sent to employees.
-    -   [ ] Provide actions to send single-user and bulk notifications via `sendNotification` / `sendBulkNotification` Cloud Functions.
-    -   [ ] Include form validation for notification category, audience selection, and preview.
-    -   [ ] Surface delivery status indicators (success, queued, failed) using Firestore data.
+-   [x] **Notifications Management:**
+    -   [x] Display a feed of announcements and system notices sent to employees.
+    -   [x] Provide actions to send single-user and bulk notifications via `sendNotification` / `sendBulkNotification` Cloud Functions.
+    -   [x] Include form validation for notification category, audience selection, and preview.
+    -   [x] Surface delivery status indicators (success, queued, failed) using Firestore data.
 
 ### 2.11. Audit Logs Module (`/audit-logs`)
--   [ ] **Audit Trail Viewer:**
-    -   [ ] Create a read-only table for `AUDIT_LOGS` with filters for action, resource, and date range.
-    -   [ ] Implement detail drawer showing `oldValues` vs `newValues` for selected entries.
-    -   [ ] Ensure the UI enforces admin-only access and paginates results for performance.
+-   [x] **Audit Trail Viewer:**
+    -   [x] Create a read-only table for `AUDIT_LOGS` with filters for action, resource, and date range.
+    -   [x] Implement detail drawer showing `oldValues` vs `newValues` for selected entries.
+    -   [x] Ensure the UI enforces admin-only access and paginates results for performance.
 
 ---
 

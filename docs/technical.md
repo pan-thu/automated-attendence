@@ -285,6 +285,11 @@ The system's logic is highly flexible, driven by rules stored in the `COMPANY_SE
 - **Violation Tracking:** Negative attendance outcomes (`late`, `early_leave`, `absent`, `half_day_absent`) create or update entries in `VIOLATION_HISTORY`, preserving a detailed history of infractions.
 - **Penalty Incurrence:** A scheduled Cloud Function evaluates accumulated violations, applies `penaltyRules` defined in `COMPANY_SETTINGS`, and emits `PENALTIES` documents when thresholds are reached.
 - **Leave Logic:** `handleLeaveApproval` validates requests, adjusts user leave balances, updates request metadata, and backfills `ATTENDANCE_RECORDS` with `on_leave` status for approved ranges while logging the action.
+- **Admin Penalty Console:** The `/penalties` dashboard now streams live data from the `PENALTIES` collection with client-side filtering by status, employee, and incurred date range. Admins can invoke the `waivePenalty` callable by submitting an audited justification, updating Firestore and recording a corresponding audit log entry.
+
+- **Notification Orchestration:** The `/notifications` dashboard lists all rows from `NOTIFICATIONS`, highlighting read status, audience, and delivery metadata. Admins can send single-user or bulk announcements through the `sendNotification` / `sendBulkNotification` callables with built-in form validation, ensuring messages match the established categories and severity types before enqueuing.
+
+- **Audit Trail Visibility:** A dedicated `/audit-logs` viewer lists entries from `AUDIT_LOGS`, including client-side filters for action, resource, executor, and date range. Selecting a log exposes structured diffs of `oldValues`, `newValues`, and any supplemental metadata/error payloads, supporting compliance and incident investigations.
 
 #### **5. Database Schema (Firestore Data Model)**
 
