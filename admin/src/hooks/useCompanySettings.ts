@@ -59,6 +59,13 @@ export function useCompanySettings() {
           workingDays: (data.workingDays as Record<string, boolean> | undefined) ?? undefined,
           holidays: (Array.isArray(data.holidays) ? (data.holidays as string[]) : undefined) ?? undefined,
           geoFencingEnabled: (data.geoFencingEnabled as boolean | undefined) ?? undefined,
+          maxLeaveAttachmentSizeMb: (data.maxLeaveAttachmentSizeMb as number | undefined) ?? null,
+          allowedLeaveAttachmentTypes: Array.isArray(data.allowedLeaveAttachmentTypes)
+            ? (data.allowedLeaveAttachmentTypes as string[])
+            : undefined,
+          leaveAttachmentRequiredTypes: Array.isArray(data.leaveAttachmentRequiredTypes)
+            ? (data.leaveAttachmentRequiredTypes as string[])
+            : undefined,
           updatedAt: parseDate(data.updatedAt),
           updatedBy: (data.updatedBy as string | undefined) ?? null,
         };

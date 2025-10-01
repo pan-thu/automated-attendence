@@ -2,16 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import {
-  Timestamp,
-  collection,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
+import { Timestamp, collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 
+import { callGetDashboardStats } from "@/lib/firebase/functions";
 import { getFirebaseFirestore } from "@/lib/firebase/config";
 import type { DashboardSummary, ViolationSummary } from "@/types";
 
@@ -36,22 +29,7 @@ export function useDashboardSummary() {
     const firestore = getFirebaseFirestore();
 
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
-    const startTimestamp = Timestamp.fromDate(startOfDay);
-    const endTimestamp = Timestamp.fromDate(endOfDay);
-
-    const attendanceQuery = query(
-      collection(firestore, "ATTENDANCE_RECORDS"),
-      where("attendanceDate", ">=", startTimestamp),
-      where("attendanceDate", "<=", endTimestamp)
-    );
-
-    const leaveQuery = query(
-      collection(firestore, "LEAVE_REQUESTS"),
-      where("status", "==", "pending")
-    );
+    const today = now.toISOString().slice(0, 10);
 
     const violationsQuery = query(
       collection(firestore, "VIOLATION_HISTORY"),
@@ -59,15 +37,34 @@ export function useDashboardSummary() {
       limit(5)
     );
 
-    const [attendanceSnapshot, leaveSnapshot, violationsSnapshot] = await Promise.all([
-      getDocs(attendanceQuery),
-      getDocs(leaveQuery),
+    const [statsResponse, violationsSnapshot] = await Promise.all([
+      callGetDashboardStats({ date: today }),
       getDocs(violationsQuery),
     ]);
 
+    const statsData = statsResponse.data as
+      | {
+          attendance?: {
+            present?: number;
+            absent?: number;
+            onLeave?: number;
+            halfDay?: number;
+            total?: number;
+          };
+          pendingLeaves?: number;
+        }
+      | undefined;
+
     const summary: DashboardSummary = buildDefaultSummary();
-    summary.attendance.total = attendanceSnapshot.size;
-    summary.pendingLeaves = leaveSnapshot.size;
+    if (statsData?.attendance) {
+      summary.attendance.present = statsData.attendance.present ?? 0;
+      summary.attendance.absent = statsData.attendance.absent ?? 0;
+      summary.attendance.onLeave = statsData.attendance.onLeave ?? 0;
+      summary.attendance.halfDay = statsData.attendance.halfDay ?? 0;
+      summary.attendance.total = statsData.attendance.total ?? 0;
+    }
+
+    summary.pendingLeaves = statsData?.pendingLeaves ?? 0;
     summary.recentViolations = violationsSnapshot.docs.map((doc) => {
       const payload = doc.data();
 
@@ -90,28 +87,6 @@ export function useDashboardSummary() {
             ? payload.penaltyTriggered
             : undefined,
       } satisfies ViolationSummary;
-    });
-
-    attendanceSnapshot.forEach((doc) => {
-      const status = (doc.get("status") as string | undefined)?.toLowerCase();
-
-      switch (status) {
-        case "present":
-          summary.attendance.present += 1;
-          break;
-        case "absent":
-          summary.attendance.absent += 1;
-          break;
-        case "on_leave":
-          summary.attendance.onLeave += 1;
-          break;
-        case "half_day_absent":
-        case "half-day":
-          summary.attendance.halfDay += 1;
-          break;
-        default:
-          break;
-      }
     });
 
     setData(summary);

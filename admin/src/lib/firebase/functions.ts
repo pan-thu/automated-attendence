@@ -51,6 +51,11 @@ export async function callGenerateAttendanceReport(payload: Record<string, unkno
   return callable(payload);
 }
 
+export async function callGetDashboardStats(payload: Record<string, unknown>) {
+  const callable = httpsCallable<Record<string, unknown>>(getCallableInstance(), "getDashboardStats");
+  return callable(payload);
+}
+
 export async function callWaivePenalty(payload: Record<string, unknown>) {
   const callable = httpsCallable<Record<string, unknown>>(getCallableInstance(), "waivePenalty");
   return callable(payload);

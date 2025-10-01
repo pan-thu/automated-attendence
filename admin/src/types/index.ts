@@ -158,6 +158,9 @@ export interface CompanySettings {
   workingDays?: Record<string, boolean>;
   holidays?: string[];
   geoFencingEnabled?: boolean;
+  maxLeaveAttachmentSizeMb?: number | null;
+  allowedLeaveAttachmentTypes?: string[];
+  leaveAttachmentRequiredTypes?: string[];
   updatedAt?: Date | null;
   updatedBy?: string | null;
 }

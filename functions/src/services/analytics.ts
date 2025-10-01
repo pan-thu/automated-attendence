@@ -140,9 +140,30 @@ export const getDashboardStats = async (input: DashboardStatsInput) => {
     .where('attendanceDate', '<=', end)
     .get();
 
-  const totalPresent = attendanceSnap.docs.filter((doc) => doc.get('status') === 'present').length;
-  const totalAbsent = attendanceSnap.docs.filter((doc) => doc.get('status') === 'absent').length;
-  const totalHalfDay = attendanceSnap.docs.filter((doc) => doc.get('status') === 'half_day_absent').length;
+  let totalPresent = 0;
+  let totalAbsent = 0;
+  let totalHalfDay = 0;
+  let totalOnLeave = 0;
+
+  attendanceSnap.docs.forEach((doc) => {
+    const status = (doc.get('status') as string | undefined)?.toLowerCase();
+    switch (status) {
+      case 'present':
+        totalPresent += 1;
+        break;
+      case 'absent':
+        totalAbsent += 1;
+        break;
+      case 'half_day_absent':
+        totalHalfDay += 1;
+        break;
+      case 'on_leave':
+        totalOnLeave += 1;
+        break;
+      default:
+        break;
+    }
+  });
 
   const leaveSnap = await firestore
     .collection(LEAVE_COLLECTION)
@@ -153,6 +174,7 @@ export const getDashboardStats = async (input: DashboardStatsInput) => {
     attendance: {
       present: totalPresent,
       absent: totalAbsent,
+      onLeave: totalOnLeave,
       halfDay: totalHalfDay,
       total: attendanceSnap.size,
     },
