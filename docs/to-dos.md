@@ -141,7 +141,7 @@ With the backend logic in place, we can build the user interface for admins.
 ### 2.7. Settings Module (`/settings`)
 -   [x] **Settings Form:**
     -   [x] Create a multi-section form to manage all `COMPANY_SETTINGS`.
-    -   [ ] **Geofencing:** Include an interactive map (e.g., React-Leaflet) to set the `workplace_center`.
+    -   [x] **Geofencing:** Include an interactive map (e.g., React-Leaflet) to set the `workplace_center`.
     -   [x] **Time Windows & Grace Periods:** Inputs for start/end times.
     -   [x] **Penalty Rules:** Inputs for violation thresholds and amounts.
     -   [x] **Holidays:** A list editor to add/remove company holidays.

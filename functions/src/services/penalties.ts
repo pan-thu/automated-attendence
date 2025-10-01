@@ -84,7 +84,7 @@ interface CalculateMonthlyViolationsInput {
 
 const violationStatusFields = ['status', 'check1_status', 'check2_status', 'check3_status'];
 
-const violationStatuses = ['late', 'early_leave', 'absent', 'half_day_absent', 'missed'] as const;
+const violationStatuses = ['late', 'early_leave', 'absent', 'missed'] as const;
 
 type ViolationStatus = (typeof violationStatuses)[number];
 
@@ -102,7 +102,7 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
   const end = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59));
 
   const companySettings = await getCompanySettings();
-  const violationThreshold = companySettings.penaltyRules?.violationThreshold ?? null;
+  const violationThresholds = companySettings.penaltyRules?.violationThresholds ?? {};
   const penaltyAmounts = companySettings.penaltyRules?.amounts ?? {};
 
   const attendanceQuery = firestore
@@ -112,7 +112,7 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
 
   const snapshots = await attendanceQuery.get();
 
-  const violationMap = new Map<string, { count: number; violations: Array<{ field: string; status: ViolationStatus }> }>();
+  const violationSummary = new Map<string, { violations: Array<{ field: string; status: ViolationStatus }>; counts: Map<ViolationStatus, number> }>();
 
   snapshots.forEach((doc) => {
     const data = doc.data();
@@ -121,91 +121,85 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
       return;
     }
 
-    let userViolations = violationMap.get(docUserId);
-    if (!userViolations) {
-      userViolations = { count: 0, violations: [] };
-      violationMap.set(docUserId, userViolations);
+    let summary = violationSummary.get(docUserId);
+    if (!summary) {
+      summary = { violations: [], counts: new Map() };
+      violationSummary.set(docUserId, summary);
     }
 
     for (const field of violationStatusFields) {
       const value = data[field] as string | undefined;
       if (isViolation(value)) {
-        userViolations.count += 1;
-        userViolations.violations.push({ field, status: value });
+        summary.violations.push({ field, status: value });
+        summary.counts.set(value, (summary.counts.get(value) ?? 0) + 1);
       }
     }
   });
 
   let penaltiesCreated = 0;
 
-  for (const [targetUserId, info] of violationMap.entries()) {
+  for (const [targetUserId, info] of violationSummary.entries()) {
     const violationDocRef = firestore.collection(VIOLATION_HISTORY_COLLECTION).doc();
 
     const violationRecord = {
       userId: targetUserId,
       violationDate: admin.firestore.FieldValue.serverTimestamp(),
       violationType: 'monthly_summary',
-      monthlyCount: info.count,
+      monthlyCount: info.violations.length,
       details: info.violations,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     } as Record<string, unknown>;
 
-    let penaltyId: string | null = null;
+    if (info.violations.length === 0) {
+      await violationDocRef.set(violationRecord);
+      continue;
+    }
 
-    if (violationThreshold !== null && info.count >= violationThreshold) {
-      const violationType = inferMonthlyViolationType(info.violations.map((entry) => entry.status));
-      const amount = violationType ? penaltyAmounts[violationType] ?? 0 : 0;
+    const triggeredPenalties: Array<{ violationType: string; penaltyId: string; amount: number; count: number }> = [];
 
+    for (const [status, count] of info.counts.entries()) {
+      const threshold = violationThresholds[status];
+      if (threshold === undefined || count < threshold) {
+        continue;
+      }
+
+      const amount = penaltyAmounts[status] ?? 0;
       const penaltyRef = firestore.collection(PENALTIES_COLLECTION).doc();
-      penaltyId = penaltyRef.id;
-      penaltiesCreated += 1;
+      const penaltyId = penaltyRef.id;
 
       await penaltyRef.set({
         userId: targetUserId,
-        violationType: violationType ?? 'monthly_summary',
+        violationType: status,
         amount,
         status: 'active',
-        violationCount: info.count,
+        violationCount: count,
         dateIncurred: admin.firestore.FieldValue.serverTimestamp(),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      violationRecord.penaltyTriggered = true;
-      violationRecord.penaltyId = penaltyId;
-      violationRecord.penaltyAmount = amount;
+      penaltiesCreated += 1;
+      triggeredPenalties.push({ violationType: status, penaltyId, amount, count });
+    }
+
+    if (triggeredPenalties.length > 0) {
+      violationRecord.penalties = triggeredPenalties;
     }
 
     await violationDocRef.set(violationRecord);
   }
 
-  return { processed: violationMap.size, penaltiesCreated };
+  return { processed: violationSummary.size, penaltiesCreated };
 };
 
 
-const inferMonthlyViolationType = (statuses: ViolationStatus[]): string | null => {
-  if (statuses.some((status) => status === 'absent')) {
-    return 'absent';
-  }
-
-  if (statuses.some((status) => status === 'half_day_absent')) {
-    return 'half_day_absent';
-  }
-
-  if (statuses.some((status) => status === 'late')) {
-    return 'late';
-  }
-
-  if (statuses.some((status) => status === 'early_leave')) {
-    return 'early_leave';
-  }
-
-  if (statuses.some((status) => status === 'missed')) {
-    return 'missed';
-  }
-
-  return null;
+const inferMonthlyViolationCounts = (statuses: ViolationStatus[]) => {
+  const counts = new Map<string, number>();
+  statuses.forEach((status) => {
+    counts.set(status, (counts.get(status) ?? 0) + 1);
+  });
+  return counts;
 };
 
 

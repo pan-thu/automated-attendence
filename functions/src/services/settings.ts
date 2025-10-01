@@ -12,7 +12,7 @@ export interface CompanySettingsInput {
   timeWindows?: Record<string, { label: string; start: string; end: string }>;
   gracePeriods?: Record<string, number>;
   penaltyRules?: {
-    violationThreshold: number;
+    violationThresholds: Record<string, number>;
     amounts: Record<string, number>;
   };
   leavePolicy?: Record<string, number>;
@@ -224,13 +224,9 @@ const sanitizePenaltyRules = (
     throw new functions.https.HttpsError('invalid-argument', `${field} must be an object.`);
   }
 
-  const violationThreshold = ensureOptionalNumber(value.violationThreshold, `${field}.violationThreshold`, {
-    allowZero: true,
-    allowUndefined: false,
-  });
-
-  if (violationThreshold === undefined) {
-    throw new functions.https.HttpsError('invalid-argument', `${field}.violationThreshold is required.`);
+  const violationThresholds = sanitizeNumberRecord(value.violationThresholds, `${field}.violationThresholds`);
+  if (!violationThresholds || Object.keys(violationThresholds).length === 0) {
+    throw new functions.https.HttpsError('invalid-argument', `${field}.violationThresholds must include at least one entry.`);
   }
 
   const amounts = sanitizeNumberRecord(value.amounts, `${field}.amounts`);
@@ -240,7 +236,7 @@ const sanitizePenaltyRules = (
   }
 
   return {
-    violationThreshold,
+    violationThresholds,
     amounts,
   };
 };

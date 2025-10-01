@@ -73,7 +73,6 @@ export interface LeaveRequestItem {
 
 const leaveTypeFieldMap: Record<string, string> = {
   full: 'fullLeaveBalance',
-  half: 'halfLeaveBalance',
   medical: 'medicalLeaveBalance',
   maternity: 'maternityLeaveBalance',
 };
@@ -128,7 +127,8 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
     tx.update(leaveRef, updates);
 
     const userId = leaveData.userId as string;
-    const leaveType = leaveData.leaveType as string;
+    const leaveTypeRaw = leaveData.leaveType as string | undefined;
+    const leaveType = leaveTypeRaw?.toLowerCase();
     const totalDays = leaveData.totalDays as number;
     const startDateTimestamp = leaveData.startDate as FirebaseFirestore.Timestamp | undefined;
     const endDateTimestamp = leaveData.endDate as FirebaseFirestore.Timestamp | undefined;
@@ -140,11 +140,14 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
       startDate: startUtc,
       endDate: endUtc,
       totalDays,
-      leaveType,
+      leaveType: leaveType ?? 'unknown',
     };
 
     if (action === 'approve') {
-      const balanceField = leaveTypeFieldMap[leaveType];
+      const balanceField = leaveType ? leaveTypeFieldMap[leaveType] : undefined;
+      if (!balanceField) {
+        throw new Error(`Unsupported leave type: ${leaveTypeRaw ?? 'unknown'}`);
+      }
       if (balanceField) {
         const userRef = firestore.collection(USERS_COLLECTION).doc(userId);
         const userSnap = await tx.get(userRef);

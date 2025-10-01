@@ -36,8 +36,6 @@ import {
   queueNotification,
   queueBulkNotifications,
   getEmployeesNeedingClockInReminder,
-  getEmployeesWithPendingActions,
-  getActiveEmployees,
   listNotificationsForEmployee as listNotificationsForEmployeeService,
   markNotificationAsRead as markNotificationAsReadService,
 } from './services/notifications';
@@ -861,71 +859,84 @@ export const scheduledPenaltyAutomation = onSchedule(
 
 export const scheduledDailyClockInReminder = onSchedule(
   {
-    schedule: '30 8 * * *',
+    schedule: '30 8,13,17 * * *',
     timeZone: 'UTC',
   },
-  async () => {
-    const today = new Date();
-    const dateKey = today.toISOString().slice(0, 10);
-    const targets = await getEmployeesNeedingClockInReminder(dateKey);
+  async (event) => {
+    const runDate = event.scheduleTime ? new Date(event.scheduleTime) : new Date();
+    const dateKey = runDate.toISOString().slice(0, 10);
+    const hour = runDate.getUTCHours();
+
+    const slot = hour < 10 ? 'check1' : hour < 16 ? 'check2' : 'check3';
+    const targets = await getEmployeesNeedingClockInReminder(dateKey, slot);
     if (targets.length === 0) {
       return;
     }
 
+    const reminderMessages: Record<typeof slot, { title: string; message: string }> = {
+      check1: {
+        title: 'Morning Clock-In Reminder',
+        message: 'Good morning! Please remember to clock in to start your day.',
+      },
+      check2: {
+        title: 'Midday Clock-In Reminder',
+        message: 'Lunch break wrap-up! Clock in to confirm your return.',
+      },
+      check3: {
+        title: 'End-of-Day Clock-Out Reminder',
+        message: 'Heading out? Don’t forget to clock out before you leave.',
+      },
+    };
+
+    const { title, message } = reminderMessages[slot];
+
     await queueBulkNotifications({
       userIds: targets,
       userId: '',
-      title: 'Clock-In Reminder',
-      message: 'Friendly reminder: please clock in for today.',
+      title,
+      message,
       category: 'attendance',
-      metadata: { dateKey },
+      metadata: { dateKey, slot },
     });
   }
 );
 
-export const scheduledPendingActionDigest = onSchedule(
-  {
-    schedule: '0 14 * * *',
-    timeZone: 'UTC',
-  },
-  async () => {
-    const admins = await getEmployeesWithPendingActions();
-    if (admins.length === 0) {
-      return;
-    }
+export const triggerDailyAnalyticsAggregation = functions.https.onCall(async (_data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - 1);
+  const dateKey = date.toISOString().slice(0, 10);
 
-    await queueBulkNotifications({
-      userIds: admins,
-      userId: '',
-      title: 'Pending Approvals',
-      message: 'You have pending leave requests awaiting review.',
-      category: 'admin',
-    });
-  }
-);
+  const result = await aggregateDailyAttendance(dateKey);
 
-export const scheduledDailyAnalyticsSync = onSchedule(
-  {
-    schedule: '15 0 * * *',
-    timeZone: 'UTC',
-  },
-  async () => {
-    const yesterday = new Date();
-    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-    const dateKey = yesterday.toISOString().slice(0, 10);
-    await aggregateDailyAttendance(dateKey);
-  }
-);
+  await recordAuditLog({
+    action: 'aggregate_daily_analytics',
+    resource: 'ANALYTICS_SUMMARY',
+    resourceId: dateKey,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+  });
 
-export const scheduledMonthlyAnalyticsSync = onSchedule(
-  {
-    schedule: '30 1 1 * *',
-    timeZone: 'UTC',
-  },
-  async () => {
-    const lastMonth = new Date();
-    lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1);
-    const monthKey = `${lastMonth.getUTCFullYear()}-${String(lastMonth.getUTCMonth() + 1).padStart(2, '0')}`;
-    await aggregateMonthlyAttendance(monthKey);
-  }
-);
+  return result;
+});
+
+export const triggerMonthlyAnalyticsAggregation = functions.https.onCall(async (_data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertAdmin(ctx);
+  const now = new Date();
+  now.setUTCMonth(now.getUTCMonth() - 1);
+  const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+
+  const result = await aggregateMonthlyAttendance(monthKey);
+
+  await recordAuditLog({
+    action: 'aggregate_monthly_analytics',
+    resource: 'ANALYTICS_SUMMARY',
+    resourceId: monthKey,
+    status: 'success',
+    performedBy: requireAuthUid(ctx),
+  });
+
+  return result;
+});

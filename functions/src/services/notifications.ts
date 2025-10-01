@@ -5,7 +5,13 @@ import { firestore } from '../utils/firestore';
 const NOTIFICATIONS_COLLECTION = 'NOTIFICATIONS';
 const USERS_COLLECTION = 'USERS';
 const ATTENDANCE_COLLECTION = 'ATTENDANCE_RECORDS';
-const LEAVE_COLLECTION = 'LEAVE_REQUESTS';
+
+type ReminderCheckSlot = 'check1' | 'check2' | 'check3';
+const CHECK_STATUS_FIELDS: Record<ReminderCheckSlot, string> = {
+  check1: 'check1_status',
+  check2: 'check2_status',
+  check3: 'check3_status',
+};
 
 const toIsoString = (value: unknown): string | null => {
   if (!value) {
@@ -204,42 +210,49 @@ export const getActiveEmployees = async (): Promise<string[]> => {
   return snapshot.docs.map((doc) => doc.id);
 };
 
-export const getEmployeesNeedingClockInReminder = async (dateKey: string): Promise<string[]> => {
+export const getEmployeesNeedingClockInReminder = async (
+  dateKey: string,
+  slot: ReminderCheckSlot
+): Promise<string[]> => {
   const start = admin.firestore.Timestamp.fromDate(new Date(`${dateKey}T00:00:00Z`));
   const end = admin.firestore.Timestamp.fromDate(new Date(`${dateKey}T23:59:59Z`));
 
-  const attendanceSnap = await firestore
-    .collection(ATTENDANCE_COLLECTION)
-    .where('attendanceDate', '>=', start)
-    .where('attendanceDate', '<=', end)
-    .get();
+  const [attendanceSnap, activeEmployees] = await Promise.all([
+    firestore
+      .collection(ATTENDANCE_COLLECTION)
+      .where('attendanceDate', '>=', start)
+      .where('attendanceDate', '<=', end)
+      .get(),
+    getActiveEmployees(),
+  ]);
 
-  const completed = new Set<string>();
+  const pending = new Set<string>(activeEmployees);
+  const skipStatuses = new Set(['on_leave', 'present']);
+  const checkField = CHECK_STATUS_FIELDS[slot];
+
   attendanceSnap.forEach((doc) => {
-    if (doc.get('status')) {
-      completed.add(doc.get('userId') as string);
+    const userId = doc.get('userId') as string | undefined;
+    if (!userId) {
+      return;
+    }
+
+    if (!pending.has(userId)) {
+      return;
+    }
+
+    const dayStatus = (doc.get('status') as string | undefined)?.toLowerCase();
+    if (dayStatus && skipStatuses.has(dayStatus)) {
+      pending.delete(userId);
+      return;
+    }
+
+    const checkStatus = doc.get(checkField) as string | undefined;
+    if (checkStatus && checkStatus !== 'missed') {
+      pending.delete(userId);
     }
   });
 
-  const employees = await getActiveEmployees();
-  return employees.filter((id) => !completed.has(id));
-};
-
-export const getEmployeesWithPendingActions = async (): Promise<string[]> => {
-  const leaveSnap = await firestore
-    .collection(LEAVE_COLLECTION)
-    .where('status', '==', 'pending')
-    .get();
-
-  const employees = new Set<string>();
-  leaveSnap.forEach((doc) => {
-    const approverId = doc.get('approverId') as string | undefined;
-    if (approverId) {
-      employees.add(approverId);
-    }
-  });
-
-  return Array.from(employees);
+  return Array.from(pending);
 };
 
 
