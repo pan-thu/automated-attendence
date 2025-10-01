@@ -33,6 +33,14 @@ export const assertAdmin = (context: CallableContext): void => {
   }
 };
 
+export const assertEmployee = (context: CallableContext): void => {
+  assertAuthenticated(context);
+  const role = context.auth?.token?.role;
+  if (role !== 'employee') {
+    throw new AuthorizationError('Employee privileges required.');
+  }
+};
+
 export const requireAuthUid = (context: CallableContext): string => {
   assertAuthenticated(context);
   return context.auth!.uid;

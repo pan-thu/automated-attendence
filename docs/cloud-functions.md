@@ -34,6 +34,10 @@ This document summarizes the callable Cloud Functions exposed in `functions/src/
 | `listEmployeeLeaves` | Lists the caller's leave requests with optional status filter and pagination. | `{ status?, limit?, cursor? }` | `{ items, nextCursor }` |
 | `generateLeaveAttachmentUploadUrl` | Returns a signed Cloud Storage upload URL and attachment metadata for supporting documents. | `{ fileName, mimeType, sizeBytes }` | `{ attachmentId, uploadUrl, uploadHeaders, uploadUrlExpiresAt }` |
 | `registerLeaveAttachment` | Finalizes a pending attachment by validating the uploaded object and marking it ready. | `{ attachmentId }` | `{ attachmentId, storagePath, sizeBytes, mimeType }` |
+| `listEmployeeNotifications` | Returns the employee's notifications with pagination and optional status filtering. | `{ status?, limit?, cursor? }` | `{ items, nextCursor }` |
+| `markNotificationRead` | Marks a notification as read and optionally records an acknowledgment. | `{ notificationId, acknowledgment? }` | `{ success: true }` |
+| `listEmployeePenalties` | Lists active and historical penalties for the employee. | `{ status?, limit?, cursor? }` | `{ items, nextCursor }` |
+| `registerDeviceToken` | Registers or updates an FCM device token for push notifications. | `{ token, platform, deviceId, metadata? }` | `{ success: true }` |
 
 ## Scheduled Jobs (v2 Scheduler)
 | Function | Schedule (UTC) | Purpose |

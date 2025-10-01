@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 import { getCompanySettings } from './settings';
@@ -10,6 +11,18 @@ export interface WaivePenaltyInput {
   penaltyId: string;
   waivedReason: string;
   performedBy: string;
+}
+
+export interface ListEmployeePenaltiesInput {
+  userId: string;
+  limit?: number;
+  cursor?: string;
+  status?: string;
+}
+
+export interface ListEmployeePenaltiesResult {
+  items: Array<{ id: string; data: FirebaseFirestore.DocumentData }>;
+  nextCursor: string | null;
 }
 
 export const waivePenalty = async (input: WaivePenaltyInput) => {
@@ -25,6 +38,43 @@ export const waivePenalty = async (input: WaivePenaltyInput) => {
     },
     { merge: true }
   );
+};
+
+export const listEmployeePenalties = async (
+  input: ListEmployeePenaltiesInput
+): Promise<ListEmployeePenaltiesResult> => {
+  const { userId, limit = 20, cursor, status } = input;
+
+  if (limit <= 0 || limit > 100) {
+    throw new functions.https.HttpsError('invalid-argument', 'limit must be between 1 and 100.');
+  }
+
+  let query = firestore
+    .collection(PENALTIES_COLLECTION)
+    .where('userId', '==', userId)
+    .orderBy('dateIncurred', 'desc')
+    .limit(limit);
+
+  if (status) {
+    query = query.where('status', '==', status);
+  }
+
+  if (cursor) {
+    const cursorDoc = await firestore.collection(PENALTIES_COLLECTION).doc(cursor).get();
+    if (!cursorDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Cursor document not found.');
+    }
+    if ((cursorDoc.get('userId') as string | undefined) !== userId) {
+      throw new functions.https.HttpsError('permission-denied', 'Cursor does not belong to this user.');
+    }
+    query = query.startAfter(cursorDoc);
+  }
+
+  const snapshot = await query.get();
+  const items = snapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() ?? {} }));
+  const nextCursor = snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1]?.id ?? null : null;
+
+  return { items, nextCursor };
 };
 
 interface CalculateMonthlyViolationsInput {

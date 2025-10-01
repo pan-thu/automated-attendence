@@ -5,6 +5,16 @@ const ATTENDANCE_COLLECTION = 'ATTENDANCE_RECORDS';
 const LEAVE_COLLECTION = 'LEAVE_REQUESTS';
 const ANALYTICS_COLLECTION = 'ANALYTICS_SUMMARY';
 
+type AttendanceRecordDoc = Record<string, unknown> & {
+  id: string;
+  userId?: string;
+  status?: string;
+  attendanceDate?: unknown;
+  isManualEntry?: boolean;
+  manualReason?: unknown;
+  notes?: unknown;
+};
+
 export interface AttendanceReportInput {
   userId?: string;
   department?: string;
@@ -53,11 +63,17 @@ export const generateAttendanceReport = async (input: AttendanceReportInput) => 
   }
 
   const snapshot = await query.get();
-  const attendanceRecords = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const attendanceRecords: AttendanceRecordDoc[] = snapshot.docs.map((doc) => {
+    const data = doc.data() as FirebaseFirestore.DocumentData;
+    return {
+      id: doc.id,
+      ...data,
+    } as AttendanceRecordDoc;
+  });
 
   const uniqueUserIds = new Set<string>();
   attendanceRecords.forEach((record) => {
-    const uid = record.userId as string | undefined;
+    const uid = record.userId;
     if (uid) {
       uniqueUserIds.add(uid);
     }
@@ -79,13 +95,13 @@ export const generateAttendanceReport = async (input: AttendanceReportInput) => 
       return true;
     }
 
-    const userData = userLookup.get((record.userId as string) ?? '');
+    const userData = userLookup.get(record.userId ?? '');
     const userDepartment = typeof userData?.department === 'string' ? userData.department : null;
     return userDepartment === department;
   });
 
   const normalized = filtered.map((record) => {
-    const uid = (record.userId as string | undefined) ?? '';
+    const uid = record.userId ?? '';
     const userData = userLookup.get(uid) ?? {};
 
     return {

@@ -24,6 +24,7 @@ import { updateCompanySettings as updateCompanySettingsService } from './service
 import {
   waivePenalty as waivePenaltyService,
   calculateMonthlyViolations as calculateMonthlyViolationsService,
+  listEmployeePenalties as listEmployeePenaltiesService,
 } from './services/penalties';
 import {
   generateAttendanceReport as generateAttendanceReportService,
@@ -37,7 +38,10 @@ import {
   getEmployeesNeedingClockInReminder,
   getEmployeesWithPendingActions,
   getActiveEmployees,
+  listNotificationsForEmployee as listNotificationsForEmployeeService,
+  markNotificationAsRead as markNotificationAsReadService,
 } from './services/notifications';
+import { registerDeviceToken as registerDeviceTokenService } from './services/deviceTokens';
 import { handleClockIn as handleClockInService } from './services/clockInUtils';
 import {
   fetchEmployeeProfile,
@@ -723,6 +727,124 @@ export const registerLeaveAttachment = functions.https.onCall(async (data, conte
   });
 
   return result;
+});
+
+export const listEmployeeNotifications = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const limit = typeof payload.limit === 'number' ? payload.limit : 20;
+  const cursor = typeof payload.cursor === 'string' ? payload.cursor : undefined;
+  const status = typeof payload.status === 'string' && (payload.status === 'read' || payload.status === 'unread')
+    ? payload.status
+    : undefined;
+
+  const result = await listNotificationsForEmployeeService({
+    userId,
+    limit,
+    cursor,
+    status,
+  });
+
+  await recordAuditLog({
+    action: 'list_employee_notifications',
+    resource: 'NOTIFICATIONS',
+    resourceId: userId,
+    status: 'success',
+    performedBy: userId,
+  });
+
+  return result;
+});
+
+export const markNotificationRead = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const notificationId = assertString(payload.notificationId, 'notificationId');
+
+  const result = await markNotificationAsReadService({
+    userId,
+    notificationId,
+    acknowledgment: payload.acknowledgment as string | undefined,
+  });
+
+  await recordAuditLog({
+    action: 'mark_notification_read',
+    resource: 'NOTIFICATIONS',
+    resourceId: notificationId,
+    status: 'success',
+    performedBy: userId,
+    metadata: {
+      acknowledgment: payload.acknowledgment ?? null,
+    },
+  });
+
+  return result;
+});
+
+export const listEmployeePenalties = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const limit = typeof payload.limit === 'number' ? payload.limit : 20;
+  const cursor = typeof payload.cursor === 'string' ? payload.cursor : undefined;
+  const status = typeof payload.status === 'string' ? payload.status : undefined;
+
+  const result = await listEmployeePenaltiesService({
+    userId,
+    limit,
+    cursor,
+    status,
+  });
+
+  await recordAuditLog({
+    action: 'list_employee_penalties',
+    resource: 'PENALTIES',
+    resourceId: userId,
+    status: 'success',
+    performedBy: userId,
+  });
+
+  return result;
+});
+
+export const registerDeviceToken = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const token = assertString(payload.token, 'token');
+  const platform = assertString(payload.platform, 'platform');
+  const deviceId = assertString(payload.deviceId, 'deviceId');
+
+  await registerDeviceTokenService({
+    userId,
+    token,
+    platform,
+    deviceId,
+    metadata: payload.metadata as Record<string, unknown> | undefined,
+  });
+
+  await recordAuditLog({
+    action: 'register_device_token',
+    resource: 'DEVICE_TOKENS',
+    resourceId: `${userId}:${deviceId}`,
+    status: 'success',
+    performedBy: userId,
+    metadata: {
+      platform,
+    },
+  });
+
+  return { success: true };
 });
 
 export const scheduledPenaltyAutomation = onSchedule(

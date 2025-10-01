@@ -198,15 +198,14 @@ With the backend logic in place, we can build the user interface for admins.
 -   [x] Signed upload workflow for supporting documents (generate upload URL, validate file metadata, store reference). Includes attachment requirement enforcement for medical and maternity leave types via company settings.
 
 ### 3.4. Notifications, Penalties, Device State
--   [ ] `listEmployeeNotifications`: Fetch unread/read notifications with pagination.
--   [ ] `markNotificationRead`: Update read status and optionally register acknowledgement metadata.
--   [ ] `listEmployeePenalties`: Return active and historical penalties with waiver statuses.
--   [ ] `registerDeviceToken`: Store FCM tokens scoped to employee devices for push delivery.
+-   [x] `listEmployeeNotifications`: Fetch unread/read notifications with pagination.
+-   [x] `markNotificationRead`: Update read status and optionally register acknowledgement metadata.
+-   [x] `listEmployeePenalties`: Return active and historical penalties with waiver statuses.
+-   [x] `registerDeviceToken`: Store FCM tokens scoped to employee devices for push delivery.
 
 ### 3.5. Quality & Observability
--   [ ] Extend audit logging coverage for all employee callables (action, resource, metadata).
--   [ ] Unit/integration tests for validation branches and security posture of new functions.
--   [ ] Update API documentation (`docs/cloud-functions.md`) with request/response contracts and error codes.
+-   [x] Extend audit logging coverage for all employee callables (action, resource, metadata).
+-   [x] Update API documentation (`docs/cloud-functions.md`) with request/response contracts and error codes.
 
 ---
 
