@@ -179,4 +179,78 @@ With the backend logic in place, we can build the user interface for admins.
 
 ---
 
+## Phase 3: Employee Callable APIs (Firebase Functions)
+
+### 3.1. Employee Profile & Dashboard
+-   [x] `getEmployeeProfile`: Return sanitized user metadata, leave balances, and active status for the authenticated employee.
+-   [x] `getEmployeeDashboard`: Provide daily attendance status, remaining checks, and upcoming leave/penalty summaries.
+-   [x] `getCompanySettingsPublic`: Expose read-only settings needed by the mobile client (time windows, grace periods, timezone, geofence radius).
+
+### 3.2. Attendance & History Retrieval
+-   [x] `listEmployeeAttendance`: Paginated history scoped to the caller with optional date filters and computed check details.
+-   [x] `getAttendanceDayDetail`: Single-day breakdown including clock-in timestamps, geofence outcome, and manual override notes.
+-   [x] Harden Firestore security so employees can only read their own attendance records via callable-backed access patterns.
+
+### 3.3. Leave Lifecycle (Employee-Side)
+-   [x] `submitLeaveRequest`: Validate payload, persist to `LEAVE_REQUESTS`, enqueue notification, and log audit trail.
+-   [x] `cancelLeaveRequest`: Allow cancellation while pending; reverse any provisional attendance overrides.
+-   [x] `listEmployeeLeaves`: Return the employee's leave history with statuses and reviewer notes.
+-   [x] Signed upload workflow for supporting documents (generate upload URL, validate file metadata, store reference). Includes attachment requirement enforcement for medical and maternity leave types via company settings.
+
+### 3.4. Notifications, Penalties, Device State
+-   [ ] `listEmployeeNotifications`: Fetch unread/read notifications with pagination.
+-   [ ] `markNotificationRead`: Update read status and optionally register acknowledgement metadata.
+-   [ ] `listEmployeePenalties`: Return active and historical penalties with waiver statuses.
+-   [ ] `registerDeviceToken`: Store FCM tokens scoped to employee devices for push delivery.
+
+### 3.5. Quality & Observability
+-   [ ] Extend audit logging coverage for all employee callables (action, resource, metadata).
+-   [ ] Unit/integration tests for validation branches and security posture of new functions.
+-   [ ] Update API documentation (`docs/cloud-functions.md`) with request/response contracts and error codes.
+
+---
+
+## Phase 4: Flutter Mobile Application
+
+### 4.1. Project Foundation & Architecture
+-   [ ] Establish app architecture (feature-first folders, Provider/ChangeNotifier state management, services abstraction).
+-   [ ] Configure Firebase initialization, environment handling, and crash/error reporting pipeline.
+-   [ ] Implement secure persistence of auth session and custom-claim checks (enforce `role === 'employee'`).
+
+### 4.2. Authentication & Onboarding
+-   [ ] Build production-ready login, forgot-password, and logout flows wired to Firebase Auth.
+-   [ ] Add onboarding sequence to capture device permissions (location, notifications) and register FCM token via `registerDeviceToken`.
+
+### 4.3. Home Dashboard & Clock-In
+-   [ ] Create home screen that consumes `getEmployeeDashboard` and surfaces attendance status, remaining checks, and alerts.
+-   [ ] Implement clock-in flow: permission gating, geolocation retrieval via `geolocator`, call `handleClockIn`, handle error codes, and animate status updates.
+-   [ ] Surface geofence radius using map preview or textual guidance referencing company settings.
+
+### 4.4. Attendance History & Details
+-   [ ] Integrate `table_calendar` to display monthly attendance with status indicators.
+-   [ ] Build day-detail sheet leveraging `getAttendanceDayDetail`, including manual override/audit metadata.
+-   [ ] Add filtering/search for specific ranges and export/share options where appropriate.
+
+### 4.5. Leave Management Experience
+-   [ ] Leave list screen consuming `listEmployeeLeaves` with status chips and reviewer notes.
+-   [ ] Leave request creation wizard (type selection, date picker, reason, attachment upload using signed URLs).
+-   [ ] Allow cancellation of pending requests through `cancelLeaveRequest` with confirmation and state refresh.
+
+### 4.6. Notifications & Penalties
+-   [ ] Notifications center: list, detail view, and mark-as-read actions tied to `listEmployeeNotifications`/`markNotificationRead`.
+-   [ ] Integrate push notifications (Firebase Messaging) with deep links into relevant screens.
+-   [ ] Penalties screen displaying active and historical penalties with CTA to acknowledge or view policy guidance.
+
+### 4.7. Settings, Offline, and Support
+-   [ ] Settings/profile screen allowing light preferences (theme, locale), showing company info from `getCompanySettingsPublic`.
+-   [ ] Implement optimistic UI & caching strategy for key data sets with offline messaging.
+-   [ ] Add in-app help, error boundary views, and telemetry hooks for critical flows.
+
+### 4.8. QA & Release Readiness
+-   [ ] Widget/unit tests for view models, service adapters, and validation logic.
+-   [ ] End-to-end smoke flows (clock-in, leave request, notification) using integration test harness or tooling.
+-   [ ] Prepare release pipeline (CI lint/test, build flavors, beta distribution) and update store metadata checklists.
+
+
+
 

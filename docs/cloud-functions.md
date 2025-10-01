@@ -24,6 +24,16 @@ This document summarizes the callable Cloud Functions exposed in `functions/src/
 | `sendNotification` | Queues a notification for a specific user. | `{ userId, title, message, category?, type?, relatedId?, metadata? }` | `{ success: true }` |
 | `sendBulkNotification` | Queues notifications for multiple users at once. | `{ userIds: string[], title, message, category?, type?, relatedId?, metadata? }` | `{ count }` |
 | `handleClockIn` | Employee clock-in endpoint enforcing location validation before calling `handleClockInService`. | `{ latitude, longitude, timestamp?, isMocked? }` | `{ success: true, ... }` |
+| `getEmployeeProfile` | Returns the signed-in employee's profile, leave balances, and active status. | `{} (none)` | `{ userId, fullName, email, department, position, phoneNumber, leaveBalances, isActive }` |
+| `getEmployeeDashboard` | Provides the employee dashboard summary for a given day including attendance, upcoming leave, penalties, and notifications. | `{ date? }` | `{ date, attendance, remainingChecks, upcomingLeave, activePenalties, unreadNotifications, leaveBalances, isActive }` |
+| `getCompanySettingsPublic` | Exposes public company configuration needed by the mobile client. | `{} (none)` | `{ companyName, timezone, workplaceRadius, workplaceCenter, timeWindows, gracePeriods, workingDays, holidays, geoFencingEnabled }` |
+| `listEmployeeAttendance` | Returns paginated attendance history for the authenticated employee with optional date filtering. | `{ limit?, cursor?, startDate?, endDate? }` | `{ items, nextCursor }` |
+| `getAttendanceDayDetail` | Provides full details for a single attendance day including per-check info and summary. | `{ date }` | `{ ...AttendanceDayDetail }` |
+| `submitLeaveRequest` | Submits a leave request with optional attachment metadata and enqueues review notifications. | `{ leaveType, startDate, endDate, reason, attachmentId? }` | `{ requestId }` |
+| `cancelLeaveRequest` | Cancels a pending leave request owned by the caller. | `{ requestId }` | `{ success: true }` |
+| `listEmployeeLeaves` | Lists the caller's leave requests with optional status filter and pagination. | `{ status?, limit?, cursor? }` | `{ items, nextCursor }` |
+| `generateLeaveAttachmentUploadUrl` | Returns a signed Cloud Storage upload URL and attachment metadata for supporting documents. | `{ fileName, mimeType, sizeBytes }` | `{ attachmentId, uploadUrl, uploadHeaders, uploadUrlExpiresAt }` |
+| `registerLeaveAttachment` | Finalizes a pending attachment by validating the uploaded object and marking it ready. | `{ attachmentId }` | `{ attachmentId, storagePath, sizeBytes, mimeType }` |
 
 ## Scheduled Jobs (v2 Scheduler)
 | Function | Schedule (UTC) | Purpose |

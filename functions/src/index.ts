@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { admin } from './firebase';
-import { assertAdmin, requireAuthUid, CallableContext, assertAuthenticated } from './utils/auth';
+import { assertAdmin, requireAuthUid, CallableContext, assertAuthenticated, assertEmployee } from './utils/auth';
 import { assertPayload, assertString, assertEmail, assertBoolean } from './utils/validators';
 import {
   createEmployee as createEmployeeService,
@@ -10,7 +10,16 @@ import {
   DEFAULT_LEAVE_KEYS,
 } from './services/users';
 import { setManualAttendance, ManualAttendanceInput } from './services/attendance';
-import { handleLeaveApproval as handleLeaveApprovalService } from './services/leaves';
+import {
+  handleLeaveApproval as handleLeaveApprovalService,
+  submitLeaveRequest as submitLeaveRequestService,
+  cancelLeaveRequest as cancelLeaveRequestService,
+  listEmployeeLeaves as listEmployeeLeavesService,
+} from './services/leaves';
+import {
+  generateLeaveAttachmentUploadUrl as generateLeaveAttachmentUploadUrlService,
+  registerLeaveAttachment as registerLeaveAttachmentService,
+} from './services/leaveAttachments';
 import { updateCompanySettings as updateCompanySettingsService } from './services/settings';
 import {
   waivePenalty as waivePenaltyService,
@@ -30,6 +39,15 @@ import {
   getActiveEmployees,
 } from './services/notifications';
 import { handleClockIn as handleClockInService } from './services/clockInUtils';
+import {
+  fetchEmployeeProfile,
+  fetchEmployeeDashboard,
+  fetchCompanySettingsPublic,
+} from './services/employees';
+import {
+  listEmployeeAttendance as listEmployeeAttendanceService,
+  getAttendanceDayDetail as getAttendanceDayDetailService,
+} from './services/attendanceHistory';
 import { recordAuditLog } from './services/audit';
 
 type SupportedRole = 'admin' | 'employee';
@@ -519,6 +537,189 @@ export const handleClockIn = functions.https.onCall(async (data, context) => {
       location: { latitude, longitude },
       isMocked,
     },
+  });
+
+  return result;
+});
+
+export const getEmployeeProfile = functions.https.onCall(async (_data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const userId = requireAuthUid(ctx);
+
+  const profile = await fetchEmployeeProfile(userId);
+
+  return profile;
+});
+
+export const getEmployeeDashboard = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = data ? assertPayload<Record<string, unknown>>(data) : {};
+  const userId = requireAuthUid(ctx);
+
+  const date = typeof payload.date === 'string' ? payload.date : undefined;
+
+  const summary = await fetchEmployeeDashboard(userId, date);
+
+  return summary;
+});
+
+export const getCompanySettingsPublic = functions.https.onCall(async (_data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+
+  const settings = await fetchCompanySettingsPublic();
+
+  return settings;
+});
+
+export const listEmployeeAttendance = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const limit = payload.limit as number | undefined;
+  const cursor = payload.cursor as string | undefined;
+  const startDate = payload.startDate as string | undefined;
+  const endDate = payload.endDate as string | undefined;
+
+  const result = await listEmployeeAttendanceService({
+    userId,
+    limit,
+    cursor,
+    startDate,
+    endDate,
+  });
+
+  return result;
+});
+
+export const getAttendanceDayDetail = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const date = assertString(payload.date, 'date');
+
+  const detail = await getAttendanceDayDetailService({
+    userId,
+    date,
+  });
+
+  return detail;
+});
+
+export const submitLeaveRequest = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const leaveType = assertString(payload.leaveType, 'leaveType');
+  const startDate = assertString(payload.startDate, 'startDate');
+  const endDate = assertString(payload.endDate, 'endDate');
+  const reason = assertString(payload.reason, 'reason', { min: 5, max: 500 });
+  const attachmentId = payload.attachmentId ? assertString(payload.attachmentId, 'attachmentId') : undefined;
+
+  const result = await submitLeaveRequestService({
+    userId,
+    leaveType,
+    startDate,
+    endDate,
+    reason,
+    attachmentId,
+  });
+
+  return result;
+});
+
+export const cancelLeaveRequest = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const requestId = assertString(payload.requestId, 'requestId');
+
+  const result = await cancelLeaveRequestService({
+    userId,
+    requestId,
+  });
+
+  return result;
+});
+
+export const listEmployeeLeaves = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const status = payload.status ? assertString(payload.status, 'status') : undefined;
+  const limit = payload.limit as number | undefined;
+  const cursor = payload.cursor as string | undefined;
+
+  const result = await listEmployeeLeavesService({
+    userId,
+    status: status as 'pending' | 'approved' | 'rejected' | 'cancelled' | undefined,
+    limit,
+    cursor,
+  });
+
+  return result;
+});
+
+export const generateLeaveAttachmentUploadUrl = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const fileName = assertString(payload.fileName, 'fileName', { min: 1, max: 255 });
+  const mimeType = assertString(payload.mimeType, 'mimeType', { min: 3, max: 255 });
+  const sizeBytes = payload.sizeBytes as number | undefined;
+
+  const result = await generateLeaveAttachmentUploadUrlService({
+    userId,
+    fileName,
+    mimeType,
+    sizeBytes,
+  });
+
+  await recordAuditLog({
+    action: 'generate_leave_attachment_upload_url',
+    resource: 'LEAVE_ATTACHMENTS',
+    resourceId: result.attachmentId,
+    status: 'success',
+    performedBy: userId,
+    metadata: { fileName, mimeType, sizeBytes },
+  });
+
+  return result;
+});
+
+export const registerLeaveAttachment = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const attachmentId = assertString(payload.attachmentId, 'attachmentId');
+
+  const result = await registerLeaveAttachmentService({
+    userId,
+    attachmentId,
+  });
+
+  await recordAuditLog({
+    action: 'register_leave_attachment',
+    resource: 'LEAVE_ATTACHMENTS',
+    resourceId: attachmentId,
+    status: 'success',
+    performedBy: userId,
   });
 
   return result;

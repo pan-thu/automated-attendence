@@ -19,6 +19,9 @@ export interface CompanySettingsInput {
   workingDays?: Record<string, boolean>;
   holidays?: string[];
   geoFencingEnabled?: boolean;
+  maxLeaveAttachmentSizeMb?: number;
+  allowedLeaveAttachmentTypes?: string[];
+  leaveAttachmentRequiredTypes?: string[];
 }
 
 export interface CompanySettings extends CompanySettingsInput {
@@ -320,6 +323,41 @@ const sanitizeCompanySettingsInput = (
   const geoFencingEnabled = ensureOptionalBoolean(input.geoFencingEnabled, 'geoFencingEnabled');
   if (geoFencingEnabled !== undefined) {
     sanitized.geoFencingEnabled = geoFencingEnabled;
+  }
+
+  const maxAttachmentSize = ensureOptionalNumber(input.maxLeaveAttachmentSizeMb, 'maxLeaveAttachmentSizeMb', {
+    allowZero: false,
+  });
+  if (maxAttachmentSize !== undefined) {
+    sanitized.maxLeaveAttachmentSizeMb = maxAttachmentSize;
+  }
+
+  if (input.allowedLeaveAttachmentTypes !== undefined) {
+    if (!Array.isArray(input.allowedLeaveAttachmentTypes)) {
+      throw new functions.https.HttpsError('invalid-argument', 'allowedLeaveAttachmentTypes must be an array.');
+    }
+
+    const sanitizedTypes = input.allowedLeaveAttachmentTypes.map((entry, index) => {
+      const value = ensureOptionalString(entry, `allowedLeaveAttachmentTypes[${index}]`);
+      return value?.toLowerCase();
+    }).filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+
+    sanitized.allowedLeaveAttachmentTypes = sanitizedTypes;
+  }
+
+  if (input.leaveAttachmentRequiredTypes !== undefined) {
+    if (!Array.isArray(input.leaveAttachmentRequiredTypes)) {
+      throw new functions.https.HttpsError('invalid-argument', 'leaveAttachmentRequiredTypes must be an array.');
+    }
+
+    const sanitizedRequiredTypes = input.leaveAttachmentRequiredTypes
+      .map((entry, index) => {
+        const value = ensureOptionalString(entry, `leaveAttachmentRequiredTypes[${index}]`);
+        return value?.toLowerCase();
+      })
+      .filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+
+    sanitized.leaveAttachmentRequiredTypes = sanitizedRequiredTypes;
   }
 
   return sanitized;
