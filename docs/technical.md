@@ -252,6 +252,23 @@ The project utilizes a specific set of modern technologies chosen for their effi
   - `table_calendar`: For creating a highly customizable calendar view for attendance and leave history.
   - `dynamic_color`: To implement Material 3's dynamic theming based on the user's wallpaper (Android).
   - `intl`: For robust date and time formatting.
+- **Phase 4 Foundation:**
+  - **Structure:** Adopted a feature-first layout under `lib/features/<feature>` with cross-cutting support in `lib/core` (auth, config, navigation, providers, services) to keep UI, controllers, and infrastructure cohesive per feature.
+  - **State Management:** Lightweight `ChangeNotifier` controllers exposed via `provider`. A global `SessionController` wraps Firebase Auth, hydrates custom claims, and persists session tokens via `flutter_secure_storage`; feature controllers follow the same pattern.
+  - **Routing:** Central `AppRouter` powered by `go_router`, enforcing guarded navigation based on hydrated session state (`role === 'employee'`). Routes live in `lib/core/navigation` and hook into feature presentation widgets.
+  - **Environment Handling:** `AppEnvironment` parses compile-time `--dart-define` values (`APP_FLAVOR`, `API_BASE_URL`, `SENTRY_DSN`) so dev/staging/prod builds stay configurable without hard-coded secrets.
+  - **Bootstrap Pipeline:** `main.dart` initialises Firebase, registers background messaging handlers, loads provider graph via `configureAppProviders`, and displays a splash screen until initialization finishes.
+  - **Services Layer:** `core/services` hosts typed adapters around callable Cloud Functions (attendance, leaves, notifications, onboarding/device tokens) so the mobile client stays thin and server-authoritative.
+
+- **Phase 4.2 – Authentication & Onboarding Enhancements:**
+  - **Login & Session:** `LoginController` coordinates Firebase Auth sign-in, performs claim checks (enforcing `role === 'employee'`), and surfaces friendly error messaging. `SessionController` tracks onboarding completion across launches via `SharedPreferences`.
+  - **Onboarding Workflow:** `OnboardingController` handles location and notification permissions, registers device tokens through the `registerDeviceToken` callable, and records completion locally. `OnboardingScreen` guides the employee through these steps with status chips and contextual copy.
+  - **Navigation Guard:** Authenticated users who have not finished onboarding are routed to `/onboarding` before reaching the home dashboard.
+
+- **Phase 4.3 – Employee Dashboard & Clock-In:**
+  - **Dashboard Data:** `DashboardRepository` aggregates `getEmployeeDashboard` and `getCompanySettingsPublic`, normalising attendance, remaining checks, leave balances, upcoming leave, penalties, unread notifications, and geofence window data.
+  - **Home UI:** `DashboardView` renders the rich summary (attendance chips, leave balances, upcoming leave, penalties, company settings) and reacts to refreshes and clock-in outcomes.
+  - **Clock-In Flow:** `ClockInController` coordinates permission validation, geolocation retrieval, and `handleClockIn` invocation. Success or failure is surfaced in the UI with snackbars and banner feedback, and successful clock-ins automatically refresh the dashboard.
 
 **3.3. Admin Dashboard (React)**
 

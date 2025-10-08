@@ -212,18 +212,18 @@ With the backend logic in place, we can build the user interface for admins.
 ## Phase 4: Flutter Mobile Application
 
 ### 4.1. Project Foundation & Architecture
--   [ ] Establish app architecture (feature-first folders, Provider/ChangeNotifier state management, services abstraction).
--   [ ] Configure Firebase initialization, environment handling, and crash/error reporting pipeline.
--   [ ] Implement secure persistence of auth session and custom-claim checks (enforce `role === 'employee'`).
+-   [x] Establish app architecture (feature-first folders, Provider/ChangeNotifier state management, services abstraction).
+-   [x] Configure Firebase initialization, environment handling, and crash/error reporting pipeline (bootstrap + env scaffolding in place; telemetry wiring TBD in later phases).
+-   [x] Implement secure persistence of auth session and custom-claim checks (enforce `role === 'employee'`).
 
 ### 4.2. Authentication & Onboarding
--   [ ] Build production-ready login, forgot-password, and logout flows wired to Firebase Auth.
--   [ ] Add onboarding sequence to capture device permissions (location, notifications) and register FCM token via `registerDeviceToken`.
+-   [x] Build production-ready login, forgot-password, and logout flows wired to Firebase Auth.
+-   [x] Add onboarding sequence to capture device permissions (location, notifications) and register FCM token via `registerDeviceToken`.
 
 ### 4.3. Home Dashboard & Clock-In
--   [ ] Create home screen that consumes `getEmployeeDashboard` and surfaces attendance status, remaining checks, and alerts.
--   [ ] Implement clock-in flow: permission gating, geolocation retrieval via `geolocator`, call `handleClockIn`, handle error codes, and animate status updates.
--   [ ] Surface geofence radius using map preview or textual guidance referencing company settings.
+-   [x] Create home screen that consumes `getEmployeeDashboard` and surfaces attendance status, remaining checks, and alerts.
+-   [x] Implement clock-in flow: permission gating, geolocation retrieval via `geolocator`, call `handleClockIn`, handle error codes, and animate status updates.
+-   [x] Surface geofence radius using map preview or textual guidance referencing company settings.
 
 ### 4.4. Attendance History & Details
 -   [ ] Integrate `table_calendar` to display monthly attendance with status indicators.
