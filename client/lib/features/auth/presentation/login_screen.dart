@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../widgets/auth_text_field.dart';
-import '../../controllers/login_controller.dart';
+import '../../widgets/auth_text_field.dart';
+import '../controllers/login_controller.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -53,29 +53,35 @@ class _LoginView extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: controller.canSubmit ? () => controller.resetPassword(context) : null,
+                  onPressed:
+                      controller.canSubmit
+                          ? () => controller.resetPassword(context)
+                          : null,
                   child: const Text('Forgot password?'),
                 ),
               ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: controller.canSubmit ? () => controller.signIn(context) : null,
-                child: controller.isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Sign In'),
+                onPressed:
+                    controller.canSubmit
+                        ? () => controller.signIn(context)
+                        : null,
+                child:
+                    controller.isLoading
+                        ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Text('Sign In'),
               ),
               if (controller.errorMessage != null) ...[
                 const SizedBox(height: 16),
                 Text(
                   controller.errorMessage!,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: Theme.of(context).colorScheme.error),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ],
             ],
@@ -85,4 +91,3 @@ class _LoginView extends StatelessWidget {
     );
   }
 }
-

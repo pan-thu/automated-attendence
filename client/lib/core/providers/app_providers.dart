@@ -5,6 +5,7 @@ import '../auth/session_controller.dart';
 import '../config/app_environment.dart';
 import '../navigation/app_router.dart';
 import '../../features/onboarding/controllers/onboarding_controller.dart';
+import '../services/leave_repository.dart';
 
 Future<void> configureAppProviders({required AppEnvironment environment}) async {
   // Placeholder for async service initialization.
@@ -25,9 +26,14 @@ class ProviderScope extends StatelessWidget {
         ChangeNotifierProvider<OnboardingController>(
           create: (_) => OnboardingController(),
         ),
-        ProxyProvider2<SessionController, OnboardingController, AppRouter>(
-          update: (_, sessionController, onboardingController, __) =>
-              AppRouter(sessionController: sessionController, onboardingController: onboardingController),
+        Provider<LeaveRepositoryBase>(create: (_) => LeaveRepository()),
+        ProxyProvider3<SessionController, OnboardingController, LeaveRepositoryBase, AppRouter>(
+          update: (_, sessionController, onboardingController, leaveRepository, __) =>
+              AppRouter(
+                sessionController: sessionController,
+                onboardingController: onboardingController,
+                leaveRepository: leaveRepository,
+              ),
         ),
       ],
       child: Consumer<AppRouter>(

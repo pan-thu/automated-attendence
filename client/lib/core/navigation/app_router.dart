@@ -1,18 +1,28 @@
 import 'package:go_router/go_router.dart';
+import 'package:flutter/foundation.dart';
 
 import '../auth/session_controller.dart';
+import '../../features/attendance_history/presentation/attendance_history_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/leaves/presentation/leave_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/onboarding/controllers/onboarding_controller.dart';
 
 class AppRouter {
-  AppRouter({required SessionController sessionController, required OnboardingController onboardingController})
-      : _sessionController = sessionController,
-        _onboardingController = onboardingController {
+  AppRouter({
+    required SessionController sessionController,
+    required OnboardingController onboardingController,
+    required LeaveRepositoryBase leaveRepository,
+  }) : _sessionController = sessionController,
+       _onboardingController = onboardingController,
+       _leaveRepository = leaveRepository {
     router = GoRouter(
       initialLocation: AppRoutePaths.home,
-      refreshListenable: Listenable.merge([_sessionController, _onboardingController]),
+      refreshListenable: Listenable.merge([
+        _sessionController,
+        _onboardingController,
+      ]),
       debugLogDiagnostics: false,
       redirect: (context, state) {
         if (!_sessionController.isHydrated) {
@@ -21,7 +31,8 @@ class AppRouter {
 
         final isAuthenticated = _sessionController.isAuthenticated;
         final goingToLogin = state.matchedLocation == AppRoutePaths.login;
-        final goingToOnboarding = state.matchedLocation == AppRoutePaths.onboarding;
+        final goingToOnboarding =
+            state.matchedLocation == AppRoutePaths.onboarding;
         final needsOnboarding = _onboardingController.requiresOnboarding;
 
         if (!isAuthenticated && !goingToLogin) {
@@ -29,7 +40,9 @@ class AppRouter {
         }
 
         if (isAuthenticated && goingToLogin) {
-          return needsOnboarding ? AppRoutePaths.onboarding : AppRoutePaths.home;
+          return needsOnboarding
+              ? AppRoutePaths.onboarding
+              : AppRoutePaths.home;
         }
 
         if (isAuthenticated && needsOnboarding && !goingToOnboarding) {
@@ -49,6 +62,16 @@ class AppRouter {
           builder: (context, state) => const LoginScreen(),
         ),
         GoRoute(
+          name: AppRoutePaths.attendanceHistory,
+          path: AppRoutePaths.attendanceHistory,
+          builder: (context, state) => const AttendanceHistoryScreen(),
+        ),
+        GoRoute(
+          name: AppRoutePaths.leaves,
+          path: AppRoutePaths.leaves,
+          builder: (context, state) => LeaveScreen(repository: _leaveRepository),
+        ),
+        GoRoute(
           name: AppRoutePaths.onboarding,
           path: AppRoutePaths.onboarding,
           builder: (context, state) => const OnboardingScreen(),
@@ -64,6 +87,7 @@ class AppRouter {
 
   final SessionController _sessionController;
   final OnboardingController _onboardingController;
+  final LeaveRepositoryBase _leaveRepository;
   late final GoRouter router;
 }
 
@@ -71,7 +95,8 @@ class AppRoutePaths {
   AppRoutePaths._();
 
   static const String login = '/login';
+  static const String attendanceHistory = '/attendance/history';
+  static const String leaves = '/leaves';
   static const String onboarding = '/onboarding';
   static const String home = '/';
 }
-

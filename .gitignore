@@ -29,6 +29,8 @@ pids
 lib
 !admin/src/lib/
 !admin/src/lib/**
+!client/lib/
+!client/lib/**
 lib-cov
 
 # Coverage directory used by tools like istanbul

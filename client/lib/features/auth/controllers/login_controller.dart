@@ -4,12 +4,13 @@ import '../../../core/services/auth_repository.dart';
 
 class LoginController extends ChangeNotifier {
   LoginController({AuthRepository? authRepository})
-      : _authRepository = authRepository ?? AuthRepository();
+    : _authRepository = authRepository ?? AuthRepository();
 
   final AuthRepository _authRepository;
 
-  static final RegExp _emailPattern =
-      RegExp(r"^[a-zA-Z0-9.!#%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*");
+  static final RegExp _emailPattern = RegExp(
+    r"^[a-zA-Z0-9.!#%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*",
+  );
 
   String _email = '';
   String _password = '';
@@ -22,7 +23,8 @@ class LoginController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get emailError => _emailError;
   String? get passwordError => _passwordError;
-  bool get canSubmit => !_isLoading && _email.isNotEmpty && _password.isNotEmpty;
+  bool get canSubmit =>
+      !_isLoading && _email.isNotEmpty && _password.isNotEmpty;
 
   void updateEmail(String value) {
     _email = value.trim();
@@ -73,7 +75,9 @@ class LoginController extends ChangeNotifier {
       await _authRepository.sendPasswordResetEmail(_email);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset email sent. Check your inbox.')),
+          const SnackBar(
+            content: Text('Password reset email sent. Check your inbox.'),
+          ),
         );
       }
     } on AuthFailure catch (failure) {
@@ -109,6 +113,3 @@ class LoginController extends ChangeNotifier {
     notifyListeners();
   }
 }
-import 'package:flutter/material.dart';
-import '../../../core/services/auth_repository.dart';
-

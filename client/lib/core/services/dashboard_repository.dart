@@ -167,7 +167,7 @@ class PenaltySummary {
 
   final String penaltyId;
   final String status;
-  final double amount;
+  final double? amount;
   final String? violationType;
   final DateTime? dateIncurred;
 
@@ -175,7 +175,7 @@ class PenaltySummary {
     return PenaltySummary(
       penaltyId: json['penaltyId'] as String? ?? '',
       status: json['status'] as String? ?? 'active',
-      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      amount: (json['amount'] as num?)?.toDouble(),
       violationType: json['violationType'] as String?,
       dateIncurred: DateTime.tryParse(json['dateIncurred'] as String? ?? ''),
     );
