@@ -311,6 +311,13 @@ The system's logic is highly flexible, driven by rules stored in the `COMPANY_SE
   - Employee APIs: Mobile clients consume `listEmployeeNotifications` with cursor/limit filters, acknowledge items via `markNotificationRead`, and surface penalty history through `listEmployeePenalties`. Device registrations use `registerDeviceToken`, deduplicating tokens across devices while tracking metadata and platform for push notification routing.
 - **Audit Trail Visibility:** A dedicated `/audit-logs` viewer lists entries from `AUDIT_LOGS`, including client-side filters for action, resource, executor, and date range. Selecting a log exposes structured diffs of `oldValues`, `newValues`, and any supplemental metadata/error payloads, supporting compliance and incident investigations.
 
+**4.4. Employee Notifications & Penalties (Phase 4.6 Completion)**
+
+- **Mobile Notifications Center:** The Flutter client now bundles `NotificationRepository`, `NotificationController`, and a dedicated `NotificationsScreen` that surfaces segmented filters (all/unread/read), infinite scrolling, optimistic mark-as-read behaviour, and rich detail sheets for each record. Errors roll back local optimistic updates to maintain consistency.
+- **Penalty Management:** `PenaltyRepository` and `PenaltyController` consume the new `acknowledgePenalty` callable alongside `listEmployeePenalties`, delivering a penalties list with filters, acknowledgement workflow, and detail sheet metadata surfaced to end users.
+- **Push Deep Links:** A centralised `PushNotificationService` wires Firebase Messaging background and cold-start handling, translating payload metadata into `AppRouter` navigation (defaulting to `/notifications`, routing to `/penalties` for penalty payloads, or honouring explicit `route` overrides).
+- **Dashboard Hooks:** The home dashboard exposes quick access to the notifications inbox (with unread counts) and incorporates penalty summaries, keeping employees aware of outstanding actions.
+
 #### **5. Database Schema (Firestore Data Model)**
 
 The database is structured into several collections to normalize data and ensure scalability. Below is a detailed description of each collection based on the project's ERD.

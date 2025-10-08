@@ -8,15 +8,24 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/leaves/presentation/leave_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/onboarding/controllers/onboarding_controller.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/penalties/presentation/penalties_screen.dart';
 
 class AppRouter {
   AppRouter({
     required SessionController sessionController,
     required OnboardingController onboardingController,
     required LeaveRepositoryBase leaveRepository,
+    required NotificationRepositoryBase notificationRepository,
+    required PenaltyRepositoryBase penaltyRepository,
+    required PushNotificationService pushNotificationService,
   }) : _sessionController = sessionController,
        _onboardingController = onboardingController,
-       _leaveRepository = leaveRepository {
+       _leaveRepository = leaveRepository,
+       _notificationRepository = notificationRepository,
+       _penaltyRepository = penaltyRepository,
+       _pushNotificationService = pushNotificationService {
+    _pushNotificationService.configure(this);
     router = GoRouter(
       initialLocation: AppRoutePaths.home,
       refreshListenable: Listenable.merge([
@@ -72,6 +81,16 @@ class AppRouter {
           builder: (context, state) => LeaveScreen(repository: _leaveRepository),
         ),
         GoRoute(
+          name: AppRoutePaths.notifications,
+          path: AppRoutePaths.notifications,
+          builder: (context, state) => NotificationsScreen(repository: _notificationRepository),
+        ),
+        GoRoute(
+          name: AppRoutePaths.penalties,
+          path: AppRoutePaths.penalties,
+          builder: (context, state) => PenaltiesScreen(repository: _penaltyRepository),
+        ),
+        GoRoute(
           name: AppRoutePaths.onboarding,
           path: AppRoutePaths.onboarding,
           builder: (context, state) => const OnboardingScreen(),
@@ -88,6 +107,9 @@ class AppRouter {
   final SessionController _sessionController;
   final OnboardingController _onboardingController;
   final LeaveRepositoryBase _leaveRepository;
+  final NotificationRepositoryBase _notificationRepository;
+  final PenaltyRepositoryBase _penaltyRepository;
+  final PushNotificationService _pushNotificationService;
   late final GoRouter router;
 }
 
@@ -97,6 +119,8 @@ class AppRoutePaths {
   static const String login = '/login';
   static const String attendanceHistory = '/attendance/history';
   static const String leaves = '/leaves';
+  static const String notifications = '/notifications';
+  static const String penalties = '/penalties';
   static const String onboarding = '/onboarding';
   static const String home = '/';
 }

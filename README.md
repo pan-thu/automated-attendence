@@ -160,6 +160,12 @@ This project is prioritized using the MoSCoW method to ensure that critical feat
     -   Penalty Dispute Workflow
     -   Comprehensive Audit Log Viewer
 
+### Current Focus (Phase 4.6 – Notifications & Penalties)
+-   ✅ Notifications inbox (`NotificationsScreen`, detail sheets, filters) powered by `NotificationRepository` and `markNotificationRead` callable.
+-   ✅ Firebase Messaging deep-link handlers via `PushNotificationService` to open relevant routes on tap.
+-   ✅ Penalties history & acknowledgement screen backed by `listEmployeePenalties` / `acknowledgePenalty`.
+-   ✅ Documentation updated to capture the completed workflows and integration points.
+
 ## 📦 Deployment & Tooling
 
 - **Firebase Functions:** `npm run build && firebase deploy --only functions`

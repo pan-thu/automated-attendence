@@ -165,6 +165,12 @@ class _DashboardContent extends StatelessWidget {
           icon: const Icon(Icons.beach_access),
           label: const Text('Manage Leave'),
         ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: () => context.push(AppRoutePaths.notifications),
+          icon: const Icon(Icons.notifications),
+          label: const Text('Notifications'),
+        ),
         if (summary.remainingChecks.isNotEmpty) ...[
           const SizedBox(height: 16),
           _RemainingChecksCard(remaining: summary.remainingChecks),

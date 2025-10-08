@@ -226,19 +226,19 @@ With the backend logic in place, we can build the user interface for admins.
 -   [x] Surface geofence radius using map preview or textual guidance referencing company settings.
 
 ### 4.4. Attendance History & Details
--   [ ] Integrate `table_calendar` to display monthly attendance with status indicators.
--   [ ] Build day-detail sheet leveraging `getAttendanceDayDetail`, including manual override/audit metadata.
--   [ ] Add filtering/search for specific ranges and export/share options where appropriate.
+-   [x] Integrate `table_calendar` to display monthly attendance with status indicators.
+-   [x] Build day-detail sheet leveraging `getAttendanceDayDetail`, including manual override/audit metadata.
+-   [x] Add filtering/search for specific ranges and export/share options where appropriate.
 
 ### 4.5. Leave Management Experience
--   [ ] Leave list screen consuming `listEmployeeLeaves` with status chips and reviewer notes.
--   [ ] Leave request creation wizard (type selection, date picker, reason, attachment upload using signed URLs).
--   [ ] Allow cancellation of pending requests through `cancelLeaveRequest` with confirmation and state refresh.
+-   [x] Leave list screen consuming `listEmployeeLeaves` with status chips and reviewer notes.
+-   [x] Leave request creation wizard (type selection, date picker, reason, attachment upload using signed URLs).
+-   [x] Allow cancellation of pending requests through `cancelLeaveRequest` with confirmation and state refresh.
 
 ### 4.6. Notifications & Penalties
--   [ ] Notifications center: list, detail view, and mark-as-read actions tied to `listEmployeeNotifications`/`markNotificationRead`.
--   [ ] Integrate push notifications (Firebase Messaging) with deep links into relevant screens.
--   [ ] Penalties screen displaying active and historical penalties with CTA to acknowledge or view policy guidance.
+-   [x] Notifications center: list, detail view, and mark-as-read actions tied to `listEmployeeNotifications`/`markNotificationRead`.
+-   [x] Integrate push notifications (Firebase Messaging) with deep links into relevant screens.
+-   [x] Penalties screen displaying active and historical penalties with CTA to acknowledge or view policy guidance.
 
 ### 4.7. Settings, Offline, and Support
 -   [ ] Settings/profile screen allowing light preferences (theme, locale), showing company info from `getCompanySettingsPublic`.

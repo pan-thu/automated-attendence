@@ -25,6 +25,7 @@ import {
   waivePenalty as waivePenaltyService,
   calculateMonthlyViolations as calculateMonthlyViolationsService,
   listEmployeePenalties as listEmployeePenaltiesService,
+  acknowledgePenalty as acknowledgePenaltyService,
 } from './services/penalties';
 import {
   generateAttendanceReport as generateAttendanceReportService,
@@ -808,6 +809,33 @@ export const listEmployeePenalties = functions.https.onCall(async (data, context
     resourceId: userId,
     status: 'success',
     performedBy: userId,
+  });
+
+  return result;
+});
+
+export const acknowledgePenalty = functions.https.onCall(async (data, context) => {
+  const ctx = (context as unknown) as CallableContext;
+  assertEmployee(ctx);
+  const payload = assertPayload<Record<string, unknown>>(data ?? {});
+  const userId = requireAuthUid(ctx);
+
+  const penaltyId = assertString(payload.penaltyId, 'penaltyId');
+  const note = typeof payload.note === 'string' ? payload.note : undefined;
+
+  const result = await acknowledgePenaltyService({
+    userId,
+    penaltyId,
+    note,
+  });
+
+  await recordAuditLog({
+    action: 'acknowledge_penalty',
+    resource: 'PENALTIES',
+    resourceId: penaltyId,
+    status: 'success',
+    performedBy: userId,
+    metadata: { note: note ?? null },
   });
 
   return result;

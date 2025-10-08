@@ -25,6 +25,12 @@ export interface ListEmployeePenaltiesResult {
   nextCursor: string | null;
 }
 
+export interface AcknowledgePenaltyInput {
+  userId: string;
+  penaltyId: string;
+  note?: string;
+}
+
 export const waivePenalty = async (input: WaivePenaltyInput) => {
   const { penaltyId, waivedReason, performedBy } = input;
 
@@ -75,6 +81,33 @@ export const listEmployeePenalties = async (
   const nextCursor = snapshot.size === limit ? snapshot.docs[snapshot.docs.length - 1]?.id ?? null : null;
 
   return { items, nextCursor };
+};
+
+export const acknowledgePenalty = async (input: AcknowledgePenaltyInput) => {
+  const { userId, penaltyId, note } = input;
+
+  const penaltyRef = firestore.collection(PENALTIES_COLLECTION).doc(penaltyId);
+  const snapshot = await penaltyRef.get();
+
+  if (!snapshot.exists) {
+    throw new functions.https.HttpsError('not-found', 'Penalty not found.');
+  }
+
+  if ((snapshot.get('userId') as string | undefined) !== userId) {
+    throw new functions.https.HttpsError('permission-denied', 'Cannot acknowledge another user\'s penalty.');
+  }
+
+  await penaltyRef.set(
+    {
+      acknowledged: true,
+      acknowledgedAt: admin.firestore.FieldValue.serverTimestamp(),
+      acknowledgementNote: note ?? null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  return { success: true };
 };
 
 interface CalculateMonthlyViolationsInput {

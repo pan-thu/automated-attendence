@@ -6,6 +6,9 @@ import '../config/app_environment.dart';
 import '../navigation/app_router.dart';
 import '../../features/onboarding/controllers/onboarding_controller.dart';
 import '../services/leave_repository.dart';
+import '../services/notification_repository.dart';
+import '../services/penalty_repository.dart';
+import '../services/push_notification_service.dart';
 
 Future<void> configureAppProviders({required AppEnvironment environment}) async {
   // Placeholder for async service initialization.
@@ -27,12 +30,34 @@ class ProviderScope extends StatelessWidget {
           create: (_) => OnboardingController(),
         ),
         Provider<LeaveRepositoryBase>(create: (_) => LeaveRepository()),
-        ProxyProvider3<SessionController, OnboardingController, LeaveRepositoryBase, AppRouter>(
-          update: (_, sessionController, onboardingController, leaveRepository, __) =>
+        Provider<NotificationRepositoryBase>(create: (_) => NotificationRepository()),
+        Provider<PenaltyRepositoryBase>(create: (_) => PenaltyRepository()),
+        Provider<PushNotificationService>(create: (_) => PushNotificationService()),
+        ProxyProvider5<
+            SessionController,
+            OnboardingController,
+            LeaveRepositoryBase,
+            NotificationRepositoryBase,
+            PenaltyRepositoryBase,
+            PushNotificationService,
+            AppRouter>(
+          update: (
+            _,
+            sessionController,
+            onboardingController,
+            leaveRepository,
+            notificationRepository,
+            penaltyRepository,
+            pushService,
+            __,
+          ) =>
               AppRouter(
                 sessionController: sessionController,
                 onboardingController: onboardingController,
                 leaveRepository: leaveRepository,
+                notificationRepository: notificationRepository,
+                penaltyRepository: penaltyRepository,
+                pushNotificationService: pushService,
               ),
         ),
       ],
