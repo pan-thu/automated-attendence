@@ -22,13 +22,14 @@ class OfflineNotice extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final effectiveMargin = margin ?? const EdgeInsets.fromLTRB(16, 12, 16, 12);
-    final timestamp = lastUpdated != null
-        ? DateFormat.yMMMd().add_jm().format(lastUpdated!.toLocal())
-        : null;
+    final timestamp =
+        lastUpdated != null
+            ? DateFormat.yMMMd().add_jm().format(lastUpdated!.toLocal())
+            : null;
 
     return Card(
       margin: effectiveMargin,
-      color: colorScheme.surfaceVariant,
+      color: colorScheme.surfaceContainerHighest,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -37,16 +38,16 @@ class OfflineNotice extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon ?? Icons.cloud_off, color: colorScheme.onSurfaceVariant),
+                Icon(
+                  icon ?? Icons.cloud_off,
+                  color: colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        message,
-                        style: textTheme.bodyMedium,
-                      ),
+                      Text(message, style: textTheme.bodyMedium),
                       if (timestamp != null) ...[
                         const SizedBox(height: 8),
                         Text(
@@ -76,5 +77,3 @@ class OfflineNotice extends StatelessWidget {
     );
   }
 }
-
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
 
@@ -73,8 +73,12 @@ export interface MapPickerProps {
   onChange: (coords: { latitude: number; longitude: number }) => void;
 }
 
+/**
+ * Bug Fix #23: Added debouncing to map click handler to prevent rapid state updates
+ */
 export function MapPicker({ value, radius, onChange }: MapPickerProps) {
   const [currentCenter, setCurrentCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (value) {
@@ -82,10 +86,28 @@ export function MapPicker({ value, radius, onChange }: MapPickerProps) {
     }
   }, [value]);
 
+  // Bug Fix #23: Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleSelect = useCallback(
     (coords: { latitude: number; longitude: number }) => {
+      // Update visual position immediately for responsive UX
       setCurrentCenter([coords.latitude, coords.longitude]);
-      onChange(coords);
+
+      // Bug Fix #23: Debounce onChange callback to prevent rapid updates
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        onChange(coords);
+      }, 300); // 300ms debounce delay
     },
     [onChange]
   );

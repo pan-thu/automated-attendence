@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(flutter pub:*)",
+      "Bash(/mnt/c/Users/panth/AppData/Local/Android/Sdk/flutter/bin/flutter pub get)",
+      "Bash(env)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

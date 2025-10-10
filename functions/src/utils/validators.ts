@@ -50,13 +50,20 @@ export const assertString = (
   return trimmed;
 };
 
+/**
+ * Validate and normalize email address to lowercase.
+ * Bug Fix #21: Email addresses must be normalized to prevent case-sensitivity issues.
+ */
 export const assertEmail = (value: unknown, field = 'email'): string => {
-  return assertString(value, field, {
+  const email = assertString(value, field, {
     min: 5,
     max: 254,
     pattern:
       /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
   });
+
+  // Normalize to lowercase
+  return email.toLowerCase();
 };
 
 export const assertBoolean = (value: unknown, field: string): boolean => {
@@ -87,20 +94,107 @@ export const assertEnum = <T extends string>(
   return value as T;
 };
 
+/**
+ * Validate single Firestore Timestamp with null safety.
+ * Bug Fix #2: Handle null/undefined before accessing Timestamp methods.
+ */
+export const assertTimestamp = (value: unknown, field: string): FirebaseFirestore.Timestamp => {
+  if (value === null || value === undefined) {
+    throw new functions.https.HttpsError('invalid-argument', `${field} is required.`);
+  }
+
+  if (!(value instanceof admin.firestore.Timestamp)) {
+    throw new functions.https.HttpsError('invalid-argument', `${field} must be a Firestore Timestamp.`);
+  }
+
+  return value;
+};
+
+/**
+ * Validate Timestamp range with null safety.
+ * Bug Fix #2: Handle null/undefined before accessing .toMillis().
+ */
 export const assertTimestampRange = (
   start: unknown,
   end: unknown,
   field: string
 ): { startDate: FirebaseFirestore.Timestamp; endDate: FirebaseFirestore.Timestamp } => {
+  // Null safety checks before type checks
+  if (start === null || start === undefined) {
+    throw new functions.https.HttpsError('invalid-argument', `${field} startDate is required.`);
+  }
+
+  if (end === null || end === undefined) {
+    throw new functions.https.HttpsError('invalid-argument', `${field} endDate is required.`);
+  }
+
   if (!(start instanceof admin.firestore.Timestamp) || !(end instanceof admin.firestore.Timestamp)) {
     throw new functions.https.HttpsError('invalid-argument', `${field} must contain Firestore Timestamps.`);
   }
 
-  if (start.toMillis() > end.toMillis()) {
-    throw new functions.https.HttpsError('invalid-argument', `${field} start cannot be after end.`);
+  // Safe to call .toMillis() now
+  if (start.toMillis() >= end.toMillis()) {
+    throw new functions.https.HttpsError('invalid-argument', `${field} start must be before end.`);
   }
 
   return { startDate: start, endDate: end };
+};
+
+/**
+ * Validate number with optional range.
+ * Bug Fix #2: Comprehensive null safety for numeric validation.
+ */
+export const assertNumber = (
+  value: unknown,
+  field: string,
+  min?: number,
+  max?: number
+): number => {
+  if (value === null || value === undefined) {
+    throw new functions.https.HttpsError('invalid-argument', `${field} is required.`);
+  }
+
+  const num = Number(value);
+
+  if (isNaN(num)) {
+    throw new functions.https.HttpsError('invalid-argument', `${field} must be a valid number.`);
+  }
+
+  if (min !== undefined && num < min) {
+    throw new functions.https.HttpsError('invalid-argument', `${field} must be at least ${min}.`);
+  }
+
+  if (max !== undefined && num > max) {
+    throw new functions.https.HttpsError('invalid-argument', `${field} must be at most ${max}.`);
+  }
+
+  return num;
+};
+
+/**
+ * Validate latitude coordinate.
+ * Bug Fix #12: Validate latitude range (-90 to 90).
+ */
+export const assertLatitude = (value: unknown, field = 'latitude'): number => {
+  return assertNumber(value, field, -90, 90);
+};
+
+/**
+ * Validate longitude coordinate.
+ * Bug Fix #12: Validate longitude range (-180 to 180).
+ */
+export const assertLongitude = (value: unknown, field = 'longitude'): number => {
+  return assertNumber(value, field, -180, 180);
+};
+
+/**
+ * Validate and create GeoPoint from coordinates.
+ * Bug Fix #12: Comprehensive coordinate validation.
+ */
+export const assertGeoPoint = (lat: unknown, lon: unknown): FirebaseFirestore.GeoPoint => {
+  const validLat = assertLatitude(lat);
+  const validLon = assertLongitude(lon);
+  return new admin.firestore.GeoPoint(validLat, validLon);
 };
 
 

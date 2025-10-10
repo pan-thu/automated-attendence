@@ -104,6 +104,31 @@ const buildStoragePath = (userId: string, attachmentId: string, sanitizedFileNam
   return `leave-attachments/${userId}/${attachmentId}_${sanitizedFileName}`;
 };
 
+/**
+ * Validate file magic bytes to ensure file integrity and prevent file type spoofing.
+ * Bug Fix #22: Enhanced attachment security with content validation.
+ */
+const validateFileMagicBytes = (buffer: Buffer, contentType: string): boolean => {
+  if (buffer.length < 4) {
+    return false;
+  }
+
+  const magicBytes = buffer.slice(0, 4);
+
+  switch (contentType.toLowerCase().split(';')[0]) {
+    case 'application/pdf':
+      return magicBytes.toString('utf8', 0, 4) === '%PDF';
+    case 'image/jpeg':
+      return magicBytes[0] === 0xFF && magicBytes[1] === 0xD8;
+    case 'image/png':
+      return magicBytes[0] === 0x89 && magicBytes[1] === 0x50 && magicBytes[2] === 0x4E && magicBytes[3] === 0x47;
+    default:
+      // Unknown type - allow but log warning
+      console.warn(`Unknown content type for magic byte validation: ${contentType}`);
+      return true;
+  }
+};
+
 export const generateLeaveAttachmentUploadUrl = async (
   input: GenerateLeaveAttachmentUploadUrlInput
 ): Promise<GenerateLeaveAttachmentUploadUrlResult> => {
@@ -233,11 +258,31 @@ export const registerLeaveAttachment = async (
     throw new functions.https.HttpsError('failed-precondition', 'Uploaded attachment size differs from the declared size.');
   }
 
+  // Bug Fix #22: Validate file magic bytes to prevent file type spoofing
+  try {
+    const [buffer] = await file.download({ start: 0, end: 4 });
+    const isValidFile = validateFileMagicBytes(buffer, contentType);
+
+    if (!isValidFile) {
+      // Delete invalid file
+      await file.delete().catch((err) => console.error('Failed to delete invalid file:', err));
+      await attachmentsCollection.doc(attachmentId).delete().catch((err) => console.error('Failed to delete attachment record:', err));
+      throw new functions.https.HttpsError('failed-precondition', 'File appears to be corrupted or invalid. The file content does not match the declared type.');
+    }
+  } catch (error) {
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    console.error('Magic byte validation error:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to validate file content.');
+  }
+
   const docRef = attachmentsCollection.doc(attachmentId);
   await docRef.update({
     status: 'ready',
     sizeBytes: actualSize,
     mimeType: normalizeMimeType(contentType),
+    validatedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     readyAt: admin.firestore.FieldValue.serverTimestamp(),
   });

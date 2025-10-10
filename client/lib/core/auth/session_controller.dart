@@ -66,5 +66,12 @@ class SessionController extends ChangeNotifier {
 
   static const String _sessionTokenKey = 'session_token';
   static const String _onboardingCompletedKey = 'onboarding_completed';
+
+  /// Bug Fix #13: Properly dispose of auth subscription to prevent memory leak
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 }
 

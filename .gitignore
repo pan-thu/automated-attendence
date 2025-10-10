@@ -86,3 +86,6 @@ functions/.env.*
 # json files
 .runtimeconfig.json
 service-acc-credentials.json
+
+CLAUDE.md
+repomix-output.xml

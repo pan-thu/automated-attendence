@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 
@@ -35,6 +36,36 @@ export const setManualAttendance = async (input: ManualAttendanceInput) => {
 
   const docId = `${userId}_${attendanceDate}`;
   const attendanceRef = firestore.collection(ATTENDANCE_COLLECTION).doc(docId);
+
+  // Bug Fix #15: Validate half-day status against actual check-ins
+  if (status === 'half_day_absent') {
+    const existingDoc = await attendanceRef.get();
+
+    if (existingDoc.exists) {
+      const data = existingDoc.data();
+      const completedChecks = [
+        data?.check1_status,
+        data?.check2_status,
+        data?.check3_status,
+      ].filter((checkStatus) => checkStatus && checkStatus !== 'missed').length;
+
+      // Half-day absent requires exactly 2 completed checks
+      if (completedChecks !== 2) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          `Cannot set half-day absent: user has ${completedChecks} completed checks (requires exactly 2)`
+        );
+      }
+    } else {
+      // If no record exists, we can't set half-day absent without check data
+      if (checks.length === 0 || checks.filter(c => c.status && c.status !== 'missed').length !== 2) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'Cannot set half-day absent: no attendance record exists or invalid check count'
+        );
+      }
+    }
+  }
 
   const payload: Record<string, unknown> = {
     userId,

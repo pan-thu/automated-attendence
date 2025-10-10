@@ -199,37 +199,36 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
       }
 
     }
+
+    // Bug Fix #8: Queue notifications INSIDE transaction to ensure atomicity
+    const notificationRef = firestore.collection('NOTIFICATIONS').doc();
+    const startKey = formatDateKey(leaveSummary.startDate);
+    const endKey = formatDateKey(leaveSummary.endDate);
+
+    if (action === 'approve') {
+      tx.create(notificationRef, {
+        userId: leaveSummary.userId,
+        title: 'Leave Approved',
+        message: `Your ${leaveSummary.leaveType} leave (${leaveSummary.totalDays} day${leaveSummary.totalDays > 1 ? 's' : ''}) from ${startKey} to ${endKey} has been approved.`,
+        category: 'leave',
+        relatedId: requestId,
+        isRead: false,
+        createdAt: now,
+        metadata: { startDate: startKey, endDate: endKey, leaveType: leaveSummary.leaveType },
+      });
+    } else if (action === 'reject') {
+      tx.create(notificationRef, {
+        userId: leaveSummary.userId,
+        title: 'Leave Rejected',
+        message: `Your ${leaveSummary.leaveType} leave (${leaveSummary.totalDays} day${leaveSummary.totalDays > 1 ? 's' : ''}) from ${startKey} to ${endKey} was rejected.${notes ? ` Reason: ${notes}` : ''}`,
+        category: 'leave',
+        relatedId: requestId,
+        isRead: false,
+        createdAt: now,
+        metadata: { startDate: startKey, endDate: endKey, leaveType: leaveSummary.leaveType },
+      });
+    }
   });
-
-  if (action === 'approve' && leaveSummary) {
-    const { userId, startDate, endDate, totalDays, leaveType } = leaveSummary;
-    const startKey = formatDateKey(startDate);
-    const endKey = formatDateKey(endDate);
-
-    await queueNotification({
-      userId,
-      title: 'Leave Approved',
-      message: `Your ${leaveType} leave (${totalDays} day${totalDays > 1 ? 's' : ''}) from ${startKey} to ${endKey} has been approved.`,
-      category: 'leave',
-      relatedId: requestId,
-      metadata: { startDate: startKey, endDate: endKey, leaveType },
-    });
-  }
-
-  if (action === 'reject' && leaveSummary) {
-    const { userId, startDate, endDate, totalDays, leaveType } = leaveSummary;
-    const startKey = formatDateKey(startDate);
-    const endKey = formatDateKey(endDate);
-
-    await queueNotification({
-      userId,
-      title: 'Leave Rejected',
-      message: `Your ${leaveType} leave (${totalDays} day${totalDays > 1 ? 's' : ''}) from ${startKey} to ${endKey} was rejected.${notes ? ` Reason: ${notes}` : ''}`,
-      category: 'leave',
-      relatedId: requestId,
-      metadata: { startDate: startKey, endDate: endKey, leaveType },
-    });
-  }
 
   if (overrides.length > 0) {
     const auditPromises = overrides.map((override) =>
@@ -311,6 +310,41 @@ const sanitizeLeaveReason = (reason: string): string => {
   return trimmed;
 };
 
+/**
+ * Check for overlapping leave requests for a user.
+ * Bug Fix #10: Prevent users from submitting overlapping leave requests.
+ */
+const checkOverlappingLeaves = async (
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+  excludeRequestId?: string
+): Promise<boolean> => {
+  const query = firestore
+    .collection(LEAVE_COLLECTION)
+    .where('userId', '==', userId)
+    .where('status', 'in', ['pending', 'approved']);
+
+  const snapshot = await query.get();
+
+  for (const doc of snapshot.docs) {
+    if (excludeRequestId && doc.id === excludeRequestId) {
+      continue;
+    }
+
+    const data = doc.data();
+    const existingStart = (data.startDate as FirebaseFirestore.Timestamp).toDate();
+    const existingEnd = (data.endDate as FirebaseFirestore.Timestamp).toDate();
+
+    // Check for overlap: (StartA <= EndB) AND (EndA >= StartB)
+    if (startDate <= existingEnd && endDate >= existingStart) {
+      return true; // Overlap detected
+    }
+  }
+
+  return false; // No overlap
+};
+
 export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
   const { userId, leaveType, startDate, endDate, reason, attachmentId } = input;
 
@@ -323,6 +357,15 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
 
   ensureDateRange(start, end);
   ensureFutureOrPresentDate(start, 'startDate');
+
+  // Bug Fix #10: Check for overlapping leaves
+  const hasOverlap = await checkOverlappingLeaves(userId, start, end);
+  if (hasOverlap) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'You already have a pending or approved leave request for overlapping dates.'
+    );
+  }
 
   const sanitizedReason = sanitizeLeaveReason(reason);
 
@@ -375,10 +418,16 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
   return { requestId: leaveRef.id };
 };
 
+/**
+ * Cancel leave request with balance restoration for approved leaves.
+ * Bug Fix #3: Restore leave balance when canceling approved leaves.
+ * Bug Fix #9: Use transactions to ensure atomic balance updates.
+ */
 export const cancelLeaveRequest = async (input: CancelLeaveRequestInput) => {
   const { userId, requestId } = input;
 
   const ref = firestore.collection(LEAVE_COLLECTION).doc(requestId);
+  let leaveData: FirebaseFirestore.DocumentData = {};
 
   await runTransaction(async (tx) => {
     const snapshot = await tx.get(ref);
@@ -387,26 +436,80 @@ export const cancelLeaveRequest = async (input: CancelLeaveRequestInput) => {
     }
 
     const data = snapshot.data() ?? {};
+    leaveData = data;
 
     if (data.userId !== userId) {
       throw new functions.https.HttpsError('permission-denied', 'Cannot cancel another user\'s leave request.');
     }
 
-    if (data.status !== 'pending') {
-      throw new functions.https.HttpsError('failed-precondition', 'Only pending requests can be cancelled.');
+    // Can only cancel pending or approved leaves
+    if (!['pending', 'approved'].includes(data.status as string)) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'Only pending or approved requests can be cancelled.'
+      );
     }
 
+    const wasApproved = data.status === 'approved';
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // Update leave status
     tx.update(ref, {
       status: 'cancelled',
-      cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      cancelledAt: now,
+      updatedAt: now,
     });
+
+    // Bug Fix #3: Restore balance if leave was approved
+    if (wasApproved && data.totalDays && data.totalDays > 0) {
+      const leaveType = (data.leaveType as string | undefined)?.toLowerCase();
+      const balanceField = leaveType ? leaveTypeFieldMap[leaveType] : undefined;
+
+      if (balanceField) {
+        const userRef = firestore.collection(USERS_COLLECTION).doc(userId);
+        const userSnap = await tx.get(userRef);
+
+        if (!userSnap.exists) {
+          throw new functions.https.HttpsError('not-found', 'User not found.');
+        }
+
+        const currentBalance = (userSnap.get(balanceField) as number) ?? 0;
+        const restoredBalance = currentBalance + (data.totalDays as number);
+
+        tx.update(userRef, {
+          [balanceField]: restoredBalance,
+          updatedAt: now,
+        });
+      }
+
+      // Remove attendance backfills if leave was approved
+      const startDate = (data.startDate as FirebaseFirestore.Timestamp).toDate();
+      const endDate = (data.endDate as FirebaseFirestore.Timestamp).toDate();
+      let cursor = new Date(asUtcDate(startDate).getTime());
+
+      while (cursor.getTime() <= asUtcDate(endDate).getTime()) {
+        const dateKey = formatDateKey(cursor);
+        const docId = `${userId}_${dateKey}`;
+        const attendanceRef = firestore.collection(ATTENDANCE_COLLECTION).doc(docId);
+        const attendanceSnap = await tx.get(attendanceRef);
+
+        // Only remove if it was a leave backfill for this specific request
+        if (attendanceSnap.exists) {
+          const attData = attendanceSnap.data() ?? {};
+          if (attData.leaveRequestId === requestId && attData.leaveBackfill === true) {
+            tx.delete(attendanceRef);
+          }
+        }
+
+        cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+      }
+    }
   });
 
   await queueNotification({
     userId,
     title: 'Leave Request Cancelled',
-    message: 'Your leave request has been cancelled.',
+    message: `Your ${leaveData?.leaveType ?? 'leave'} request has been cancelled.${leaveData?.status === 'approved' ? ' Your leave balance has been restored.' : ''}`,
     category: 'leave',
     relatedId: requestId,
   });

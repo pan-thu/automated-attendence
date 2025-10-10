@@ -131,17 +131,25 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
   const year = Number(yearStr);
   const monthIndex = Number(monthStr) - 1;
 
-  const start = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
-  const end = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59));
+  // Bug Fix #7: Use exclusive end boundary to prevent overlapping month calculations
+  // Start of month at 00:00:00 UTC
+  const start = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0));
+  // Start of NEXT month at 00:00:00 UTC (exclusive end)
+  const end = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0));
+
+  console.log(`Calculating penalties for ${year}-${monthIndex + 1}`);
+  console.log(`Start: ${start.toISOString()}`);
+  console.log(`End (exclusive): ${end.toISOString()}`);
 
   const companySettings = await getCompanySettings();
   const violationThresholds = companySettings.penaltyRules?.violationThresholds ?? {};
   const penaltyAmounts = companySettings.penaltyRules?.amounts ?? {};
 
+  // Use < instead of <= for exclusive end boundary
   const attendanceQuery = firestore
     .collection(ATTENDANCE_COLLECTION)
     .where('attendanceDate', '>=', admin.firestore.Timestamp.fromDate(start))
-    .where('attendanceDate', '<=', admin.firestore.Timestamp.fromDate(end));
+    .where('attendanceDate', '<', admin.firestore.Timestamp.fromDate(end));
 
   const snapshots = await attendanceQuery.get();
 

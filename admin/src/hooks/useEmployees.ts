@@ -65,8 +65,33 @@ export function useEmployees() {
   }, [fetchEmployees]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let isMounted = true; // Bug Fix #16: Track mount status
+
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        await fetchEmployees();
+        if (isMounted) { // Only update if still mounted
+          setError(null);
+        }
+      } catch (err) {
+        console.error("Failed to load employees", err);
+        if (isMounted) {
+          setError("Unable to load employee records. Please try again later.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false; // Cleanup: mark as unmounted
+    };
+  }, [fetchEmployees]);
 
   const filteredEmployees = useMemo(() => {
     const trimmedQuery = search.trim().toLowerCase();

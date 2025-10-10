@@ -5,6 +5,7 @@ import { firestore, runTransaction } from '../utils/firestore';
 import { queueNotification } from './notifications';
 import { recordAuditLog } from './audit';
 import { CompanySettingsInput } from './settings';
+import { isWeekend, isCompanyHoliday } from '../utils/dateUtils';
 
 type CheckSlot = 'check1' | 'check2' | 'check3';
 type CheckStatus = 'on_time' | 'late' | 'early_leave' | 'missed';
@@ -180,6 +181,23 @@ export const handleClockIn = async ({ userId, payload }: ClockInServiceInput): P
 
   if (payload.isMocked) {
     throw new functions.https.HttpsError('failed-precondition', 'Clock-in rejected. Mock location detected.');
+  }
+
+  // Bug Fix #19: Validate against weekends and company holidays
+  const clockInDate = new Date(payload.timestamp);
+
+  if (isWeekend(clockInDate)) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'Clock-ins are not allowed on weekends.'
+    );
+  }
+
+  if (await isCompanyHoliday(clockInDate)) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'Clock-ins are not allowed on company holidays.'
+    );
   }
 
   const settings = await fetchCompanySettings();

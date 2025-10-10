@@ -103,9 +103,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                         return null;
                       }
                       final summary = events.first;
-                      return _StatusMarker(
-                        summary: summary as AttendanceDaySummary,
-                      );
+                      return _StatusMarker(summary: summary);
                     },
                   ),
                 ),

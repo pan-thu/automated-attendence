@@ -1,0 +1,490 @@
+openapi: 3.0.0
+info:
+  title: Automated Attendance System API
+  version: 1.0.0
+  description: Firebase Cloud Functions API for enterprise attendance management system
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: https://us-central1-{project-id}.cloudfunctions.net
+    description: Production Firebase Functions endpoint
+    variables:
+      project-id:
+        default: your-project-id
+        description: Firebase project ID
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Employee
+    description: Employee-facing clock-in and attendance operations
+  - name: Admin
+    description: Administrative operations for employee and attendance management
+  - name: Leaves
+    description: Leave request submission and approval workflows
+  - name: Notifications
+    description: Push notification and in-app notification management
+
+paths:
+  /handleClockIn:
+    post:
+      summary: Record employee clock-in
+      description: |
+        Records an employee clock-in attempt with geofence and time window validation.
+        Validates location, time window, and determines check status (on_time, late, early_leave).
+      operationId: handleClockIn
+      tags:
+        - Employee
+      security:
+        - FirebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - latitude
+                - longitude
+              properties:
+                latitude:
+                  type: number
+                  format: double
+                  minimum: -90
+                  maximum: 90
+                  description: GPS latitude coordinate
+                  example: 13.756331
+                longitude:
+                  type: number
+                  format: double
+                  minimum: -180
+                  maximum: 180
+                  description: GPS longitude coordinate
+                  example: 100.501762
+                isMocked:
+                  type: boolean
+                  default: false
+                  description: Whether location is mocked/spoofed
+                timestamp:
+                  type: string
+                  format: date-time
+                  description: Optional client timestamp (server time preferred)
+      responses:
+        '200':
+          description: Clock-in successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  checkNumber:
+                    type: integer
+                    enum: [1, 2, 3]
+                    description: Which daily check was recorded
+                  status:
+                    type: string
+                    enum: [on_time, late, early_leave]
+                    description: Status of the clock-in
+                  message:
+                    type: string
+                    example: "Check 1 recorded successfully"
+        '403':
+          description: Outside geofence or invalid time window
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Already clocked in for this check
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /getEmployeeDashboard:
+    post:
+      summary: Get employee dashboard summary
+      description: Returns today's attendance status, leave balances, and upcoming leaves
+      operationId: getEmployeeDashboard
+      tags:
+        - Employee
+      security:
+        - FirebaseAuth: []
+      responses:
+        '200':
+          description: Dashboard data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  todayAttendance:
+                    $ref: '#/components/schemas/AttendanceRecord'
+                  leaveBalances:
+                    type: object
+                    additionalProperties:
+                      type: number
+                    example:
+                      annual: 12
+                      sick: 10
+                  upcomingLeaves:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaveRequest'
+                  pendingPenalties:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Penalty'
+
+  /submitLeaveRequest:
+    post:
+      summary: Submit a leave request
+      description: Creates a new leave request with optional attachment
+      operationId: submitLeaveRequest
+      tags:
+        - Leaves
+      security:
+        - FirebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - leaveType
+                - startDate
+                - endDate
+                - reason
+              properties:
+                leaveType:
+                  type: string
+                  enum: [annual, sick, medical, maternity, paternity, unpaid, other]
+                  description: Type of leave being requested
+                startDate:
+                  type: string
+                  format: date-time
+                  description: Leave start date (Firestore Timestamp)
+                endDate:
+                  type: string
+                  format: date-time
+                  description: Leave end date (Firestore Timestamp)
+                reason:
+                  type: string
+                  minLength: 10
+                  description: Reason for leave request
+                attachmentId:
+                  type: string
+                  description: Optional attachment ID from generateLeaveAttachmentUploadUrl
+      responses:
+        '200':
+          description: Leave request submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leaveId:
+                    type: string
+                    description: ID of created leave request
+                  status:
+                    type: string
+                    enum: [pending]
+        '400':
+          description: Invalid input or overlapping leave dates
+        '412':
+          description: Insufficient leave balance
+
+  /generateLeaveAttachmentUploadUrl:
+    post:
+      summary: Generate signed URL for leave attachment upload
+      description: Creates a signed URL for uploading leave supporting documents
+      operationId: generateLeaveAttachmentUploadUrl
+      tags:
+        - Leaves
+      security:
+        - FirebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fileName
+                - mimeType
+                - sizeBytes
+              properties:
+                fileName:
+                  type: string
+                  description: Original file name
+                  example: medical_certificate.pdf
+                mimeType:
+                  type: string
+                  enum: [application/pdf, image/jpeg, image/png]
+                  description: File MIME type
+                sizeBytes:
+                  type: integer
+                  minimum: 1
+                  description: File size in bytes
+                  example: 1048576
+      responses:
+        '200':
+          description: Upload URL generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attachmentId:
+                    type: string
+                    description: Attachment ID to use when registering
+                  uploadUrl:
+                    type: string
+                    format: uri
+                    description: Signed URL for file upload
+                  uploadHeaders:
+                    type: object
+                    additionalProperties:
+                      type: string
+                    description: Required headers for upload
+                  uploadUrlExpiresAt:
+                    type: string
+                    format: date-time
+                    description: Expiration time of upload URL
+        '412':
+          description: File type not allowed or size exceeds limit
+
+  /createEmployee:
+    post:
+      summary: Create a new employee account
+      description: Admin-only endpoint to create employee with Firebase Auth and Firestore profile
+      operationId: createEmployee
+      tags:
+        - Admin
+      security:
+        - FirebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+                - department
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Employee email (normalized to lowercase)
+                  example: employee@example.com
+                name:
+                  type: string
+                  minLength: 2
+                  description: Employee full name
+                department:
+                  type: string
+                  description: Department name
+                position:
+                  type: string
+                  description: Job position/title
+                leaveBalances:
+                  type: object
+                  additionalProperties:
+                    type: number
+                  description: Initial leave balances by type
+      responses:
+        '200':
+          description: Employee created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uid:
+                    type: string
+                    description: Firebase Auth UID
+                  email:
+                    type: string
+                  temporaryPassword:
+                    type: string
+                    description: Generated temporary password
+        '403':
+          description: Insufficient permissions (requires admin role)
+        '409':
+          description: Email already in use
+
+  /updateCompanySettings:
+    post:
+      summary: Update company-wide settings
+      description: Admin-only endpoint to update time windows, geofence, penalties, etc.
+      operationId: updateCompanySettings
+      tags:
+        - Admin
+      security:
+        - FirebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                timeWindows:
+                  type: object
+                  description: Clock-in time windows for each check
+                gracePeriods:
+                  type: object
+                  description: Grace period durations (minutes)
+                workplace_center:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                      minimum: -90
+                      maximum: 90
+                    longitude:
+                      type: number
+                      minimum: -180
+                      maximum: 180
+                workplace_radius:
+                  type: number
+                  minimum: 1
+                  maximum: 10000
+                  description: Geofence radius in meters
+                penaltyRules:
+                  type: object
+                  description: Penalty calculation rules
+      responses:
+        '200':
+          description: Settings updated successfully
+        '403':
+          description: Insufficient permissions
+
+components:
+  securitySchemes:
+    FirebaseAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase Authentication ID token
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+            - invalid-argument
+            - permission-denied
+            - unauthenticated
+            - not-found
+            - failed-precondition
+            - deadline-exceeded
+            - internal
+        message:
+          type: string
+          description: Human-readable error message
+
+    AttendanceRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [present, half_day_absent, absent, on_leave]
+        check1:
+          $ref: '#/components/schemas/CheckRecord'
+        check2:
+          $ref: '#/components/schemas/CheckRecord'
+        check3:
+          $ref: '#/components/schemas/CheckRecord'
+
+    CheckRecord:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [on_time, late, early_leave, missed]
+        location:
+          $ref: '#/components/schemas/GeoPoint'
+
+    GeoPoint:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+
+    LeaveRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        leaveType:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, approved, rejected, cancelled]
+        reason:
+          type: string
+        attachmentId:
+          type: string
+          nullable: true
+
+    Penalty:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        amount:
+          type: number
+          description: Penalty amount in dollars
+        violationType:
+          type: string
+          enum: [late, early_leave, absent, half_day_absent]
+        violationCount:
+          type: integer
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        year:
+          type: integer
+        status:
+          type: string
+          enum: [pending, acknowledged, waived]
