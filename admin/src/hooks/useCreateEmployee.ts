@@ -13,7 +13,7 @@ export function useCreateEmployee() {
     setLoading(true);
     setError(null);
     try {
-      await callCreateEmployee(input);
+      await callCreateEmployee(input as unknown as Record<string, unknown>);
     } catch (err) {
       console.error("Failed to create employee", err);
       const message = err instanceof Error ? err.message : "Failed to create employee.";

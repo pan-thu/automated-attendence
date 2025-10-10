@@ -186,13 +186,6 @@ export interface AttendanceReportFilters {
   department?: string;
 }
 
-export type AttendanceReportFilters = {
-  startDate: string;
-  endDate: string;
-  userId?: string;
-  department?: string;
-};
-
 export type PenaltyStatus = "active" | "waived" | "disputed" | "paid";
 
 export interface PenaltyRecord {

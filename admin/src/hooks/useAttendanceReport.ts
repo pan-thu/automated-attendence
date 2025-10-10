@@ -14,7 +14,7 @@ export function useAttendanceReport() {
     setLoading(true);
     setError(null);
     try {
-      const response = await callGenerateAttendanceReport(filters);
+      const response = await callGenerateAttendanceReport(filters as unknown as Record<string, unknown>);
       const data = response.data as { records?: Array<Record<string, unknown>> };
       const mapped: AttendanceReportRecord[] = (data.records ?? []).map((entry) => ({
         id: (entry.id as string | undefined) ?? crypto.randomUUID(),

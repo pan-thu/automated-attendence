@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Timestamp, collection, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 
 import { callGetDashboardStats } from "@/lib/firebase/functions";
 import { getFirebaseFirestore } from "@/lib/firebase/config";

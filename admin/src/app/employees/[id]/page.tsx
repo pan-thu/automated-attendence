@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,8 @@ import { ProtectedLayout } from "@/components/layout/protected-layout";
 
 const formatStatus = (isActive: boolean) => (isActive ? "Active" : "Inactive");
 
-export default function EmployeeDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { employee, loading, error, refresh } = useEmployeeDetail(id);
   const { updateEmployee, changeStatus, loading: saving, error: updateError, setError: setUpdateError } =
     useUpdateEmployee();

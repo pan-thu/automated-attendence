@@ -7,16 +7,12 @@ import "leaflet/dist/leaflet.css";
 const DynamicMap = dynamic(async () => {
   const reactLeaflet = await import("react-leaflet");
   const leaflet = await import("leaflet");
-  const [iconRetina, iconDefault, shadow] = await Promise.all([
-    import("leaflet/dist/images/marker-icon-2x.png"),
-    import("leaflet/dist/images/marker-icon.png"),
-    import("leaflet/dist/images/marker-shadow.png"),
-  ]);
 
+  // Fix default marker icons using CDN URLs
   leaflet.Icon.Default.mergeOptions({
-    iconRetinaUrl: iconRetina.default,
-    iconUrl: iconDefault.default,
-    shadowUrl: shadow.default,
+    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
   });
 
   const MapClickHandler = ({
@@ -31,7 +27,7 @@ const DynamicMap = dynamic(async () => {
     return null;
   };
 
-  return ({
+  const LeafletMap = ({
     center,
     radius,
     onSelect,
@@ -60,6 +56,8 @@ const DynamicMap = dynamic(async () => {
       <MapClickHandler onSelect={onSelect} />
     </reactLeaflet.MapContainer>
   );
+
+  return LeafletMap;
 }, {
   ssr: false,
   loading: () => <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading map…</div>,

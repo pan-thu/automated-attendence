@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,9 @@ import { useLeaveApproval } from "@/hooks/useLeaveApproval";
 
 const formatDate = (value: Date | null) => (value ? value.toLocaleDateString() : "Unknown");
 
-export default function LeaveDetailPage({ params }: { params: { id: string } }) {
-  const { record, loading, error, refresh } = useLeaveDetail(params.id);
+export default function LeaveDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { record, loading, error, refresh } = useLeaveDetail(id);
   const { submitLeaveDecision, loading: deciding, error: decisionError, setError } = useLeaveApproval();
   const [decisionNotes, setDecisionNotes] = useState<string>("");
 

@@ -291,7 +291,7 @@ export default function NotificationsPage() {
                   <option value="error">Error</option>
                 </Select>
                 <Select
-                  value={filters.isRead ?? "all"}
+                  value={String(filters.isRead ?? "all")}
                   onChange={(event) => setIsReadFilter(event.target.value === "all" ? "all" : event.target.value === "true")}
                   className="w-28"
                 >
@@ -381,7 +381,7 @@ export default function NotificationsPage() {
                         <TableCell className="capitalize">{record.category ?? "—"}</TableCell>
                         <TableCell className="capitalize">{record.type ?? "—"}</TableCell>
                         <TableCell>{record.isRead ? "Read" : "Unread"}</TableCell>
-                        <TableCell>{formatDateTime(record.readAt)}</TableCell>
+                        <TableCell>{formatDateTime(record.readAt ?? null)}</TableCell>
                       </TableRow>
                     ))
                   )}

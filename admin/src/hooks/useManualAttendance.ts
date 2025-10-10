@@ -13,7 +13,7 @@ export function useManualAttendance() {
     setLoading(true);
     setError(null);
     try {
-      await callManualSetAttendance(input);
+      await callManualSetAttendance(input as unknown as Record<string, unknown>);
     } catch (err) {
       console.error("Failed to submit manual attendance", err);
       const message = err instanceof Error ? err.message : "Failed to submit manual attendance.";

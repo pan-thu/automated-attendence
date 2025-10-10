@@ -13,7 +13,7 @@ export function useUpdateEmployee() {
     setLoading(true);
     setError(null);
     try {
-      await callUpdateEmployee(input);
+      await callUpdateEmployee(input as unknown as Record<string, unknown>);
     } catch (err) {
       console.error("Failed to update employee", err);
       const message = err instanceof Error ? err.message : "Failed to update employee.";
@@ -28,7 +28,7 @@ export function useUpdateEmployee() {
     setLoading(true);
     setError(null);
     try {
-      await callToggleUserStatus({ uid, enable });
+      await callToggleUserStatus({ uid, enable } as unknown as Record<string, unknown>);
     } catch (err) {
       console.error("Failed to toggle employee status", err);
       const message = err instanceof Error ? err.message : "Failed to toggle employee status.";

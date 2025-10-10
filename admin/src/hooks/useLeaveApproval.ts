@@ -13,7 +13,7 @@ export function useLeaveApproval() {
     setLoading(true);
     setError(null);
     try {
-      await callHandleLeaveApproval(input);
+      await callHandleLeaveApproval(input as unknown as Record<string, unknown>);
     } catch (err) {
       console.error("Failed to process leave decision", err);
       const message = err instanceof Error ? err.message : "Failed to process leave decision.";
