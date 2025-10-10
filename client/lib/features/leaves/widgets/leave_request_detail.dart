@@ -42,9 +42,17 @@ class LeaveDetailSheet extends StatelessWidget {
                       _StatusChip(status: item.status),
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.help_outline),
+                        onPressed: () => _HelpSheet.show(context),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -176,6 +184,37 @@ class _StatusChip extends StatelessWidget {
         style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
       ),
       visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+class _HelpSheet extends StatelessWidget {
+  const _HelpSheet();
+
+  static void show(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => const _HelpSheet(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text('Need Help?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 12),
+          Text('• Pending requests can be cancelled from this screen.'),
+          SizedBox(height: 8),
+          Text('• Attachments may be required for medical or special leave types.'),
+          SizedBox(height: 8),
+          Text('• Contact HR if supporting documents are rejected.'),
+        ],
+      ),
     );
   }
 }

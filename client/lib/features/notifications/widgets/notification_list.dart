@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/services/notification_repository.dart';
 import '../controllers/notification_controller.dart';
 import '../presentation/notifications_screen.dart';
+import '../../widgets/offline_notice.dart';
 
 class NotificationList extends StatefulWidget {
   const NotificationList({
@@ -56,21 +57,32 @@ class _NotificationListState extends State<NotificationList> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (controller.items.isEmpty) {
-      return const _EmptyState();
-    }
-
     return RefreshIndicator(
       onRefresh: controller.refresh,
       child: ListView.separated(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
         itemBuilder: (context, index) {
-          if (index >= controller.items.length) {
+          if (controller.isOffline && index == 0) {
+            return OfflineNotice(
+              message: 'Notifications reflect your last sync. Pull to refresh when online.',
+              lastUpdated: controller.lastUpdated,
+              margin: EdgeInsets.zero,
+              onRetry: controller.refresh,
+            );
+          }
+
+          final adjustedIndex = controller.isOffline ? index - 1 : index;
+
+          if (controller.items.isEmpty && !controller.canLoadMore) {
+            return const _EmptyState();
+          }
+
+          if (adjustedIndex >= controller.items.length) {
             return const _LoadingIndicator();
           }
 
-          final item = controller.items[index];
+          final item = controller.items[adjustedIndex];
           return _NotificationTile(
             item: item,
             onTap: () => _openSheet(context, item),
@@ -78,9 +90,17 @@ class _NotificationListState extends State<NotificationList> {
           );
         },
         separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemCount: controller.canLoadMore ? controller.items.length + 1 : controller.items.length,
+        itemCount: _itemCount(controller),
       ),
     );
+  }
+
+  int _itemCount(NotificationController controller) {
+    final offlineOffset = controller.isOffline ? 1 : 0;
+    if (controller.items.isEmpty && !controller.canLoadMore) {
+      return offlineOffset + 1;
+    }
+    return controller.items.length + offlineOffset + (controller.canLoadMore ? 1 : 0);
   }
 
   Future<void> _openSheet(BuildContext context, NotificationItem item) async {

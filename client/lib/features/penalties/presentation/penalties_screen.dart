@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/services/penalty_repository.dart';
+import '../../widgets/async_error_view.dart';
+import '../../widgets/offline_notice.dart';
 import '../controllers/penalty_controller.dart';
 import '../widgets/penalty_filters.dart';
 import '../widgets/penalty_list.dart';
@@ -28,6 +30,43 @@ class _PenaltiesView extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = context.watch<PenaltyController>();
 
+    final body = controller.isLoading && controller.items.isEmpty
+        ? const Center(child: CircularProgressIndicator())
+        : controller.errorMessage != null && controller.items.isEmpty
+            ? AsyncErrorView(
+                message: controller.errorMessage!,
+                onRetry: controller.refresh,
+                onHelp: () => _showHelp(context),
+              )
+            : Column(
+                children: [
+                  if (controller.isOffline)
+                    OfflineNotice(
+                      message: 'Showing cached penalties. Pull to refresh when back online.',
+                      lastUpdated: controller.lastUpdated,
+                      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      onRetry: controller.refresh,
+                    ),
+                  PenaltyFilters(
+                    filter: controller.statusFilter,
+                    isLoading: controller.isLoading,
+                    onFilterChanged: controller.changeFilter,
+                  ),
+                  if (controller.errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: _ErrorBanner(message: controller.errorMessage!),
+                    ),
+                  Expanded(
+                    child: PenaltyList(
+                      controller: controller,
+                      onAcknowledge: controller.acknowledgePenalty,
+                      onLoadMore: controller.loadMore,
+                    ),
+                  ),
+                ],
+              );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Penalties'),
@@ -42,29 +81,14 @@ class _PenaltiesView extends StatelessWidget {
             tooltip: 'Refresh',
             onPressed: controller.isLoading ? null : controller.refresh,
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          PenaltyFilters(
-            filter: controller.statusFilter,
-            isLoading: controller.isLoading,
-            onFilterChanged: controller.changeFilter,
-          ),
-          if (controller.errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: _ErrorBanner(message: controller.errorMessage!),
-            ),
-          Expanded(
-            child: PenaltyList(
-              controller: controller,
-              onAcknowledge: controller.acknowledgePenalty,
-              onLoadMore: controller.loadMore,
-            ),
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Help',
+            onPressed: () => _showHelp(context),
           ),
         ],
       ),
+      body: body,
     );
   }
 
@@ -79,6 +103,39 @@ class _PenaltiesView extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Close'),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _showHelp(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => const _HelpSheet(),
+    );
+  }
+}
+
+class _HelpSheet extends StatelessWidget {
+  const _HelpSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text('Penalty Help', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 12),
+          Text('• Penalties listed here come from your attendance and violation history.'),
+          SizedBox(height: 8),
+          Text('• Use the filters to view penalties by status (active, paid, waived).'),
+          SizedBox(height: 8),
+          Text('• Tap a penalty to view details or acknowledge it when required.'),
+          SizedBox(height: 8),
+          Text('• Reach out to HR if you believe a penalty is incorrect.'),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/navigation/app_router.dart';
 import '../../../core/services/dashboard_repository.dart';
+import '../../widgets/offline_notice.dart';
 import '../controllers/clock_in_controller.dart';
 import '../controllers/dashboard_controller.dart';
 
@@ -21,8 +22,12 @@ class DashboardView extends StatelessWidget {
         title: const Text('Attendance Dashboard'),
         actions: [
           IconButton(
-            onPressed:
-                dashboard.isLoading ? null : () => dashboard.refreshDashboard(),
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            onPressed: () => context.push(AppRoutePaths.settings),
+          ),
+          IconButton(
+            onPressed: dashboard.isLoading ? null : () => dashboard.refreshDashboard(),
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
           ),
@@ -30,57 +35,63 @@ class DashboardView extends StatelessWidget {
       ),
       body: RefreshIndicator(
         onRefresh: dashboard.refreshDashboard,
-        child:
-            dashboard.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : dashboard.summary == null
+        child: dashboard.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : dashboard.summary == null
                 ? _EmptyState(errorMessage: dashboard.errorMessage)
-                : _DashboardContent(
-                  summary: dashboard.summary!,
-                  clockIn: clockIn,
-                ),
+                : Column(
+                    children: [
+                      if (dashboard.isOffline)
+                        OfflineNotice(
+                          message: 'You are viewing cached attendance data. Pull down to refresh once you are back online.',
+                          lastUpdated: dashboard.summaryUpdatedAt,
+                          onRetry: dashboard.refreshDashboard,
+                        ),
+                      Expanded(
+                        child: _DashboardContent(
+                          summary: dashboard.summary!,
+                          clockIn: clockIn,
+                        ),
+                      ),
+                    ],
+                  ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed:
-            clockIn.isLoading
-                ? null
-                : () async {
-                  final didComplete =
-                      await context.read<ClockInController>().attemptClockIn();
-                  if (!context.mounted) return;
+        onPressed: clockIn.isLoading
+            ? null
+            : () async {
+                final didComplete = await context.read<ClockInController>().attemptClockIn();
+                if (!context.mounted) return;
 
-                  final messenger = ScaffoldMessenger.of(context);
-                  if (didComplete) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          clockIn.statusMessage ?? 'Clock-in recorded.',
-                        ),
-                        behavior: SnackBarBehavior.floating,
+                final messenger = ScaffoldMessenger.of(context);
+                if (didComplete) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        clockIn.statusMessage ?? 'Clock-in recorded.',
                       ),
-                    );
-                    await context
-                        .read<DashboardController>()
-                        .refreshDashboard();
-                  } else {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          clockIn.errorMessage ?? 'Clock-in failed.',
-                        ),
-                        behavior: SnackBarBehavior.floating,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  await context.read<DashboardController>().refreshDashboard();
+                } else {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        clockIn.errorMessage ?? 'Clock-in failed.',
                       ),
-                    );
-                  }
-                },
-        icon:
-            clockIn.isLoading
-                ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-                : const Icon(Icons.fingerprint),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+        icon: clockIn.isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.fingerprint),
         label: const Text('Clock In'),
       ),
     );
@@ -133,12 +144,18 @@ class _DashboardContent extends StatelessWidget {
                 Text('${summary.unreadNotifications} unread notifications'),
               ],
             ),
-            Chip(
-              label: Text(summary.isActive ? 'Active' : 'Inactive'),
-              backgroundColor:
-                  summary.isActive
-                      ? Colors.green.shade100
-                      : Colors.red.shade100,
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  tooltip: 'Settings',
+                  onPressed: () => context.push(AppRoutePaths.settings),
+                ),
+                Chip(
+                  label: Text(summary.isActive ? 'Active' : 'Inactive'),
+                  backgroundColor: summary.isActive ? Colors.green.shade100 : Colors.red.shade100,
+                ),
+              ],
             ),
           ],
         ),

@@ -1,11 +1,21 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/data/cache_manager.dart';
 import '../../../core/services/notification_repository.dart';
+import '../../../core/services/telemetry_service.dart';
 
 class NotificationController extends ChangeNotifier {
-  NotificationController({required NotificationRepositoryBase repository}) : _repository = repository;
+  NotificationController({
+    required NotificationRepositoryBase repository,
+    CacheManager<NotificationPage>? cache,
+    TelemetryService? telemetry,
+  })  : _repository = repository,
+        _cache = cache ?? CacheManager<NotificationPage>(ttl: const Duration(minutes: 5)),
+        _telemetry = telemetry ?? TelemetryService();
 
   final NotificationRepositoryBase _repository;
+  final CacheManager<NotificationPage> _cache;
+  final TelemetryService _telemetry;
 
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -14,6 +24,8 @@ class NotificationController extends ChangeNotifier {
   String? _errorMessage;
   String? _nextCursor;
   final List<NotificationItem> _items = <NotificationItem>[];
+  DateTime? _lastUpdated;
+  bool _isOffline = false;
 
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
@@ -23,6 +35,8 @@ class NotificationController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get canLoadMore => _nextCursor != null && !_isLoading && !_isLoadingMore;
   int get unreadCount => _items.where((item) => !item.isRead).length;
+  DateTime? get lastUpdated => _lastUpdated;
+  bool get isOffline => _isOffline;
 
   Future<void> initialise() async {
     if (_hasInitialised) {
@@ -33,18 +47,54 @@ class NotificationController extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
+    if (_isLoading) {
+      return;
+    }
     _setLoading(true);
     try {
-      final page = await _repository.fetchNotifications(filter: _statusFilter);
+      final cached = _cache.read(_cacheKey());
+      if (cached != null) {
+        _items
+          ..clear()
+          ..addAll(cached.value.items);
+        _nextCursor = cached.value.nextCursor;
+        _lastUpdated = cached.value.lastSyncedAt;
+        _isOffline = true;
+        _errorMessage = null;
+        notifyListeners();
+      }
+
+      final page = await _repository.fetchNotifications(filter: _statusFilter, forceRefresh: true);
       _items
         ..clear()
         ..addAll(page.items);
       _nextCursor = page.nextCursor;
       _errorMessage = null;
+      _cache.write(_cacheKey(), page);
+      _lastUpdated = page.lastSyncedAt;
+      _isOffline = false;
     } on NotificationFailure catch (error) {
       _errorMessage = error.message;
+      final cached = _cache.read(_cacheKey());
+      if (cached != null) {
+        _items
+          ..clear()
+          ..addAll(cached.value.items);
+        _nextCursor = cached.value.nextCursor;
+        _lastUpdated = cached.value.lastSyncedAt;
+        _isOffline = true;
+      }
     } catch (error) {
       _errorMessage = error.toString();
+      final cached = _cache.read(_cacheKey());
+      if (cached != null) {
+        _items
+          ..clear()
+          ..addAll(cached.value.items);
+        _nextCursor = cached.value.nextCursor;
+        _lastUpdated = cached.value.lastSyncedAt;
+        _isOffline = true;
+      }
     } finally {
       _setLoading(false);
     }
@@ -63,6 +113,15 @@ class NotificationController extends ChangeNotifier {
       );
       _items.addAll(page.items);
       _nextCursor = page.nextCursor;
+      _lastUpdated = page.lastSyncedAt;
+      _cache.write(
+        _cacheKey(),
+        NotificationPage(
+          items: List<NotificationItem>.from(_items),
+          nextCursor: _nextCursor,
+          lastSyncedAt: _lastUpdated,
+        ),
+      );
     } on NotificationFailure catch (error) {
       _errorMessage = error.message;
     } catch (error) {
@@ -91,6 +150,11 @@ class NotificationController extends ChangeNotifier {
 
     try {
       await _repository.markAsRead(notificationId: item.id, acknowledgment: acknowledgment);
+      _cache.invalidate(_cacheKey());
+      _telemetry.recordEvent('notification_marked_read', metadata: {
+        'notificationId': item.id,
+        'acknowledgment': acknowledgment,
+      });
     } on NotificationFailure catch (error) {
       _items[index] = item;
       _errorMessage = error.message;
@@ -126,5 +190,7 @@ class NotificationController extends ChangeNotifier {
     _isLoadingMore = value;
     notifyListeners();
   }
+
+  String _cacheKey() => 'notifications:${_statusFilter.name}';
 }
 

@@ -1,11 +1,21 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/data/cache_manager.dart';
 import '../../../core/services/penalty_repository.dart';
+import '../../../core/services/telemetry_service.dart';
 
 class PenaltyController extends ChangeNotifier {
-  PenaltyController({required PenaltyRepositoryBase repository}) : _repository = repository;
+  PenaltyController({
+    required PenaltyRepositoryBase repository,
+    CacheManager<PenaltyPage>? cache,
+    TelemetryService? telemetry,
+  })  : _repository = repository,
+        _cache = cache ?? CacheManager<PenaltyPage>(ttl: const Duration(minutes: 5)),
+        _telemetry = telemetry ?? TelemetryService();
 
   final PenaltyRepositoryBase _repository;
+  final CacheManager<PenaltyPage> _cache;
+  final TelemetryService _telemetry;
 
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -14,6 +24,8 @@ class PenaltyController extends ChangeNotifier {
   String? _errorMessage;
   String? _nextCursor;
   final List<PenaltyItem> _items = <PenaltyItem>[];
+  DateTime? _lastUpdated;
+  bool _isOffline = false;
 
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
@@ -22,6 +34,8 @@ class PenaltyController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get canLoadMore => _nextCursor != null && !_isLoading && !_isLoadingMore;
   List<PenaltyItem> get items => List.unmodifiable(_items);
+  DateTime? get lastUpdated => _lastUpdated;
+  bool get isOffline => _isOffline;
 
   Future<void> initialise() async {
     if (_hasInitialised) {
@@ -32,18 +46,54 @@ class PenaltyController extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
+    if (_isLoading) {
+      return;
+    }
     _setLoading(true);
     try {
-      final page = await _repository.fetchPenalties(filter: _statusFilter);
+      final cached = _cache.read(_cacheKey());
+      if (cached != null) {
+        _items
+          ..clear()
+          ..addAll(cached.value.items);
+        _nextCursor = cached.value.nextCursor;
+        _lastUpdated = cached.value.lastSyncedAt;
+        _isOffline = true;
+        _errorMessage = null;
+        notifyListeners();
+      }
+
+      final page = await _repository.fetchPenalties(filter: _statusFilter, forceRefresh: true);
       _items
         ..clear()
         ..addAll(page.items);
       _nextCursor = page.nextCursor;
       _errorMessage = null;
+      _cache.write(_cacheKey(), page);
+      _lastUpdated = page.lastSyncedAt;
+      _isOffline = false;
     } on PenaltyFailure catch (error) {
       _errorMessage = error.message;
+      final cached = _cache.read(_cacheKey());
+      if (cached != null) {
+        _items
+          ..clear()
+          ..addAll(cached.value.items);
+        _nextCursor = cached.value.nextCursor;
+        _lastUpdated = cached.value.lastSyncedAt;
+        _isOffline = true;
+      }
     } catch (error) {
       _errorMessage = error.toString();
+      final cached = _cache.read(_cacheKey());
+      if (cached != null) {
+        _items
+          ..clear()
+          ..addAll(cached.value.items);
+        _nextCursor = cached.value.nextCursor;
+        _lastUpdated = cached.value.lastSyncedAt;
+        _isOffline = true;
+      }
     } finally {
       _setLoading(false);
     }
@@ -62,6 +112,15 @@ class PenaltyController extends ChangeNotifier {
       );
       _items.addAll(page.items);
       _nextCursor = page.nextCursor;
+      _lastUpdated = page.lastSyncedAt;
+      _cache.write(
+        _cacheKey(),
+        PenaltyPage(
+          items: List<PenaltyItem>.from(_items),
+          nextCursor: _nextCursor,
+          lastSyncedAt: _lastUpdated,
+        ),
+      );
     } on PenaltyFailure catch (error) {
       _errorMessage = error.message;
     } catch (error) {
@@ -84,12 +143,18 @@ class PenaltyController extends ChangeNotifier {
     final updated = item.copyWith(
       acknowledged: true,
       acknowledgedAt: DateTime.now(),
+      status: 'acknowledged',
     );
     _items[index] = updated;
     notifyListeners();
 
     try {
       await _repository.acknowledgePenalty(penaltyId: item.id, note: note);
+      _cache.invalidate(_cacheKey());
+      _telemetry.recordEvent('penalty_acknowledged', metadata: {
+        'penaltyId': item.id,
+        'note': note,
+      });
     } on PenaltyFailure catch (error) {
       _items[index] = item;
       _errorMessage = error.message;
@@ -125,5 +190,7 @@ class PenaltyController extends ChangeNotifier {
     _isLoadingMore = value;
     notifyListeners();
   }
+
+  String _cacheKey() => 'penalties:${_statusFilter.name}';
 }
 

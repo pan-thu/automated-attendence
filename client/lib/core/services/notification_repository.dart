@@ -1,19 +1,44 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
+import '../data/cache_manager.dart';
+
 abstract class NotificationRepositoryBase {
-  Future<NotificationPage> fetchNotifications({int limit, String? cursor, NotificationStatusFilter filter});
+  Future<NotificationPage> fetchNotifications({
+    int limit,
+    String? cursor,
+    NotificationStatusFilter filter,
+    bool forceRefresh,
+  });
 
   Future<void> markAsRead({required String notificationId, String? acknowledgment});
 }
 
 class NotificationRepository implements NotificationRepositoryBase {
-  NotificationRepository({FirebaseFunctions? functions}) : _functions = functions ?? FirebaseFunctions.instance;
+  NotificationRepository({
+    FirebaseFunctions? functions,
+    CacheManager<NotificationPage>? cacheManager,
+  })  : _functions = functions ?? FirebaseFunctions.instance,
+        _cacheManager = cacheManager ?? CacheManager<NotificationPage>(ttl: const Duration(minutes: 5));
 
   final FirebaseFunctions _functions;
+  final CacheManager<NotificationPage> _cacheManager;
+
+  static String _cacheKey(NotificationStatusFilter filter) => 'notifications:${filter.name}';
 
   @override
-  @override
-  Future<NotificationPage> fetchNotifications({int limit = 20, String? cursor, NotificationStatusFilter filter = NotificationStatusFilter.all}) async {
+  Future<NotificationPage> fetchNotifications({
+    int limit = 20,
+    String? cursor,
+    NotificationStatusFilter filter = NotificationStatusFilter.all,
+    bool forceRefresh = false,
+  }) async {
+    if (cursor == null && !forceRefresh) {
+      final cached = _cacheManager.read(_cacheKey(filter));
+      if (cached != null) {
+        return cached.value;
+      }
+    }
+
     try {
       final callable = _functions.httpsCallable('listEmployeeNotifications');
       final payload = <String, dynamic>{
@@ -35,8 +60,11 @@ class NotificationRepository implements NotificationRepositoryBase {
           .toList();
 
       final nextCursor = data['nextCursor'] as String?;
-
-      return NotificationPage(items: items, nextCursor: nextCursor);
+      final page = NotificationPage(items: items, nextCursor: nextCursor, lastSyncedAt: DateTime.now());
+      if (cursor == null) {
+        _cacheManager.write(_cacheKey(filter), page);
+      }
+      return page;
     } on FirebaseFunctionsException catch (error) {
       final message = error.message?.isNotEmpty == true ? error.message! : 'Failed to load notifications (${error.code}).';
       throw NotificationFailure(message);
@@ -53,6 +81,9 @@ class NotificationRepository implements NotificationRepositoryBase {
         'notificationId': notificationId,
         if (acknowledgment != null && acknowledgment.isNotEmpty) 'acknowledgment': acknowledgment,
       });
+      _cacheManager.invalidate(_cacheKey(NotificationStatusFilter.all));
+      _cacheManager.invalidate(_cacheKey(NotificationStatusFilter.unread));
+      _cacheManager.invalidate(_cacheKey(NotificationStatusFilter.read));
     } on FirebaseFunctionsException catch (error) {
       final message = error.message?.isNotEmpty == true ? error.message! : 'Failed to update notification (${error.code}).';
       throw NotificationFailure(message);
@@ -63,10 +94,27 @@ class NotificationRepository implements NotificationRepositoryBase {
 }
 
 class NotificationPage {
-  const NotificationPage({required this.items, this.nextCursor});
+  const NotificationPage({
+    required this.items,
+    this.nextCursor,
+    DateTime? lastSyncedAt,
+  }) : lastSyncedAt = lastSyncedAt ?? DateTime.now();
 
   final List<NotificationItem> items;
   final String? nextCursor;
+  final DateTime lastSyncedAt;
+
+  NotificationPage copyWith({
+    List<NotificationItem>? items,
+    String? nextCursor,
+    DateTime? lastSyncedAt,
+  }) {
+    return NotificationPage(
+      items: items ?? this.items,
+      nextCursor: nextCursor ?? this.nextCursor,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+    );
+  }
 
   bool get isLastPage => nextCursor == null;
 }

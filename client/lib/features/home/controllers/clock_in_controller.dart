@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../core/services/clock_in_repository.dart';
+import '../../../core/services/telemetry_service.dart';
 
 class ClockInController extends ChangeNotifier {
-  ClockInController({ClockInRepository? repository})
-      : _repository = repository ?? ClockInRepository();
+  ClockInController({ClockInRepository? repository, TelemetryService? telemetry})
+      : _repository = repository ?? ClockInRepository(),
+        _telemetry = telemetry ?? TelemetryService();
 
   final ClockInRepository _repository;
+  final TelemetryService _telemetry;
 
   bool _isLoading = false;
   String? _statusMessage;
@@ -32,12 +35,19 @@ class ClockInController extends ChangeNotifier {
       _statusMessage = result.message;
       _errorMessage = null;
       didSucceed = true;
+      _telemetry.recordEvent('clock_in_success', metadata: {
+        'accuracy': position.accuracy,
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+      });
     } on ClockInFailure catch (failure) {
       _statusMessage = null;
       _errorMessage = failure.message;
+      _telemetry.recordEvent('clock_in_failure', metadata: {'reason': failure.message});
     } catch (error) {
       _statusMessage = null;
       _errorMessage = 'Clock-in failed: $error';
+      _telemetry.recordEvent('clock_in_failure', metadata: {'reason': error.toString()});
     } finally {
       _setLoading(false);
     }

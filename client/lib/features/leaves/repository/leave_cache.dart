@@ -1,10 +1,15 @@
 import '../../../models/leave_models.dart';
 
 class LeaveCacheEntry {
-  const LeaveCacheEntry({required this.items, required this.cursor});
+  const LeaveCacheEntry({
+    required this.items,
+    required this.cursor,
+    required this.updatedAt,
+  });
 
   final List<LeaveListItem> items;
   final String? cursor;
+  final DateTime updatedAt;
 }
 
 class LeaveCache {

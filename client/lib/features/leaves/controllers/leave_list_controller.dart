@@ -1,16 +1,19 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../core/services/leave_repository.dart';
+import '../../../core/services/telemetry_service.dart';
 import '../../../models/leave_models.dart';
 import '../repository/leave_cache.dart';
 
 class LeaveListController extends ChangeNotifier {
-  LeaveListController({LeaveRepositoryBase? repository, LeaveCache? cache})
+  LeaveListController({LeaveRepositoryBase? repository, LeaveCache? cache, TelemetryService? telemetry})
       : _repository = repository ?? LeaveRepository(),
-        _cache = cache ?? LeaveCache();
+        _cache = cache ?? LeaveCache(),
+        _telemetry = telemetry ?? TelemetryService();
 
   final LeaveRepositoryBase _repository;
   final LeaveCache _cache;
+  final TelemetryService _telemetry;
 
   final List<LeaveListItem> _items = <LeaveListItem>[];
   LeaveStatus? _statusFilter;
@@ -18,6 +21,8 @@ class LeaveListController extends ChangeNotifier {
   bool _isLoading = false;
   bool _isRefreshing = false;
   String? _errorMessage;
+  DateTime? _lastUpdated;
+  bool _isOffline = false;
 
   List<LeaveListItem> get items => List.unmodifiable(_items);
   LeaveStatus? get statusFilter => _statusFilter;
@@ -25,6 +30,8 @@ class LeaveListController extends ChangeNotifier {
   bool get isRefreshing => _isRefreshing;
   bool get canLoadMore => _nextCursor != null && !_isLoading;
   String? get errorMessage => _errorMessage;
+  DateTime? get lastUpdated => _lastUpdated;
+  bool get isOffline => _isOffline;
 
   Future<void> initialize({LeaveStatus? status}) async {
     _statusFilter = status;
@@ -35,6 +42,8 @@ class LeaveListController extends ChangeNotifier {
         ..clear()
         ..addAll(cached.items);
       _nextCursor = cached.cursor;
+      _lastUpdated = cached.updatedAt;
+      _isOffline = true;
       notifyListeners();
     }
 
@@ -42,6 +51,9 @@ class LeaveListController extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
+    if (_isRefreshing) {
+      return;
+    }
     _isRefreshing = true;
     notifyListeners();
     await _load(initial: true);
@@ -70,6 +82,7 @@ class LeaveListController extends ChangeNotifier {
     }
     _isLoading = true;
     _errorMessage = null;
+    _isOffline = false;
     if (initial) {
       _nextCursor = null;
     }
@@ -85,28 +98,54 @@ class LeaveListController extends ChangeNotifier {
         _items
           ..clear()
           ..addAll(page.items);
-        _cache.set(
-          _statusFilter,
-          LeaveCacheEntry(items: List<LeaveListItem>.from(page.items), cursor: page.nextCursor),
-        );
       } else {
         _items.addAll(page.items);
-        final existing = _cache.get(_statusFilter);
-        if (existing != null) {
-          _cache.set(
-            _statusFilter,
-            LeaveCacheEntry(
-              items: List<LeaveListItem>.from(existing.items)..addAll(page.items),
-              cursor: page.nextCursor,
-            ),
-          );
-        }
       }
+      _cache.set(
+        _statusFilter,
+        LeaveCacheEntry(
+          items: List<LeaveListItem>.from(_items),
+          cursor: page.nextCursor,
+          updatedAt: DateTime.now(),
+        ),
+      );
       _nextCursor = page.nextCursor;
+      _lastUpdated = DateTime.now();
+      _telemetry.recordEvent('leave_list_loaded', metadata: {
+        'statusFilter': _statusFilter?.name,
+        'initial': initial,
+        'count': _items.length,
+      });
     } on LeaveFailure catch (error) {
       _errorMessage = error.message;
+      _telemetry.recordEvent('leave_list_load_failed', metadata: {
+        'statusFilter': _statusFilter?.name,
+        'error': error.message,
+      });
+      final cached = _cache.get(_statusFilter);
+      if (cached != null) {
+        _items
+          ..clear()
+          ..addAll(cached.items);
+        _nextCursor = cached.cursor;
+        _lastUpdated = cached.updatedAt;
+        _isOffline = true;
+      }
     } catch (error) {
       _errorMessage = error.toString();
+      _telemetry.recordEvent('leave_list_load_failed', metadata: {
+        'statusFilter': _statusFilter?.name,
+        'error': error.toString(),
+      });
+      final cached = _cache.get(_statusFilter);
+      if (cached != null) {
+        _items
+          ..clear()
+          ..addAll(cached.items);
+        _nextCursor = cached.cursor;
+        _lastUpdated = cached.updatedAt;
+        _isOffline = true;
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

@@ -1,19 +1,44 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
+import '../data/cache_manager.dart';
+
 abstract class PenaltyRepositoryBase {
-  Future<PenaltyPage> fetchPenalties({PenaltyStatusFilter filter, String? cursor, int limit});
+  Future<PenaltyPage> fetchPenalties({
+    PenaltyStatusFilter filter,
+    String? cursor,
+    int limit,
+    bool forceRefresh,
+  });
 
   Future<void> acknowledgePenalty({required String penaltyId, String? note});
 }
 
 class PenaltyRepository implements PenaltyRepositoryBase {
-  PenaltyRepository({FirebaseFunctions? functions}) : _functions = functions ?? FirebaseFunctions.instance;
+  PenaltyRepository({
+    FirebaseFunctions? functions,
+    CacheManager<PenaltyPage>? cacheManager,
+  })  : _functions = functions ?? FirebaseFunctions.instance,
+        _cacheManager = cacheManager ?? CacheManager<PenaltyPage>(ttl: const Duration(minutes: 5));
 
   final FirebaseFunctions _functions;
+  final CacheManager<PenaltyPage> _cacheManager;
+
+  static String _cacheKey(PenaltyStatusFilter filter) => 'penalties:${filter.name}';
 
   @override
-  @override
-  Future<PenaltyPage> fetchPenalties({PenaltyStatusFilter filter = PenaltyStatusFilter.all, String? cursor, int limit = 20}) async {
+  Future<PenaltyPage> fetchPenalties({
+    PenaltyStatusFilter filter = PenaltyStatusFilter.all,
+    String? cursor,
+    int limit = 20,
+    bool forceRefresh = false,
+  }) async {
+    if (cursor == null && !forceRefresh) {
+      final cached = _cacheManager.read(_cacheKey(filter));
+      if (cached != null) {
+        return cached.value;
+      }
+    }
+
     try {
       final callable = _functions.httpsCallable('listEmployeePenalties');
       final payload = <String, dynamic>{'limit': limit};
@@ -30,7 +55,15 @@ class PenaltyRepository implements PenaltyRepositoryBase {
       final items = (data['items'] as List<dynamic>? ?? const <dynamic>[])
           .map((raw) => PenaltyItem.fromJson(Map<String, dynamic>.from(raw as Map)))
           .toList();
-      return PenaltyPage(items: items, nextCursor: data['nextCursor'] as String?);
+      final page = PenaltyPage(
+        items: items,
+        nextCursor: data['nextCursor'] as String?,
+        lastSyncedAt: DateTime.now(),
+      );
+      if (cursor == null) {
+        _cacheManager.write(_cacheKey(filter), page);
+      }
+      return page;
     } on FirebaseFunctionsException catch (error) {
       final message = error.message?.isNotEmpty == true ? error.message! : 'Failed to load penalties (${error.code}).';
       throw PenaltyFailure(message);
@@ -47,6 +80,8 @@ class PenaltyRepository implements PenaltyRepositoryBase {
         'penaltyId': penaltyId,
         if (note != null && note.isNotEmpty) 'note': note,
       });
+      _cacheManager.invalidate(_cacheKey(PenaltyStatusFilter.all));
+      _cacheManager.invalidate(_cacheKey(PenaltyStatusFilter.active));
     } on FirebaseFunctionsException catch (error) {
       final message = error.message?.isNotEmpty == true ? error.message! : 'Failed to acknowledge penalty (${error.code}).';
       throw PenaltyFailure(message);
@@ -57,10 +92,27 @@ class PenaltyRepository implements PenaltyRepositoryBase {
 }
 
 class PenaltyPage {
-  const PenaltyPage({required this.items, this.nextCursor});
+  const PenaltyPage({
+    required this.items,
+    this.nextCursor,
+    DateTime? lastSyncedAt,
+  }) : lastSyncedAt = lastSyncedAt ?? DateTime.now();
 
   final List<PenaltyItem> items;
   final String? nextCursor;
+  final DateTime lastSyncedAt;
+
+  PenaltyPage copyWith({
+    List<PenaltyItem>? items,
+    String? nextCursor,
+    DateTime? lastSyncedAt,
+  }) {
+    return PenaltyPage(
+      items: items ?? this.items,
+      nextCursor: nextCursor ?? this.nextCursor,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+    );
+  }
 
   bool get isLastPage => nextCursor == null;
 }

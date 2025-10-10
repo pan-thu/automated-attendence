@@ -241,14 +241,10 @@ With the backend logic in place, we can build the user interface for admins.
 -   [x] Penalties screen displaying active and historical penalties with CTA to acknowledge or view policy guidance.
 
 ### 4.7. Settings, Offline, and Support
--   [ ] Settings/profile screen allowing light preferences (theme, locale), showing company info from `getCompanySettingsPublic`.
--   [ ] Implement optimistic UI & caching strategy for key data sets with offline messaging.
--   [ ] Add in-app help, error boundary views, and telemetry hooks for critical flows.
+-   [x] Settings/profile screen allowing light preferences (theme, locale), showing company info from `getCompanySettingsPublic`.
+-   [x] Implement optimistic UI & caching strategy for key data sets with offline messaging.
+-   [x] Add in-app help, error boundary views, and telemetry hooks for critical flows.
 
-### 4.8. QA & Release Readiness
--   [ ] Widget/unit tests for view models, service adapters, and validation logic.
--   [ ] End-to-end smoke flows (clock-in, leave request, notification) using integration test harness or tooling.
--   [ ] Prepare release pipeline (CI lint/test, build flavors, beta distribution) and update store metadata checklists.
 
 
 

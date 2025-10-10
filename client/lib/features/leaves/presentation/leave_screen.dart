@@ -44,6 +44,11 @@ class _LeaveView extends StatelessWidget {
         title: const Text('Leave Management'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Help',
+            onPressed: () => _openHelp(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: listController.isLoading ? null : listController.refresh,
@@ -92,6 +97,39 @@ class _LeaveView extends StatelessWidget {
         );
       }
     }
+  }
+
+  void _openHelp(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => const _HelpSheet(),
+    );
+  }
+}
+
+class _HelpSheet extends StatelessWidget {
+  const _HelpSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text('Leave Help', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 12),
+          Text('• Use the filters to view pending, approved, or rejected requests.'),
+          SizedBox(height: 8),
+          Text('• Tap the + button to create a new leave request.'),
+          SizedBox(height: 8),
+          Text('• Attachments are required for medical leave types as per company policy.'),
+          SizedBox(height: 8),
+          Text('• Contact your manager if you need to escalate a decision.'),
+        ],
+      ),
+    );
   }
 }
 

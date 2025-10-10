@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/leave_models.dart';
+import '../../widgets/offline_notice.dart';
 import '../controllers/leave_list_controller.dart';
 import 'leave_request_detail.dart';
 
@@ -23,10 +24,6 @@ class LeaveList extends StatelessWidget {
       );
     }
 
-    if (controller.items.isEmpty) {
-      return const Center(child: Text('No leave requests found.'));
-    }
-
     return RefreshIndicator(
       onRefresh: controller.refresh,
       child: NotificationListener<ScrollNotification>(
@@ -38,16 +35,31 @@ class LeaveList extends StatelessWidget {
         },
         child: ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          itemCount: controller.items.length + (controller.canLoadMore ? 1 : 0),
+          itemCount: _calculateItemCount(controller),
           itemBuilder: (context, index) {
-            if (index >= controller.items.length) {
+            if (controller.isOffline && index == 0) {
+              return OfflineNotice(
+                message: 'Leaves shown are from your last sync. Pull to refresh when connection is restored.',
+                lastUpdated: controller.lastUpdated,
+                margin: const EdgeInsets.only(bottom: 12),
+                onRetry: controller.refresh,
+              );
+            }
+
+            final adjustedIndex = controller.isOffline ? index - 1 : index;
+
+            if (controller.items.isEmpty && !controller.canLoadMore) {
+              return const _EmptyPlaceholder();
+            }
+
+            if (adjustedIndex >= controller.items.length) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(child: CircularProgressIndicator()),
               );
             }
 
-            final item = controller.items[index];
+            final item = controller.items[adjustedIndex];
             return Card(
               child: ListTile(
                 title: Row(
@@ -68,6 +80,15 @@ class LeaveList extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  int _calculateItemCount(LeaveListController controller) {
+    final base = controller.items.length;
+    final offlineOffset = controller.isOffline ? 1 : 0;
+    if (controller.items.isEmpty && !controller.canLoadMore) {
+      return offlineOffset + 1;
+    }
+    return base + offlineOffset + (controller.canLoadMore ? 1 : 0);
   }
 
   String _formatSubmittedAt(DateTime? submittedAt) {
@@ -132,6 +153,24 @@ class _StatusChip extends StatelessWidget {
       ),
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
+    );
+  }
+}
+
+class _EmptyPlaceholder extends StatelessWidget {
+  const _EmptyPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Column(
+        children: const [
+          Icon(Icons.inbox, size: 40),
+          SizedBox(height: 12),
+          Text('No leave requests found.', textAlign: TextAlign.center),
+        ],
+      ),
     );
   }
 }

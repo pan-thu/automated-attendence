@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/services/penalty_repository.dart';
 import '../controllers/penalty_controller.dart';
 import '../presentation/penalties_screen.dart';
+import '../../widgets/offline_notice.dart';
 
 class PenaltyList extends StatefulWidget {
   const PenaltyList({
@@ -56,21 +57,32 @@ class _PenaltyListState extends State<PenaltyList> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (controller.items.isEmpty) {
-      return const _EmptyState();
-    }
-
     return RefreshIndicator(
       onRefresh: controller.refresh,
       child: ListView.separated(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
         itemBuilder: (context, index) {
-          if (index >= controller.items.length) {
+          if (controller.isOffline && index == 0) {
+            return OfflineNotice(
+              message: 'Penalties are from the last sync. Pull to refresh once reconnected.',
+              lastUpdated: controller.lastUpdated,
+              margin: EdgeInsets.zero,
+              onRetry: controller.refresh,
+            );
+          }
+
+          final adjustedIndex = controller.isOffline ? index - 1 : index;
+
+          if (controller.items.isEmpty && !controller.canLoadMore) {
+            return const _EmptyState();
+          }
+
+          if (adjustedIndex >= controller.items.length) {
             return const _LoadingIndicator();
           }
 
-          final item = controller.items[index];
+          final item = controller.items[adjustedIndex];
           return _PenaltyTile(
             item: item,
             onTap: () => _openDetail(context, item),
@@ -78,9 +90,17 @@ class _PenaltyListState extends State<PenaltyList> {
           );
         },
         separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemCount: controller.canLoadMore ? controller.items.length + 1 : controller.items.length,
+        itemCount: _itemCount(controller),
       ),
     );
+  }
+
+  int _itemCount(PenaltyController controller) {
+    final offlineOffset = controller.isOffline ? 1 : 0;
+    if (controller.items.isEmpty && !controller.canLoadMore) {
+      return offlineOffset + 1;
+    }
+    return controller.items.length + offlineOffset + (controller.canLoadMore ? 1 : 0);
   }
 
   Future<void> _openDetail(BuildContext context, PenaltyItem item) async {
