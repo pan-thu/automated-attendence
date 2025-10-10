@@ -27,7 +27,8 @@ class DashboardView extends StatelessWidget {
             onPressed: () => context.push(AppRoutePaths.settings),
           ),
           IconButton(
-            onPressed: dashboard.isLoading ? null : () => dashboard.refreshDashboard(),
+            onPressed:
+                dashboard.isLoading ? null : () => dashboard.refreshDashboard(),
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
           ),
@@ -35,63 +36,70 @@ class DashboardView extends StatelessWidget {
       ),
       body: RefreshIndicator(
         onRefresh: dashboard.refreshDashboard,
-        child: dashboard.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : dashboard.summary == null
+        child:
+            dashboard.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : dashboard.summary == null
                 ? _EmptyState(errorMessage: dashboard.errorMessage)
                 : Column(
-                    children: [
-                      if (dashboard.isOffline)
-                        OfflineNotice(
-                          message: 'You are viewing cached attendance data. Pull down to refresh once you are back online.',
-                          lastUpdated: dashboard.summaryUpdatedAt,
-                          onRetry: dashboard.refreshDashboard,
-                        ),
-                      Expanded(
-                        child: _DashboardContent(
-                          summary: dashboard.summary!,
-                          clockIn: clockIn,
-                        ),
+                  children: [
+                    if (dashboard.isOffline)
+                      OfflineNotice(
+                        message:
+                            'You are viewing cached attendance data. Pull down to refresh once you are back online.',
+                        lastUpdated: dashboard.summaryUpdatedAt,
+                        onRetry: dashboard.refreshDashboard,
                       ),
-                    ],
-                  ),
+                    Expanded(
+                      child: _DashboardContent(
+                        summary: dashboard.summary!,
+                        clockIn: clockIn,
+                      ),
+                    ),
+                  ],
+                ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: clockIn.isLoading
-            ? null
-            : () async {
-                final didComplete = await context.read<ClockInController>().attemptClockIn();
-                if (!context.mounted) return;
+        onPressed:
+            clockIn.isLoading
+                ? null
+                : () async {
+                  final didComplete =
+                      await context.read<ClockInController>().attemptClockIn();
+                  if (!context.mounted) return;
 
-                final messenger = ScaffoldMessenger.of(context);
-                if (didComplete) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        clockIn.statusMessage ?? 'Clock-in recorded.',
+                  final messenger = ScaffoldMessenger.of(context);
+                  if (didComplete) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          clockIn.statusMessage ?? 'Clock-in recorded.',
+                        ),
+                        behavior: SnackBarBehavior.floating,
                       ),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  await context.read<DashboardController>().refreshDashboard();
-                } else {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        clockIn.errorMessage ?? 'Clock-in failed.',
+                    );
+                    await context
+                        .read<DashboardController>()
+                        .refreshDashboard();
+                  } else {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          clockIn.errorMessage ?? 'Clock-in failed.',
+                        ),
+                        behavior: SnackBarBehavior.floating,
                       ),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-        icon: clockIn.isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.fingerprint),
+                    );
+                  }
+                },
+        icon:
+            clockIn.isLoading
+                ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                : const Icon(Icons.fingerprint),
         label: const Text('Clock In'),
       ),
     );
@@ -153,7 +161,10 @@ class _DashboardContent extends StatelessWidget {
                 ),
                 Chip(
                   label: Text(summary.isActive ? 'Active' : 'Inactive'),
-                  backgroundColor: summary.isActive ? Colors.green.shade100 : Colors.red.shade100,
+                  backgroundColor:
+                      summary.isActive
+                          ? Colors.green.shade100
+                          : Colors.red.shade100,
                 ),
               ],
             ),
@@ -414,18 +425,16 @@ class _PenaltiesCard extends StatelessWidget {
           children: [
             Text('Penalties', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
-            ...penalties.map(
-              (penalty) {
-                final amount = penalty.amount ?? 0;
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.warning_amber_rounded),
-                  title: Text(penalty.violationType ?? 'Violation'),
-                  subtitle: Text(_formatDate(penalty.dateIncurred)),
-                  trailing: Text('Rs ${amount.toStringAsFixed(2)}'),
-                );
-              },
-            ),
+            ...penalties.map((penalty) {
+              final amount = penalty.amount ?? 0;
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.warning_amber_rounded),
+                title: Text(penalty.violationType ?? 'Violation'),
+                subtitle: Text(_formatDate(penalty.dateIncurred)),
+                trailing: Text('Rs ${amount.toStringAsFixed(2)}'),
+              );
+            }),
           ],
         ),
       ),
@@ -445,9 +454,13 @@ class _CompanyInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeWindows = settings.timeWindows.entries
-        .map((entry) => '${entry.value.label} (${entry.value.start} – ${entry.value.end})')
-        .toList();
+    final timeWindows =
+        settings.timeWindows.entries
+            .map(
+              (entry) =>
+                  '${entry.value.label} (${entry.value.start} – ${entry.value.end})',
+            )
+            .toList();
 
     return Card(
       child: Padding(
@@ -462,7 +475,7 @@ class _CompanyInfoCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text('Timezone: ${settings.timezone ?? 'Unknown'}'),
             Text(
-              'Geofence radius: ${settings.geofenceRadiusMeters != null ? '${settings.geofenceRadiusMeters.toStringAsFixed(0)} m' : 'n/a'}',
+              'Geofence radius: ${settings.geofenceRadiusMeters != null ? '${settings.geofenceRadiusMeters?.toStringAsFixed(0)} m' : 'n/a'}',
             ),
             Text(
               'Geofence enforcement: ${settings.geoFencingEnabled ? 'Enabled' : 'Disabled'}',
