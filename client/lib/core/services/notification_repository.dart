@@ -94,7 +94,7 @@ class NotificationRepository implements NotificationRepositoryBase {
 }
 
 class NotificationPage {
-  const NotificationPage({
+  NotificationPage({
     required this.items,
     this.nextCursor,
     DateTime? lastSyncedAt,

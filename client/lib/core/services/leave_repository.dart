@@ -182,12 +182,41 @@ class LeaveRepository implements LeaveRepositoryBase {
 
     final uploadInfo = await createAttachmentUpload(
       fileName: file.name,
-      mimeType: file.mimeType ?? 'application/octet-stream',
+      mimeType: _getMimeType(file.extension),
       sizeBytes: data.length,
     );
 
     await uploadAttachmentBytes(uploadInfo: uploadInfo, data: data);
     return finalizeAttachment(uploadInfo.attachmentId);
+  }
+
+  String _getMimeType(String? extension) {
+    if (extension == null) return 'application/octet-stream';
+
+    final ext = extension.toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
+    }
   }
 }
 

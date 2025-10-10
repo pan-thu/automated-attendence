@@ -1,7 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../data/cache_manager.dart';
-import '../models/company_settings.dart';
+import '../../features/settings/models/company_settings.dart';
 
 class CompanySettingsRepository {
   CompanySettingsRepository({

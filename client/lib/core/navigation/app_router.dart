@@ -4,6 +4,10 @@ import 'package:flutter/foundation.dart';
 import '../auth/session_controller.dart';
 import '../controllers/preferences_controller.dart';
 import '../services/company_settings_repository.dart';
+import '../services/leave_repository.dart';
+import '../services/notification_repository.dart';
+import '../services/penalty_repository.dart';
+import '../services/push_notification_service.dart';
 import '../../features/attendance_history/presentation/attendance_history_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
@@ -13,7 +17,6 @@ import '../../features/onboarding/controllers/onboarding_controller.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/penalties/presentation/penalties_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
-import '../../features/settings/repository/company_settings_repository.dart';
 
 class AppRouter {
   AppRouter({
@@ -25,14 +28,14 @@ class AppRouter {
     required PushNotificationService pushNotificationService,
     required CompanySettingsRepository settingsRepository,
     required PreferencesController preferencesController,
-  })  : _sessionController = sessionController,
-        _onboardingController = onboardingController,
-        _leaveRepository = leaveRepository,
-        _notificationRepository = notificationRepository,
-        _penaltyRepository = penaltyRepository,
-        _pushNotificationService = pushNotificationService,
-        _settingsRepository = settingsRepository,
-        _preferencesController = preferencesController {
+  }) : _sessionController = sessionController,
+       _onboardingController = onboardingController,
+       _leaveRepository = leaveRepository,
+       _notificationRepository = notificationRepository,
+       _penaltyRepository = penaltyRepository,
+       _pushNotificationService = pushNotificationService,
+       _settingsRepository = settingsRepository,
+       _preferencesController = preferencesController {
     _pushNotificationService.configure(this);
     router = GoRouter(
       initialLocation: AppRoutePaths.home,
@@ -86,17 +89,22 @@ class AppRouter {
         GoRoute(
           name: AppRoutePaths.leaves,
           path: AppRoutePaths.leaves,
-          builder: (context, state) => LeaveScreen(repository: _leaveRepository),
+          builder:
+              (context, state) => LeaveScreen(repository: _leaveRepository),
         ),
         GoRoute(
           name: AppRoutePaths.notifications,
           path: AppRoutePaths.notifications,
-          builder: (context, state) => NotificationsScreen(repository: _notificationRepository),
+          builder:
+              (context, state) =>
+                  NotificationsScreen(repository: _notificationRepository),
         ),
         GoRoute(
           name: AppRoutePaths.penalties,
           path: AppRoutePaths.penalties,
-          builder: (context, state) => PenaltiesScreen(repository: _penaltyRepository),
+          builder:
+              (context, state) =>
+                  PenaltiesScreen(repository: _penaltyRepository),
         ),
         GoRoute(
           name: AppRoutePaths.onboarding,
@@ -111,10 +119,11 @@ class AppRouter {
         GoRoute(
           name: AppRoutePaths.settings,
           path: AppRoutePaths.settings,
-          builder: (context, state) => SettingsScreen(
-            repository: _settingsRepository,
-            preferencesController: _preferencesController,
-          ),
+          builder:
+              (context, state) => SettingsScreen(
+                repository: _settingsRepository,
+                preferencesController: _preferencesController,
+              ),
         ),
       ],
     );

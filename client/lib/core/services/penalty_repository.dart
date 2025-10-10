@@ -92,7 +92,7 @@ class PenaltyRepository implements PenaltyRepositoryBase {
 }
 
 class PenaltyPage {
-  const PenaltyPage({
+  PenaltyPage({
     required this.items,
     this.nextCursor,
     DateTime? lastSyncedAt,

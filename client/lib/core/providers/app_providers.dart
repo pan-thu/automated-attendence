@@ -39,27 +39,23 @@ class ProviderScope extends StatelessWidget {
         Provider<PenaltyRepositoryBase>(create: (_) => PenaltyRepository()),
         Provider<CompanySettingsRepository>(create: (_) => CompanySettingsRepository()),
         Provider<PushNotificationService>(create: (_) => PushNotificationService()),
-        ProxyProvider8<
+        ProxyProvider6<
             SessionController,
-            PreferencesController,
             OnboardingController,
             LeaveRepositoryBase,
             NotificationRepositoryBase,
             PenaltyRepositoryBase,
-            CompanySettingsRepository,
             PushNotificationService,
             AppRouter>(
           update: (
-            _,
+            context,
             sessionController,
-            preferencesController,
             onboardingController,
             leaveRepository,
             notificationRepository,
             penaltyRepository,
-            settingsRepository,
             pushService,
-            __,
+            previous,
           ) =>
               AppRouter(
                 sessionController: sessionController,
@@ -68,8 +64,8 @@ class ProviderScope extends StatelessWidget {
                 notificationRepository: notificationRepository,
                 penaltyRepository: penaltyRepository,
                 pushNotificationService: pushService,
-                settingsRepository: settingsRepository,
-                preferencesController: preferencesController,
+                settingsRepository: context.read<CompanySettingsRepository>(),
+                preferencesController: context.read<PreferencesController>(),
               ),
         ),
       ],
