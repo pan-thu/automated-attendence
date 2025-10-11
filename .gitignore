@@ -88,4 +88,5 @@ functions/.env.*
 service-acc-credentials.json
 
 CLAUDE.md
+.claude/
 repomix-output.xml

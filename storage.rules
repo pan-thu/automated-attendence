@@ -1,0 +1,77 @@
+// Firebase Storage Security Rules
+// Version: 1.0
+//
+// === SECURITY PHILOSOPHY ===
+// 1. **Default Deny:** Access to any file is denied unless explicitly allowed.
+// 2. **Path-Based Security:** Rules are structured based on folder paths.
+// 3. **Ownership & Roles:** Users can only write to their own designated folders.
+//    Admins have broader read access for verification purposes.
+// 4. **Content Validation:** Rules enforce constraints on file size and type to
+//    prevent abuse of storage resources.
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper function to check if a user is an admin by reading their role from Firestore.
+    // This is crucial for granting privileged access.
+    function isAdmin() {
+      return get(/databases/$(database)/documents/USERS/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ======================================================================
+    //  PROFILE IMAGES
+    //  Path: /profile_images/{userId}/{fileName}
+    // ======================================================================
+    match /profile_images/{userId}/{fileName} {
+    
+      // --- WHO CAN READ ---
+      // Any authenticated user can view anyone else's profile picture.
+      // This is common for a company directory app.
+      allow read: if request.auth != null;
+
+      // --- WHO CAN WRITE (Create, Update, Delete) ---
+      // Only the user who owns this folder can upload/change their own profile picture.
+      // Admins are also given write access for management purposes.
+      allow write: if (request.auth.uid == userId || isAdmin())
+        // --- VALIDATION ---
+        // We must validate the uploaded file to ensure it's a reasonable image.
+        && request.resource.size < 5 * 1024 * 1024 // File must be less than 5 MB
+        && request.resource.contentType.matches('image/.*'); // File must be an image type (e.g., image/jpeg, image/png)
+    }
+
+
+    // ======================================================================
+    //  LEAVE DOCUMENTS (e.g., Medical Certificates)
+    //  Path: /leave_documents/{userId}/{fileName}
+    // ======================================================================
+    match /leave_documents/{userId}/{fileName} {
+
+      // --- WHO CAN READ ---
+      // This is sensitive data. Only the user who uploaded the document OR an admin can view it.
+      // Another employee CANNOT access these files.
+      allow read: if request.auth.uid == userId || isAdmin();
+
+      // --- WHO CAN WRITE ---
+      // Only the user who owns this folder can upload their own leave documents.
+      // Admins cannot upload on a user's behalf to ensure authenticity.
+      allow write: if request.auth.uid == userId
+        // --- VALIDATION ---
+        // Allow common document and image types.
+        && request.resource.size < 10 * 1024 * 1024 // File must be less than 10 MB
+        && (request.resource.contentType.matches('image/.*') || 
+            request.resource.contentType == 'application/pdf');
+    }
+
+
+    // ======================================================================
+    //  DEFAULT RULE
+    // ======================================================================
+    // Explicitly deny read/write access to any path not matched above.
+    // While this is the default behavior, making it explicit prevents accidental openings.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
