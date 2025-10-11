@@ -5,7 +5,13 @@
       "Bash(flutter pub:*)",
       "Bash(/mnt/c/Users/panth/AppData/Local/Android/Sdk/flutter/bin/flutter pub get)",
       "Bash(env)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(git checkout:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(firebase projects:list:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

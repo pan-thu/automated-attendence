@@ -4,13 +4,18 @@ import { getFirebaseApp } from "@/lib/firebase/config";
 
 let functionsInstance: Functions | null = null;
 
+// Read Firebase Functions region from environment variable
+// Default to us-central1 if not specified
+const FUNCTIONS_REGION = process.env.NEXT_PUBLIC_FUNCTIONS_REGION || "us-central1";
+
 const getCallableInstance = () => {
   if (typeof window === "undefined") {
     throw new Error("Firebase Functions are only available in the browser environment.");
   }
 
   if (!functionsInstance) {
-    functionsInstance = getFunctions(getFirebaseApp());
+    // Initialize with explicit region to prevent region mismatch errors
+    functionsInstance = getFunctions(getFirebaseApp(), FUNCTIONS_REGION);
   }
 
   return functionsInstance;
