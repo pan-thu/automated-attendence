@@ -1,7 +1,11 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'core/config/app_environment.dart';
@@ -17,6 +21,30 @@ Future<void> main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Connect to Firebase Emulators in development
+  const useEmulators = bool.fromEnvironment('USE_EMULATORS', defaultValue: false);
+
+  if (useEmulators) {
+    try {
+      // Connect to Auth emulator
+      await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+
+      // Connect to Firestore emulator
+      FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+
+      // Connect to Functions emulator
+      FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
+
+      if (kDebugMode) {
+        debugPrint('🔧 Connected to Firebase Emulators');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️  Error connecting to emulators: $e');
+      }
+    }
+  }
 
   final appEnvironment = AppEnvironment();
 
