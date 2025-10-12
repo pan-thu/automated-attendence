@@ -23,13 +23,15 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 // Initialize Firebase Admin
 if (!admin.apps.length) {
   // Check if we're using emulators
-  const useEmulator = process.env.FIRESTORE_EMULATOR_HOST || process.env.USE_EMULATOR === 'true';
+  // Default to emulator for development unless explicitly set to production
+  const useProduction = process.env.USE_PRODUCTION === 'true';
+  const useEmulator = !useProduction;
 
   if (useEmulator) {
     console.log('🔧 Using Firebase Emulators');
-    // Set emulator hosts
-    process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || 'localhost:8080';
-    process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || 'localhost:9099';
+    // Set emulator hosts for Admin SDK
+    process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
+    process.env.FIREBASE_AUTH_EMULATOR_HOST = 'localhost:9099';
 
     // For emulators, use the actual project ID from firebase.json
     admin.initializeApp({ projectId: 'automated-attendence-6fc07' });
@@ -140,7 +142,7 @@ async function seedAdminUser() {
   const adminUid = process.env.SEED_ADMIN_UID;
   const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@example.com';
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
-  const useEmulator = process.env.FIRESTORE_EMULATOR_HOST || process.env.USE_EMULATOR === 'true';
+  const useEmulator = process.env.USE_PRODUCTION !== 'true';
 
   if (!adminUid) {
     console.error('❌ SEED_ADMIN_UID environment variable not set');

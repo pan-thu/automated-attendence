@@ -14,7 +14,11 @@
       "Bash(git commit:*)",
       "Bash(cat:*)",
       "Bash(echo:*)",
-      "Bash(npm run seed:firestore:*)"
+      "Bash(npm run seed:firestore:*)",
+      "Bash(npm run serve)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(pgrep:*)"
     ],
     "deny": [],
     "ask": []

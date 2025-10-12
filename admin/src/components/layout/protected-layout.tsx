@@ -14,15 +14,28 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
   const router = useRouter();
 
   useEffect(() => {
+    // Only redirect after auth state is fully resolved
     if (!loading && !checkingClaims && !user) {
       router.replace("/login");
     }
   }, [loading, user, checkingClaims, router]);
 
-  if (loading || checkingClaims || !user) {
+  // Show loading state consistently to avoid hydration mismatches
+  const isLoading = loading || checkingClaims;
+
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         Loading...
+      </div>
+    );
+  }
+
+  // Don't render children until user is confirmed
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Redirecting to login...
       </div>
     );
   }

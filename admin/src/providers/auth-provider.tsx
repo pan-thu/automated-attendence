@@ -125,18 +125,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [authModule, firebaseAuth]);
 
+  const isAdmin = useMemo(() => Boolean(user), [user]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       loading,
       checkingClaims,
-      isAdmin: Boolean(user),
+      isAdmin,
       signIn,
       signOut,
       error,
       setError,
     }),
-    [user, loading, signIn, signOut, error, checkingClaims]
+    [user, loading, checkingClaims, isAdmin, signIn, signOut, error]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
