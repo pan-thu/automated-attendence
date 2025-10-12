@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 
@@ -368,7 +369,7 @@ export const updateCompanySettings = async (
   const payload: Record<string, unknown> = {
     ...sanitized,
     updatedBy,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   if (sanitized.workplace_center) {

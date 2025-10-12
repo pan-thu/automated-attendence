@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 import { getCompanySettings } from './settings';
@@ -39,8 +40,8 @@ export const waivePenalty = async (input: WaivePenaltyInput) => {
       status: 'waived',
       waivedReason,
       waivedBy: performedBy,
-      waivedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      waivedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
@@ -100,9 +101,9 @@ export const acknowledgePenalty = async (input: AcknowledgePenaltyInput) => {
   await penaltyRef.set(
     {
       acknowledged: true,
-      acknowledgedAt: admin.firestore.FieldValue.serverTimestamp(),
+      acknowledgedAt: FieldValue.serverTimestamp(),
       acknowledgementNote: note ?? null,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
@@ -148,8 +149,8 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
   // Use < instead of <= for exclusive end boundary
   const attendanceQuery = firestore
     .collection(ATTENDANCE_COLLECTION)
-    .where('attendanceDate', '>=', admin.firestore.Timestamp.fromDate(start))
-    .where('attendanceDate', '<', admin.firestore.Timestamp.fromDate(end));
+    .where('attendanceDate', '>=', Timestamp.fromDate(start))
+    .where('attendanceDate', '<', Timestamp.fromDate(end));
 
   const snapshots = await attendanceQuery.get();
 
@@ -184,12 +185,12 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
 
     const violationRecord = {
       userId: targetUserId,
-      violationDate: admin.firestore.FieldValue.serverTimestamp(),
+      violationDate: FieldValue.serverTimestamp(),
       violationType: 'monthly_summary',
       monthlyCount: info.violations.length,
       details: info.violations,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     } as Record<string, unknown>;
 
     if (info.violations.length === 0) {
@@ -215,9 +216,9 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
         amount,
         status: 'active',
         violationCount: count,
-        dateIncurred: admin.firestore.FieldValue.serverTimestamp(),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        dateIncurred: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
 
       penaltiesCreated += 1;

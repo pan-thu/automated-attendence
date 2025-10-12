@@ -2,6 +2,8 @@ import * as functions from 'firebase-functions';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { admin } from './firebase';
+import type * as firebaseAdmin from 'firebase-admin';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { assertAdmin, requireAuthUid, CallableContext, assertAuthenticated, assertEmployee } from './utils/auth';
 import { assertAdmin as assertAdminV2, assertEmployee as assertEmployeeV2, assertAuthenticated as assertAuthenticatedV2, requireAuthUid as requireAuthUidV2 } from './utils/authV2';
 import { wrapCallable } from './utils/callableWrapper';
@@ -108,7 +110,7 @@ export const setUserRole = onCall(
       throw new HttpsError('invalid-argument', 'Provide either uid or email to identify the user.');
     }
 
-    let userRecord: admin.auth.UserRecord;
+    let userRecord: firebaseAdmin.auth.UserRecord;
 
     try {
       if (uid) {
@@ -149,7 +151,7 @@ export const setUserRole = onCall(
         .set(
           {
             role,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
             updatedBy: performedBy,
           },
           { merge: true }

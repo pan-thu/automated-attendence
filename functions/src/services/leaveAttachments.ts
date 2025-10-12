@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore, runTransaction } from '../utils/firestore';
 import { getCompanySettings } from './settings';
@@ -164,7 +165,7 @@ export const generateLeaveAttachmentUploadUrl = async (
     contentType: normalizedMime,
   });
 
-  const expiresAt = admin.firestore.Timestamp.fromDate(
+  const expiresAt = Timestamp.fromDate(
     new Date(Date.now() + ATTACHMENT_REGISTRATION_WINDOW_MINUTES * 60 * 1000)
   );
 
@@ -178,9 +179,9 @@ export const generateLeaveAttachmentUploadUrl = async (
     mimeType: normalizedMime,
     expectedSizeBytes: expectedSize,
     sizeBytes: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    uploadUrlExpiresAt: admin.firestore.Timestamp.fromMillis(uploadUrlExpiry),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    uploadUrlExpiresAt: Timestamp.fromMillis(uploadUrlExpiry),
     expiresAt,
   });
 
@@ -212,7 +213,7 @@ export const registerLeaveAttachment = async (
   if (attachment.uploadUrlExpiresAt && attachment.uploadUrlExpiresAt.toMillis() < Date.now()) {
     await attachmentsCollection.doc(attachmentId).update({
       status: 'expired',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     throw new functions.https.HttpsError('deadline-exceeded', 'Upload URL expired. Please request a new one.');
   }
@@ -220,7 +221,7 @@ export const registerLeaveAttachment = async (
   if (attachment.expiresAt && attachment.expiresAt.toMillis() < Date.now()) {
     await attachmentsCollection.doc(attachmentId).update({
       status: 'expired',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     throw new functions.https.HttpsError('deadline-exceeded', 'Attachment registration window has expired.');
   }
@@ -282,9 +283,9 @@ export const registerLeaveAttachment = async (
     status: 'ready',
     sizeBytes: actualSize,
     mimeType: normalizeMimeType(contentType),
-    validatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    readyAt: admin.firestore.FieldValue.serverTimestamp(),
+    validatedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    readyAt: FieldValue.serverTimestamp(),
   });
 
   return {
@@ -374,8 +375,8 @@ export const attachAttachmentToLeave = async ({
     tx.update(docRef, {
       status: 'attached',
       attachedToLeave: leaveRequestId,
-      attachedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      attachedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   });
 };

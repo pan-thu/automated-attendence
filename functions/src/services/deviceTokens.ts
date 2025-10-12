@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore, runTransaction } from '../utils/firestore';
 
@@ -41,9 +42,9 @@ export const registerDeviceToken = async (input: RegisterDeviceTokenInput): Prom
         token,
         platform,
         metadata: metadata ?? null,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        lastRegisteredAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        lastRegisteredAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );

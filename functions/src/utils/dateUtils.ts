@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 
 /**
@@ -42,7 +43,7 @@ export function localDateStringToTimestamp(
   // Create Date object and adjust for timezone
   const date = new Date(dateStr);
 
-  return admin.firestore.Timestamp.fromDate(date);
+  return Timestamp.fromDate(date);
 }
 
 /**

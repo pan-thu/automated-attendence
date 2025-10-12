@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { firestore } from '../utils/firestore';
 import { getCompanySettings } from './settings';
 import { admin } from '../firebase';
@@ -63,7 +64,7 @@ export interface EmployeeDashboardSummary {
 }
 
 const formatTimestamp = (value: unknown): string | null => {
-  if (value instanceof admin.firestore.Timestamp) {
+  if (value instanceof Timestamp) {
     return value.toDate().toISOString();
   }
   if (typeof value === 'string') {
@@ -95,7 +96,7 @@ export const fetchEmployeeDashboard = async (userId: string, dateIso?: string): 
     .map((entry) => entry.slot);
 
   const today = new Date(`${dateKey}T00:00:00Z`);
-  const todayTimestamp = admin.firestore.Timestamp.fromDate(today);
+  const todayTimestamp = Timestamp.fromDate(today);
 
   const [pendingLeavesSnapshot, approvedLeavesQuery] = await Promise.all([
     firestore
@@ -118,7 +119,7 @@ export const fetchEmployeeDashboard = async (userId: string, dateIso?: string): 
 
   const approvedUpcomingDocs = approvedLeavesQuery.docs.filter((doc) => {
     const start = doc.get('startDate');
-    return start instanceof admin.firestore.Timestamp && start.toMillis() >= todayMillis;
+    return start instanceof Timestamp && start.toMillis() >= todayMillis;
   });
 
   const leavesToReport = [...pendingLeavesSnapshot.docs, ...approvedUpcomingDocs]

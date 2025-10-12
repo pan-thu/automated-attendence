@@ -18,7 +18,10 @@
       "Bash(npm run serve)",
       "Bash(curl:*)",
       "Bash(lsof:*)",
-      "Bash(pgrep:*)"
+      "Bash(pgrep:*)",
+      "Bash(node:*)",
+      "WebSearch",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

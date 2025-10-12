@@ -1,4 +1,5 @@
 import { admin } from '../firebase';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export const firestore = admin.firestore();
 
@@ -8,7 +9,7 @@ export const runTransaction = async <T>(fn: TransactionFn<T>): Promise<T> => {
   return firestore.runTransaction(async (tx) => fn(tx));
 };
 
-export const nowTimestamp = admin.firestore.FieldValue.serverTimestamp;
+export const nowTimestamp = () => FieldValue.serverTimestamp();
 
 export const withServerTimestamps = <T extends Record<string, unknown>>(
   data: T

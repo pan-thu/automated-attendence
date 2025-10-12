@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 
@@ -20,7 +21,7 @@ export interface ManualAttendanceInput {
   performedBy: string;
 }
 
-const parseTimestamp = (iso: string) => admin.firestore.Timestamp.fromDate(new Date(iso));
+const parseTimestamp = (iso: string) => Timestamp.fromDate(new Date(iso));
 
 export const setManualAttendance = async (input: ManualAttendanceInput) => {
   const {
@@ -73,8 +74,8 @@ export const setManualAttendance = async (input: ManualAttendanceInput) => {
     isManualEntry,
     manualReason: reason,
     manualUpdatedBy: performedBy,
-    manualUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    manualUpdatedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   if (notes) {
@@ -96,7 +97,7 @@ export const setManualAttendance = async (input: ManualAttendanceInput) => {
     }
   }
 
-  payload.attendanceDate = admin.firestore.Timestamp.fromDate(new Date(`${attendanceDate}T00:00:00Z`));
+  payload.attendanceDate = Timestamp.fromDate(new Date(`${attendanceDate}T00:00:00Z`));
 
   await attendanceRef.set(payload, { merge: true });
 };

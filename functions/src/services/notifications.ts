@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 
@@ -18,7 +19,7 @@ const toIsoString = (value: unknown): string | null => {
     return null;
   }
 
-  if (value instanceof admin.firestore.Timestamp) {
+  if (value instanceof Timestamp) {
     return value.toDate().toISOString();
   }
 
@@ -90,9 +91,9 @@ export const queueNotification = async (
     relatedId: relatedId ?? null,
     metadata: metadata ?? null,
     isRead: false,
-    sentAt: admin.firestore.FieldValue.serverTimestamp(),
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    sentAt: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 };
 
@@ -112,9 +113,9 @@ export const queueBulkNotifications = async (payload: BulkNotificationPayload) =
       relatedId: rest.relatedId ?? null,
       metadata: rest.metadata ?? null,
       isRead: false,
-      sentAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      sentAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   });
 
@@ -192,9 +193,9 @@ export const markNotificationAsRead = async (input: MarkNotificationInput) => {
 
   await ref.update({
     isRead: true,
-    readAt: admin.firestore.FieldValue.serverTimestamp(),
+    readAt: FieldValue.serverTimestamp(),
     acknowledgment: acknowledgment ?? null,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   return { success: true };
@@ -214,8 +215,8 @@ export const getEmployeesNeedingClockInReminder = async (
   dateKey: string,
   slot: ReminderCheckSlot
 ): Promise<string[]> => {
-  const start = admin.firestore.Timestamp.fromDate(new Date(`${dateKey}T00:00:00Z`));
-  const end = admin.firestore.Timestamp.fromDate(new Date(`${dateKey}T23:59:59Z`));
+  const start = Timestamp.fromDate(new Date(`${dateKey}T00:00:00Z`));
+  const end = Timestamp.fromDate(new Date(`${dateKey}T23:59:59Z`));
 
   const [attendanceSnap, activeEmployees] = await Promise.all([
     firestore

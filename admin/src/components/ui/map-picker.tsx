@@ -1,67 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { useCallback, useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 
-const DynamicMap = dynamic(async () => {
-  const reactLeaflet = await import("react-leaflet");
-  const leaflet = await import("leaflet");
-
-  // Fix default marker icons using CDN URLs
-  leaflet.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  });
-
-  const MapClickHandler = ({
-    onSelect,
-  }: {
-    onSelect: (coords: { latitude: number; longitude: number }) => void;
-  }) => {
-    reactLeaflet.useMapEvent("click", (event) => {
-      onSelect({ latitude: event.latlng.lat, longitude: event.latlng.lng });
-    });
-
-    return null;
-  };
-
-  const LeafletMap = ({
-    center,
-    radius,
-    onSelect,
-  }: {
-    center: [number, number];
-    radius?: number;
-    onSelect: (coords: { latitude: number; longitude: number }) => void;
-  }) => (
-    <reactLeaflet.MapContainer
-      center={center}
-      zoom={16}
-      scrollWheelZoom
-      attributionControl={false}
-      doubleClickZoom={false}
-      className="h-full w-full"
-    >
-      <reactLeaflet.TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      <reactLeaflet.Marker position={center} />
-      {radius && radius > 0 ? (
-        <reactLeaflet.Circle
-          center={center}
-          radius={radius}
-          pathOptions={{ color: "#2563eb", fillOpacity: 0.1 }}
-        />
-      ) : null}
-      <MapClickHandler onSelect={onSelect} />
-    </reactLeaflet.MapContainer>
-  );
-
-  return LeafletMap;
-}, {
-  ssr: false,
-  loading: () => <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading map…</div>,
-});
+// Direct Leaflet types
+type LeafletMap = any;
+type LeafletMarker = any;
+type LeafletCircle = any;
 
 const DEFAULT_CENTER: [number, number] = [16.8409, 96.1735];
 
@@ -72,47 +17,140 @@ export interface MapPickerProps {
 }
 
 /**
- * Bug Fix #23: Added debouncing to map click handler to prevent rapid state updates
+ * React 19 Fix: Use direct Leaflet with manual lifecycle management
+ * This is the most reliable solution for "Map container is already initialized" error
+ * Source: react-leaflet issues #1133, #936, Stack Overflow discussions
  */
 export function MapPicker({ value, radius, onChange }: MapPickerProps) {
-  const [currentCenter, setCurrentCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+  const markerRef = useRef<LeafletMarker | null>(null);
+  const circleRef = useRef<LeafletCircle | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (value) {
-      setCurrentCenter([value.latitude, value.longitude]);
-    }
-  }, [value]);
-
-  // Bug Fix #23: Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
+  const center = value ? [value.latitude, value.longitude] as [number, number] : DEFAULT_CENTER;
 
   const handleSelect = useCallback(
     (coords: { latitude: number; longitude: number }) => {
-      // Update visual position immediately for responsive UX
-      setCurrentCenter([coords.latitude, coords.longitude]);
-
-      // Bug Fix #23: Debounce onChange callback to prevent rapid updates
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
 
       debounceTimerRef.current = setTimeout(() => {
         onChange(coords);
-      }, 300); // 300ms debounce delay
+      }, 300);
     },
     [onChange]
   );
 
+  // Initialize map with direct Leaflet
+  useEffect(() => {
+    if (typeof window === 'undefined' || !mapContainerRef.current) return;
+
+    const initMap = async () => {
+      const L = (await import('leaflet')).default;
+
+      // Fix default marker icons
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+        iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+      });
+
+      // Initialize map only if not already initialized
+      if (!mapRef.current && mapContainerRef.current) {
+        mapRef.current = L.map(mapContainerRef.current, {
+          attributionControl: false,
+          doubleClickZoom: false,
+          scrollWheelZoom: true,
+        }).setView(center, 16);
+
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapRef.current);
+
+        // Add marker
+        markerRef.current = L.marker(center).addTo(mapRef.current);
+
+        // Add circle if radius exists
+        if (radius && radius > 0) {
+          circleRef.current = L.circle(center, {
+            radius,
+            color: '#2563eb',
+            fillOpacity: 0.1,
+          }).addTo(mapRef.current);
+        }
+
+        // Add click handler
+        mapRef.current.on('click', (e: any) => {
+          handleSelect({ latitude: e.latlng.lat, longitude: e.latlng.lng });
+        });
+
+        // Invalidate size after a short delay
+        setTimeout(() => {
+          mapRef.current?.invalidateSize();
+        }, 100);
+      }
+    };
+
+    initMap();
+
+    // Cleanup on unmount
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+        circleRef.current = null;
+      }
+    };
+  }, []); // Empty deps - only initialize once
+
+  // Update map view when center changes
+  useEffect(() => {
+    if (mapRef.current && value) {
+      mapRef.current.setView(center, mapRef.current.getZoom(), { animate: true });
+
+      if (markerRef.current) {
+        markerRef.current.setLatLng(center);
+      }
+
+      if (circleRef.current) {
+        circleRef.current.setLatLng(center);
+      }
+    }
+  }, [center[0], center[1], value]);
+
+  // Update radius when it changes
+  useEffect(() => {
+    const updateRadius = async () => {
+      if (!mapRef.current) return;
+
+      const L = (await import('leaflet')).default;
+
+      if (circleRef.current) {
+        circleRef.current.remove();
+        circleRef.current = null;
+      }
+
+      if (radius && radius > 0) {
+        circleRef.current = L.circle(center, {
+          radius,
+          color: '#2563eb',
+          fillOpacity: 0.1,
+        }).addTo(mapRef.current);
+      }
+    };
+
+    updateRadius();
+  }, [radius, center[0], center[1]]);
+
   return (
     <div className="h-72 overflow-hidden rounded-md border">
-      <DynamicMap center={currentCenter} radius={radius ?? undefined} onSelect={handleSelect} />
+      <div ref={mapContainerRef} className="h-full w-full" />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 
 const ATTENDANCE_COLLECTION = 'ATTENDANCE_RECORDS';
 const LEAVE_COLLECTION = 'LEAVE_REQUESTS';
@@ -22,14 +23,14 @@ export interface AttendanceReportInput {
   endDate: string; // ISO date string
 }
 
-const toTimestamp = (iso: string) => admin.firestore.Timestamp.fromDate(new Date(iso));
+const toTimestamp = (iso: string) => Timestamp.fromDate(new Date(iso));
 
 const toIsoString = (value: unknown): string | null => {
   if (!value) {
     return null;
   }
 
-  if (value instanceof admin.firestore.Timestamp) {
+  if (value instanceof Timestamp) {
     return value.toDate().toISOString();
   }
 
@@ -191,7 +192,7 @@ export const aggregateDailyAttendance = async (date: string) => {
     date,
     attendance: stats.attendance,
     pendingLeaves: stats.pendingLeaves,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   return stats;
@@ -207,8 +208,8 @@ export const aggregateMonthlyAttendance = async (month: string) => {
 
   const attendanceSnap = await firestore
     .collection(ATTENDANCE_COLLECTION)
-    .where('attendanceDate', '>=', admin.firestore.Timestamp.fromDate(start))
-    .where('attendanceDate', '<=', admin.firestore.Timestamp.fromDate(end))
+    .where('attendanceDate', '>=', Timestamp.fromDate(start))
+    .where('attendanceDate', '<=', Timestamp.fromDate(end))
     .get();
 
   const present = attendanceSnap.docs.filter((doc) => doc.get('status') === 'present').length;
@@ -223,7 +224,7 @@ export const aggregateMonthlyAttendance = async (month: string) => {
       halfDay,
       total: attendanceSnap.size,
     },
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   await firestore.collection(ANALYTICS_COLLECTION).doc(`monthly_${month}`).set(analyticsDoc);

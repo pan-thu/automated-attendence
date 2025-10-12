@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 
@@ -63,7 +64,7 @@ const parseTimestamp = (value: unknown): string | null => {
     return null;
   }
 
-  if (value instanceof admin.firestore.Timestamp) {
+  if (value instanceof Timestamp) {
     return value.toDate().toISOString();
   }
 
@@ -121,7 +122,7 @@ const mapAttendanceDocument = (doc: FirebaseFirestore.QueryDocumentSnapshot): At
 };
 
 const toTimestamp = (dateIso: string): FirebaseFirestore.Timestamp => {
-  return admin.firestore.Timestamp.fromDate(new Date(`${dateIso}T00:00:00Z`));
+  return Timestamp.fromDate(new Date(`${dateIso}T00:00:00Z`));
 };
 
 export const listEmployeeAttendance = async (

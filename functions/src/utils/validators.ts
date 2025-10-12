@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 
 export const assertPayload = <T extends Record<string, unknown>>(
@@ -103,7 +104,7 @@ export const assertTimestamp = (value: unknown, field: string): FirebaseFirestor
     throw new functions.https.HttpsError('invalid-argument', `${field} is required.`);
   }
 
-  if (!(value instanceof admin.firestore.Timestamp)) {
+  if (!(value instanceof Timestamp)) {
     throw new functions.https.HttpsError('invalid-argument', `${field} must be a Firestore Timestamp.`);
   }
 
@@ -128,7 +129,7 @@ export const assertTimestampRange = (
     throw new functions.https.HttpsError('invalid-argument', `${field} endDate is required.`);
   }
 
-  if (!(start instanceof admin.firestore.Timestamp) || !(end instanceof admin.firestore.Timestamp)) {
+  if (!(start instanceof Timestamp) || !(end instanceof Timestamp)) {
     throw new functions.https.HttpsError('invalid-argument', `${field} must contain Firestore Timestamps.`);
   }
 

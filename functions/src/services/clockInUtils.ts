@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { formatInTimeZone } from 'date-fns-tz';
 import { admin } from '../firebase';
 import { firestore, runTransaction } from '../utils/firestore';
@@ -251,13 +252,13 @@ export const handleClockIn = async ({ userId, payload }: ClockInServiceInput): P
       userId,
       status: dayStatus,
       [`${slotOutcome.slot}_status`]: slotOutcome.status,
-      [`${slotOutcome.slot}_timestamp`]: admin.firestore.Timestamp.fromDate(new Date(payload.timestamp)),
+      [`${slotOutcome.slot}_timestamp`]: Timestamp.fromDate(new Date(payload.timestamp)),
       [`${slotOutcome.slot}_location`]: new admin.firestore.GeoPoint(
         payload.location.latitude,
         payload.location.longitude
       ),
-      attendanceDate: admin.firestore.Timestamp.fromDate(new Date(`${attendanceDate}T00:00:00Z`)),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      attendanceDate: Timestamp.fromDate(new Date(`${attendanceDate}T00:00:00Z`)),
+      updatedAt: FieldValue.serverTimestamp(),
     };
 
     tx.set(attendanceDoc, updates, { merge: true });

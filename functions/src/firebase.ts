@@ -1,9 +1,11 @@
-import * as admin from 'firebase-admin';
+import * as firebaseAdmin from 'firebase-admin';
 
-if (!admin.apps.length) {
-  admin.initializeApp();
+// Initialize synchronously at module load time
+if (!firebaseAdmin.apps.length) {
+  firebaseAdmin.initializeApp();
 }
 
-export { admin };
+// Export initialized admin instance (works for both value and type usage)
+export const admin: typeof firebaseAdmin = firebaseAdmin;
 
 

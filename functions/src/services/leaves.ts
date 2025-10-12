@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore, runTransaction } from '../utils/firestore';
 import { queueNotification } from './notifications';
@@ -107,7 +108,7 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
       throw new Error('Leave request no longer pending.');
     }
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     const updates: Record<string, unknown> = {
       status: action === 'approve' ? 'approved' : 'rejected',
       reviewedAt: now,
@@ -185,7 +186,7 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
             leaveBackfill: true,
             updatedAt: now,
             updatedBy: reviewerId,
-            attendanceDate: admin.firestore.Timestamp.fromDate(cursor),
+            attendanceDate: Timestamp.fromDate(cursor),
             notes: notes ?? previousValues?.notes ?? null,
           },
           { merge: true }
@@ -255,7 +256,7 @@ const parseTimestamp = (value: unknown): string | null => {
     return null;
   }
 
-  if (value instanceof admin.firestore.Timestamp) {
+  if (value instanceof Timestamp) {
     return value.toDate().toISOString();
   }
 
@@ -385,15 +386,15 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
   }
 
   const leaveRef = firestore.collection(LEAVE_COLLECTION).doc();
-  const submittedAt = admin.firestore.FieldValue.serverTimestamp();
+  const submittedAt = FieldValue.serverTimestamp();
 
   await leaveRef.set({
     userId,
     leaveType,
     status: 'pending',
     reason: sanitizedReason,
-    startDate: admin.firestore.Timestamp.fromDate(start),
-    endDate: admin.firestore.Timestamp.fromDate(end),
+    startDate: Timestamp.fromDate(start),
+    endDate: Timestamp.fromDate(end),
     attachmentId: attachmentMetadata ? attachmentMetadata.id : null,
     createdAt: submittedAt,
     updatedAt: submittedAt,
@@ -451,7 +452,7 @@ export const cancelLeaveRequest = async (input: CancelLeaveRequestInput) => {
     }
 
     const wasApproved = data.status === 'approved';
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
 
     // Update leave status
     tx.update(ref, {

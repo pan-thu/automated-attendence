@@ -1,4 +1,5 @@
 import { admin } from '../firebase';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { firestore } from '../utils/firestore';
 
 const AUDIT_COLLECTION = 'AUDIT_LOGS';
@@ -18,9 +19,9 @@ export interface AuditLogPayload {
 export const recordAuditLog = async (payload: AuditLogPayload): Promise<void> => {
   await firestore.collection(AUDIT_COLLECTION).add({
     ...payload,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    timestamp: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 };
 
