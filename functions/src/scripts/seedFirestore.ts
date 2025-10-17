@@ -69,24 +69,32 @@ const defaultCompanySettings = {
     },
   },
 
-  // Grace periods (in minutes)
+  // Grace periods (in minutes) - per check slot
   gracePeriods: {
-    lateArrival: 30,
-    earlyLeave: 30,
+    check1: 30, // Late arrival grace for morning check
+    check2: 30, // Late arrival grace for lunch return
+    check3: 30, // Early leave and late checkout grace for evening
   },
 
   // Geofencing
   workplace_center: new admin.firestore.GeoPoint(6.9271, 79.8612), // Colombo, Sri Lanka (example)
   workplace_radius: 100, // meters
 
-  // Penalty rules
+  // Penalty rules - violation thresholds and amounts per violation type
   penaltyRules: {
-    triggerThreshold: 4, // 4th violation triggers penalty
+    // Each violation type has a threshold (4th violation triggers penalty)
+    violationThresholds: {
+      absent: 4,           // Full absent - miss more than 1 check
+      half_day_absent: 4,  // Half-day absent - miss exactly 1 check
+      late: 4,             // Late arrival - check-in within grace period
+      early_leave: 4,      // Early leave - check-out before window with grace
+    },
+    // Penalty amounts per violation type (in USD)
     amounts: {
       absent: 20,
-      halfDayAbsent: 15,
+      half_day_absent: 15,
       late: 10,
-      earlyLeave: 10,
+      early_leave: 10,
     },
   },
 

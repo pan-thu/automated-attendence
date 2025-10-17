@@ -370,6 +370,31 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
 
   const sanitizedReason = sanitizeLeaveReason(reason);
 
+  // Calculate total days for leave request (inclusive of start and end dates)
+  const totalDays = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+
+  // Validate leave balance
+  const userRef = firestore.collection(USERS_COLLECTION).doc(userId);
+  const userSnap = await userRef.get();
+
+  if (!userSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'User not found.');
+  }
+
+  const leaveTypeLower = leaveType.toLowerCase();
+  const balanceField = leaveTypeFieldMap[leaveTypeLower];
+
+  if (balanceField) {
+    const currentBalance = (userSnap.get(balanceField) as number) ?? 0;
+
+    if (totalDays > currentBalance) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        `Insufficient leave balance. Requested: ${totalDays} days, Available: ${currentBalance} days.`
+      );
+    }
+  }
+
   const companySettings = await getCompanySettings();
   const requiredAttachmentTypes = companySettings.leaveAttachmentRequiredTypes ?? [];
   const requiresAttachment = requiredAttachmentTypes.includes(leaveType.toLowerCase());
@@ -395,6 +420,7 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
     reason: sanitizedReason,
     startDate: Timestamp.fromDate(start),
     endDate: Timestamp.fromDate(end),
+    totalDays, // Add calculated total days
     attachmentId: attachmentMetadata ? attachmentMetadata.id : null,
     createdAt: submittedAt,
     updatedAt: submittedAt,

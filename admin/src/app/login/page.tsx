@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { redirect, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/hooks/useAuth";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -20,9 +20,11 @@ function LoginContent() {
     return redirectParam ? decodeURIComponent(redirectParam) : "/";
   }, [searchParams]);
 
-  if (user && !loading) {
-    redirect(callbackUrl);
-  }
+  useEffect(() => {
+    if (user && !loading) {
+      router.replace(callbackUrl);
+    }
+  }, [user, loading, callbackUrl, router]);
 
   async function handleSubmit() {
     setSubmitting(true);

@@ -116,9 +116,8 @@ interface CalculateMonthlyViolationsInput {
   userId?: string;
 }
 
-const violationStatusFields = ['status', 'check1_status', 'check2_status', 'check3_status'];
-
-const violationStatuses = ['late', 'early_leave', 'absent', 'missed'] as const;
+// Violation types based on daily status and individual check statuses
+const violationStatuses = ['late', 'early_leave', 'absent', 'half_day_absent'] as const;
 
 type ViolationStatus = (typeof violationStatuses)[number];
 
@@ -169,12 +168,31 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
       violationSummary.set(docUserId, summary);
     }
 
-    for (const field of violationStatusFields) {
-      const value = data[field] as string | undefined;
-      if (isViolation(value)) {
-        summary.violations.push({ field, status: value });
-        summary.counts.set(value, (summary.counts.get(value) ?? 0) + 1);
-      }
+    // Track daily status violations (absent, half_day_absent)
+    const dailyStatus = data.status as string | undefined;
+    if (isViolation(dailyStatus)) {
+      summary.violations.push({ field: 'status', status: dailyStatus });
+      summary.counts.set(dailyStatus, (summary.counts.get(dailyStatus) ?? 0) + 1);
+    }
+
+    // Track individual check violations (late, early_leave)
+    const check1Status = data.check1_status as string | undefined;
+    const check2Status = data.check2_status as string | undefined;
+    const check3Status = data.check3_status as string | undefined;
+
+    if (check1Status === 'late') {
+      summary.violations.push({ field: 'check1_status', status: 'late' });
+      summary.counts.set('late', (summary.counts.get('late') ?? 0) + 1);
+    }
+
+    if (check2Status === 'late') {
+      summary.violations.push({ field: 'check2_status', status: 'late' });
+      summary.counts.set('late', (summary.counts.get('late') ?? 0) + 1);
+    }
+
+    if (check3Status === 'early_leave') {
+      summary.violations.push({ field: 'check3_status', status: 'early_leave' });
+      summary.counts.set('early_leave', (summary.counts.get('early_leave') ?? 0) + 1);
     }
   });
 

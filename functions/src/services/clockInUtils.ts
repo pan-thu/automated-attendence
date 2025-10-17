@@ -95,8 +95,38 @@ export const determineCheckOutcome = (
   const actual = getMinutesInTimezone(iso, timezone);
   const start = parseTimeToMinutes(window.start);
   const end = parseTimeToMinutes(window.end);
-  const close = end + graceMinutes;
 
+  // For check3 (evening check-out), we need to detect early leave
+  // Early leave: checking out before the window ends (with grace period before end)
+  if (slot === 'check3') {
+    const earlyGraceStart = start - graceMinutes;
+
+    // Too early (before grace period)
+    if (actual < earlyGraceStart) {
+      return null;
+    }
+
+    // Within early grace period (early leave violation)
+    if (actual < start) {
+      return { slot, status: 'early_leave', lateByMinutes: start - actual };
+    }
+
+    // On time (within normal window)
+    if (actual <= end) {
+      return { slot, status: 'on_time' };
+    }
+
+    // After window end (still within late grace period for check3)
+    const lateGraceEnd = end + graceMinutes;
+    if (actual <= lateGraceEnd) {
+      return { slot, status: 'late', lateByMinutes: actual - end };
+    }
+
+    // Too late (missed window completely)
+    return null;
+  }
+
+  // For check1 and check2 (morning/lunch), detect late arrival only
   if (actual < start) {
     return null;
   }
@@ -105,6 +135,7 @@ export const determineCheckOutcome = (
     return { slot, status: 'on_time' };
   }
 
+  const close = end + graceMinutes;
   if (actual <= close) {
     return { slot, status: 'late', lateByMinutes: actual - end };
   }
@@ -160,7 +191,8 @@ const resolveSlotOutcome = (
       continue;
     }
 
-    const grace = settings.gracePeriods?.[slot] ?? 0;
+    // Get grace period for this check slot (per-check configuration)
+    const grace = settings.gracePeriods?.[slot] ?? 30; // Default to 30 minutes if not specified
     const outcome = determineCheckOutcome(iso, slot, window, grace, settings.timezone);
     if (outcome) {
       return outcome;

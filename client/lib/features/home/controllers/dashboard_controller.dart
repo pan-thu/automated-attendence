@@ -22,6 +22,7 @@ class DashboardController extends ChangeNotifier {
   DashboardSummary? _summary;
   bool _isOffline = false;
   DateTime? _summaryUpdatedAt;
+  bool _disposed = false;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -30,24 +31,30 @@ class DashboardController extends ChangeNotifier {
   DateTime? get summaryUpdatedAt => _summaryUpdatedAt;
 
   Future<void> loadDashboard({DateTime? date}) async {
+    if (_disposed) return;
+
     _setLoading(true);
     try {
       final cached = _cache.read(_cacheKey(date));
-      if (cached != null) {
+      if (cached != null && !_disposed) {
         _summary = cached.value;
         _errorMessage = null;
         _isOffline = false;
         _summaryUpdatedAt = cached.updatedAt;
-        notifyListeners();
+        _safeNotifyListeners();
       }
 
       final summary = await _repository.fetchDashboard(date: date);
+      if (_disposed) return;
+
       _summary = summary;
       _errorMessage = null;
       _isOffline = false;
       _cache.write(_cacheKey(date), summary);
       _summaryUpdatedAt = DateTime.now();
     } catch (error) {
+      if (_disposed) return;
+
       _errorMessage = error.toString();
       final cached = _cache.read(_cacheKey(date));
       if (cached != null) {
@@ -68,16 +75,28 @@ class DashboardController extends ChangeNotifier {
   }
 
   void _setLoading(bool value) {
-    if (_isLoading == value) {
+    if (_disposed || _isLoading == value) {
       return;
     }
     _isLoading = value;
-    notifyListeners();
+    _safeNotifyListeners();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 
   String _cacheKey(DateTime? date) {
     final target = date ?? DateTime.now();
     return 'dashboard:${target.year}-${target.month}-${target.day}';
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }
 

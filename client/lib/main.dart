@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -27,17 +28,21 @@ Future<void> main() async {
 
   if (useEmulators) {
     try {
+      // Use 10.0.2.2 for Android emulator, localhost for iOS/others
+      // final host = Platform.isAndroid ? '10.73.26.176' : 'localhost';
+      final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
+
       // Connect to Auth emulator
-      await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+      await FirebaseAuth.instance.useAuthEmulator(host, 9099);
 
       // Connect to Firestore emulator
-      FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+      FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
 
       // Connect to Functions emulator
-      FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
+      FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
 
       if (kDebugMode) {
-        debugPrint('🔧 Connected to Firebase Emulators');
+        debugPrint('🔧 Connected to Firebase Emulators at $host');
       }
     } catch (e) {
       if (kDebugMode) {

@@ -291,19 +291,38 @@ All critical business logic is executed within Firebase Cloud Functions to ensur
 **4.2. Core Logic: The Configurable Three-Check Attendance System**
 The system's logic is highly flexible, driven by rules stored in the `COMPANY_SETTINGS` collection in Firestore. This allows administrators to adjust business rules without requiring a code deployment.
 
-- **Time Windows & Grace Periods:** The `handleClockIn` function dynamically fetches the `timeWindows` and `gracePeriods` objects from `COMPANY_SETTINGS` before validating the timestamp of a check-in request.
+- **Time Windows & Grace Periods:** The `handleClockIn` function dynamically fetches the `timeWindows` and `gracePeriods` objects from `COMPANY_SETTINGS` before validating the timestamp of a check-in request. Grace periods are configured **per check slot** (check1, check2, check3) for granular control.
 - **Attendance Status Logic:** The final status for the day is calculated based on the number of valid checks recorded:
   - **Present:** All **three** checks are successfully completed.
   - **Half-Day Absent:** Exactly **two** checks are completed.
   - **Absent:** **One or zero** checks are completed.
-- **Late Arrival & Early Leave Logic:** The definitions for late/early checks are configured in the `gracePeriods` object in settings. A check outside the configured grace period is considered a missed check and is not recorded.
+- **Violation Types:** The system tracks four distinct violation types:
+  - **Late Arrival:** Check-in within grace period **after** time window end (applies to check1 and check2)
+  - **Early Leave:** Check-out within grace period **before** time window start (applies to check3 only)
+  - **Absent:** Daily status when 0-1 checks are completed
+  - **Half-Day Absent:** Daily status when exactly 2 checks are completed
 
 **4.3. Penalty & Leave System**
 
-- **Violation Tracking:** Negative attendance outcomes (`late`, `early_leave`, `absent`, `half_day_absent`) create or update entries in `VIOLATION_HISTORY`, preserving a detailed history of infractions.
-- **Penalty Incurrence:** A scheduled Cloud Function evaluates accumulated violations, applies `penaltyRules` defined in `COMPANY_SETTINGS`, and emits `PENALTIES` documents when thresholds are reached.
-- **Leave Logic:** `handleLeaveApproval` validates requests, adjusts user leave balances, updates request metadata, and backfills `ATTENDANCE_RECORDS` with `on_leave` status for approved ranges while logging the action.
-- **Admin Penalty Console:** The `/penalties` dashboard now streams live data from the `PENALTIES` collection with client-side filtering by status, employee, and incurred date range. Admins can invoke the `waivePenalty` callable by submitting an audited justification, updating Firestore and recording a corresponding audit log entry.
+- **Violation Tracking:** The system tracks four distinct violation types from attendance records:
+  - **Daily Status Violations:** `absent` and `half_day_absent` from the `status` field
+  - **Check-Level Violations:** `late` from check1/check2 status, `early_leave` from check3 status
+  - All violations are recorded in `VIOLATION_HISTORY` with detailed field and status information
+- **Penalty Incurrence:** A scheduled Cloud Function (`scheduledPenaltyAutomation`) runs monthly on the 1st at 2am UTC:
+  - Counts violations by type for each employee within the month
+  - Applies configurable `violationThresholds` per violation type (default: 4th violation triggers penalty)
+  - Creates `PENALTIES` documents with type-specific amounts:
+    - Absent: $20
+    - Half-Day Absent: $15
+    - Late: $10
+    - Early Leave: $10
+  - Configuration via `COMPANY_SETTINGS.penaltyRules.violationThresholds` and `amounts`
+- **Leave Logic:**
+  - **Submission:** `submitLeaveRequest` calculates `totalDays` (inclusive of start/end dates) and validates against user's current leave balance for the specified type
+  - **Validation:** Rejects requests if `totalDays > currentBalance` with clear error messaging
+  - **Approval:** `handleLeaveApproval` deducts `totalDays` from appropriate balance field, backfills `ATTENDANCE_RECORDS` with `on_leave` status, and logs all actions
+  - **Cancellation:** `cancelLeaveRequest` restores leave balance for approved leaves and removes attendance backfills
+- **Admin Penalty Console:** The `/penalties` dashboard streams live data from `PENALTIES` with filtering by status, employee, and date. Admins invoke `waivePenalty` with audited justifications.
 
 - **Leave Attachment Workflow:** Employees request a signed upload URL via `generateLeaveAttachmentUploadUrl`, PUT the document directly to Cloud Storage, and then finalize it with `registerLeaveAttachment`. Metadata (size, MIME type, owner) is validated server-side before the attachment can be linked to a leave request. The workflow enforces company-level limits (`allowedLeaveAttachmentTypes`, `maxLeaveAttachmentSizeMb`, and `leaveAttachmentRequiredTypes`) so that medical and maternity leaves require supporting documents while other leave types remain optional. Attachments transition through `pending → ready → attached` states in the `LEAVE_ATTACHMENTS` collection, enabling audit trails and cleanup of unused uploads.
   - Backend access is exposed through two employee-callable Cloud Functions: `generateLeaveAttachmentUploadUrl` (returns a v4 signed URL plus metadata) and `registerLeaveAttachment` (verifies the uploaded object, marks it `ready`, and captures final metadata). `submitLeaveRequest` now only accepts `attachmentId` values referencing `LEAVE_ATTACHMENTS`, guaranteeing attachments are vetted before association.
