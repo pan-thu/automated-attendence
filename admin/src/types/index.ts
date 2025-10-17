@@ -149,10 +149,10 @@ export interface CompanySettings {
   workplace_center?: { latitude: number; longitude: number } | null;
   workplace_radius?: number | null;
   timeWindows?: Record<string, { label: string; start: string; end: string }>;
-  gracePeriods?: Record<string, number>;
+  gracePeriods?: Record<string, number>; // Per-check grace periods (check1, check2, check3)
   penaltyRules?: {
-    violationThreshold: number;
-    amounts: Record<string, number>;
+    violationThresholds: Record<string, number>; // Per violation type thresholds
+    amounts: Record<string, number>; // Penalty amounts per violation type
   } | null;
   leavePolicy?: Record<string, number>;
   workingDays?: Record<string, boolean>;

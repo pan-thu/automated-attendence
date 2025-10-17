@@ -243,7 +243,10 @@ class _StatusMarker extends StatelessWidget {
     final color = switch (summary.status) {
       'present' => Colors.green,
       'late' => Colors.orange,
+      'early_leave' => Colors.orange,
       'absent' => Colors.red,
+      'half_day_absent' => Colors.amber,
+      'on_leave' => Colors.blue,
       _ => Colors.grey,
     };
 

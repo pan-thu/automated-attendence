@@ -204,18 +204,33 @@ export default function SettingsPage() {
             </header>
 
             {expandedSection === "penalties" && settings?.penaltyRules ? (
-              <div className="mt-4 space-y-3 text-sm">
-                <p>
-                  <span className="font-medium">Violation Threshold:</span> {settings.penaltyRules.violationThreshold}
-                </p>
-                <ul className="space-y-1 text-muted-foreground">
-                  {Object.entries(settings.penaltyRules.amounts).map(([key, value]) => (
-                    <li key={key} className="flex justify-between capitalize">
-                      <span>{key.replace(/_/g, " ")}</span>
-                      <span>${value.toFixed(2)}</span>
-                    </li>
-                  ))}
-                </ul>
+              <div className="mt-4 grid gap-6 md:grid-cols-2">
+                <div>
+                  <h3 className="text-sm font-semibold">Violation Thresholds</h3>
+                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    {settings.penaltyRules.violationThresholds && Object.keys(settings.penaltyRules.violationThresholds).length > 0
+                      ? Object.entries(settings.penaltyRules.violationThresholds).map(([key, value]) => (
+                          <li key={key} className="flex justify-between capitalize">
+                            <span>{key.replace(/_/g, " ")}</span>
+                            <span>{value} violations</span>
+                          </li>
+                        ))
+                      : "No thresholds configured"}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Penalty Amounts</h3>
+                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    {settings.penaltyRules.amounts && Object.keys(settings.penaltyRules.amounts).length > 0
+                      ? Object.entries(settings.penaltyRules.amounts).map(([key, value]) => (
+                          <li key={key} className="flex justify-between capitalize">
+                            <span>{key.replace(/_/g, " ")}</span>
+                            <span>${value.toFixed(2)}</span>
+                          </li>
+                        ))
+                      : "No amounts configured"}
+                  </ul>
+                </div>
               </div>
             ) : null}
           </section>

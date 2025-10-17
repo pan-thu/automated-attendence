@@ -205,7 +205,12 @@ class _LeaveRequestFormState extends State<LeaveRequestForm> {
       return '';
     }
     final formatter = MaterialLocalizations.of(context);
-    return '${formatter.formatMediumDate(start)} – ${formatter.formatMediumDate(end)}';
+    final totalDays = _calculateTotalDays(start, end);
+    return '${formatter.formatMediumDate(start)} – ${formatter.formatMediumDate(end)} ($totalDays days)';
+  }
+
+  int _calculateTotalDays(DateTime start, DateTime end) {
+    return ((end.difference(start).inMilliseconds / (24 * 60 * 60 * 1000)).ceil() + 1);
   }
 
   Future<void> _submit() async {

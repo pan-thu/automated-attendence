@@ -21,7 +21,10 @@ class _HistoryFiltersSheetState extends State<HistoryFiltersSheet> {
   static const List<String> _availableStatuses = <String>[
     'present',
     'late',
+    'early_leave',
     'absent',
+    'half_day_absent',
+    'on_leave',
   ];
   static const List<String> _availableViolations = <String>[
     'absent',

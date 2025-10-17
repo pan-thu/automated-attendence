@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 
-// Direct Leaflet types
-type LeafletMap = any;
-type LeafletMarker = any;
-type LeafletCircle = any;
+// Direct Leaflet types - Using import types for proper typing
+import type * as L from 'leaflet';
+type LeafletMap = L.Map;
+type LeafletMarker = L.Marker;
+type LeafletCircle = L.Circle;
 
 const DEFAULT_CENTER: [number, number] = [16.8409, 96.1735];
 
@@ -51,6 +52,7 @@ export function MapPicker({ value, radius, onChange }: MapPickerProps) {
       const L = (await import('leaflet')).default;
 
       // Fix default marker icons
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -82,7 +84,7 @@ export function MapPicker({ value, radius, onChange }: MapPickerProps) {
         }
 
         // Add click handler
-        mapRef.current.on('click', (e: any) => {
+        mapRef.current.on('click', (e: L.LeafletMouseEvent) => {
           handleSelect({ latitude: e.latlng.lat, longitude: e.latlng.lng });
         });
 
@@ -107,6 +109,7 @@ export function MapPicker({ value, radius, onChange }: MapPickerProps) {
         circleRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only initialize once
 
   // Update map view when center changes
@@ -122,7 +125,8 @@ export function MapPicker({ value, radius, onChange }: MapPickerProps) {
         circleRef.current.setLatLng(center);
       }
     }
-  }, [center[0], center[1], value]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value?.latitude, value?.longitude]);
 
   // Update radius when it changes
   useEffect(() => {
@@ -146,7 +150,8 @@ export function MapPicker({ value, radius, onChange }: MapPickerProps) {
     };
 
     updateRadius();
-  }, [radius, center[0], center[1]]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [radius, value?.latitude, value?.longitude]);
 
   return (
     <div className="h-72 overflow-hidden rounded-md border">

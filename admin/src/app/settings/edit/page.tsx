@@ -50,7 +50,7 @@ export default function EditSettingsPage() {
   const [mapCenter, setMapCenter] = useState<{ latitude: number; longitude: number } | null>(null);
   const [timeWindows, setTimeWindows] = useState<TimeWindowForm[]>([]);
   const [gracePeriods, setGracePeriods] = useState<KeyValueForm[]>([]);
-  const [penaltyThreshold, setPenaltyThreshold] = useState<string>("");
+  const [penaltyThresholds, setPenaltyThresholds] = useState<KeyValueForm[]>([]);
   const [penaltyAmounts, setPenaltyAmounts] = useState<KeyValueForm[]>([]);
   const [workingDays, setWorkingDays] = useState<Record<string, boolean>>(() =>
     DAY_ORDER.reduce((acc, day) => {
@@ -101,10 +101,11 @@ export default function EditSettingsPage() {
       }))
     );
 
-    setPenaltyThreshold(
-      settings.penaltyRules && typeof settings.penaltyRules.violationThreshold === "number"
-        ? String(settings.penaltyRules.violationThreshold)
-        : ""
+    setPenaltyThresholds(
+      Object.entries(settings.penaltyRules?.violationThresholds ?? {}).map(([key, value]) => ({
+        key,
+        value: String(value ?? ""),
+      }))
     );
 
     setPenaltyAmounts(
@@ -186,6 +187,20 @@ export default function EditSettingsPage() {
 
   const removeGracePeriod = (index: number) => {
     setGracePeriods((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const addPenaltyThreshold = () => {
+    setPenaltyThresholds((prev) => [...prev, { key: "", value: "" }]);
+  };
+
+  const updatePenaltyThreshold = (index: number, field: keyof KeyValueForm, value: string) => {
+    setPenaltyThresholds((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const removePenaltyThreshold = (index: number) => {
+    setPenaltyThresholds((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   const addPenaltyAmount = () => {
@@ -281,6 +296,18 @@ export default function EditSettingsPage() {
       return acc;
     }, {});
 
+    const penaltyThresholdsPayload = penaltyThresholds.reduce<Record<string, number>>((acc, item) => {
+      const key = item.key.trim();
+      if (!key || !item.value.trim()) return acc;
+      const numeric = parseNumber(item.value);
+      if (numeric === null || numeric < 0) {
+        setError(`Penalty threshold for "${key}" must be a non-negative number.`);
+        throw new Error("validation");
+      }
+      acc[key] = Math.round(numeric);
+      return acc;
+    }, {});
+
     const penaltyAmountsPayload = penaltyAmounts.reduce<Record<string, number>>((acc, item) => {
       const key = item.key.trim();
       if (!key || !item.value.trim()) return acc;
@@ -314,14 +341,9 @@ export default function EditSettingsPage() {
         payload.gracePeriods = gracePayload;
       }
 
-      if (penaltyThreshold.trim() || Object.keys(penaltyAmountsPayload).length > 0) {
-        const thresholdNumeric = penaltyThreshold.trim() ? parseNumber(penaltyThreshold) : 0;
-        if (thresholdNumeric === null || thresholdNumeric < 0) {
-          setError("Penalty violation threshold must be zero or a positive number.");
-          return;
-        }
+      if (Object.keys(penaltyThresholdsPayload).length > 0 || Object.keys(penaltyAmountsPayload).length > 0) {
         payload.penaltyRules = {
-          violationThreshold: Math.round(thresholdNumeric),
+          violationThresholds: penaltyThresholdsPayload,
           amounts: penaltyAmountsPayload,
         };
       }
@@ -544,24 +566,48 @@ export default function EditSettingsPage() {
 
             <section className="rounded-lg border bg-card p-5 shadow-sm">
               <h2 className="text-lg font-semibold">Penalty Rules</h2>
-              <p className="text-xs text-muted-foreground">Define violation thresholds and fee amounts triggered when limits are exceeded.</p>
+              <p className="text-xs text-muted-foreground">Define violation thresholds and fee amounts per violation type. Penalties apply when a violation type exceeds its threshold within a month.</p>
 
               <div className="mt-4 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="penaltyThreshold">Violation Threshold (total per month before penalties apply)</Label>
-                  <Input
-                    id="penaltyThreshold"
-                    value={penaltyThreshold}
-                    onChange={(event) => setPenaltyThreshold(event.target.value)}
-                    placeholder="4"
-              />
-            </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Violation Thresholds (per type)</h3>
+                    <Button type="button" size="sm" variant="outline" onClick={addPenaltyThreshold}>
+                      Add threshold
+                    </Button>
+                  </div>
+                  {penaltyThresholds.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No thresholds configured. Add thresholds for: absent, half_day_absent, late, early_leave.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {penaltyThresholds.map((entry, index) => (
+                        <div key={`threshold-${index}`} className="grid gap-3 md:grid-cols-[160px_1fr_40px]">
+                          <Input
+                            value={entry.key}
+                            onChange={(event) => updatePenaltyThreshold(index, "key", event.target.value)}
+                            placeholder="absent"
+                            aria-label="Violation type"
+                          />
+                          <Input
+                            value={entry.value}
+                            onChange={(event) => updatePenaltyThreshold(index, "value", event.target.value)}
+                            placeholder="4"
+                            aria-label="Threshold count"
+                          />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removePenaltyThreshold(index)} aria-label="Remove threshold">
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Penalty Amounts</h3>
+                    <h3 className="text-sm font-semibold">Penalty Amounts (per type)</h3>
                     <Button type="button" size="sm" variant="outline" onClick={addPenaltyAmount}>
-                      Add violation type
+                      Add amount
                     </Button>
                   </div>
                   {penaltyAmounts.length === 0 ? (
