@@ -21,7 +21,9 @@
       "Bash(pgrep:*)",
       "Bash(node:*)",
       "WebSearch",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_install"
     ],
     "deny": [],
     "ask": []

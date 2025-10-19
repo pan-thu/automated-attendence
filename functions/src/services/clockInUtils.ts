@@ -151,16 +151,28 @@ export const computeDailyStatus = (
     return status && status !== 'missed';
   });
 
+  const hasMissedChecks = CLOCK_ORDER.some((slot) => checkStatuses[slot] === 'missed');
+
+  // If no checks completed at all
   if (completed.length === 0) {
     return 'absent';
   }
 
+  // If all 3 checks completed
   if (completed.length === 3) {
     return 'present';
   }
 
+  // If exactly 2 checks completed
   if (completed.length === 2) {
     return 'half_day_absent';
+  }
+
+  // If only 1 check completed
+  // - If there are explicitly missed checks, day is still in progress (windows passed but not finalized)
+  // - If no missed checks (just undefined), treat as absent (end-of-day assessment)
+  if (completed.length === 1) {
+    return hasMissedChecks ? 'in_progress' : 'absent';
   }
 
   return 'in_progress';

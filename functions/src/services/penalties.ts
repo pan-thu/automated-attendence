@@ -155,7 +155,7 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
 
   const violationSummary = new Map<string, { violations: Array<{ field: string; status: ViolationStatus }>; counts: Map<ViolationStatus, number> }>();
 
-  snapshots.forEach((doc) => {
+  snapshots.docs.forEach((doc) => {
     const data = doc.data();
     const docUserId = data.userId as string;
     if (userId && docUserId !== userId) {
@@ -199,7 +199,7 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
   let penaltiesCreated = 0;
 
   for (const [targetUserId, info] of violationSummary.entries()) {
-    const violationDocRef = firestore.collection(VIOLATION_HISTORY_COLLECTION).doc();
+    const violationDocRef = admin.firestore().collection(VIOLATION_HISTORY_COLLECTION).doc();
 
     const violationRecord = {
       userId: targetUserId,
@@ -225,7 +225,7 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
       }
 
       const amount = penaltyAmounts[status] ?? 0;
-      const penaltyRef = firestore.collection(PENALTIES_COLLECTION).doc();
+      const penaltyRef = admin.firestore().collection(PENALTIES_COLLECTION).doc();
       const penaltyId = penaltyRef.id;
 
       await penaltyRef.set({

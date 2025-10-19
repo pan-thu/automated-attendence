@@ -30,8 +30,13 @@ if (!admin.apps.length) {
   if (useEmulator) {
     console.log('🔧 Using Firebase Emulators');
     // Set emulator hosts for Admin SDK
-    process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
-    process.env.FIREBASE_AUTH_EMULATOR_HOST = 'localhost:9099';
+    // Use environment variable or default to localhost
+    const emulatorHost = process.env.EMULATOR_HOST || 'localhost';
+    process.env.FIRESTORE_EMULATOR_HOST = `${emulatorHost}:8080`;
+    process.env.FIREBASE_AUTH_EMULATOR_HOST = `${emulatorHost}:9099`;
+
+    console.log(`   Firestore: ${emulatorHost}:8080`);
+    console.log(`   Auth: ${emulatorHost}:9099`);
 
     // For emulators, use the actual project ID from firebase.json
     admin.initializeApp({ projectId: 'automated-attendence-6fc07' });
@@ -231,6 +236,433 @@ async function seedAdminUser() {
 }
 
 /**
+ * Seed test employees
+ */
+async function seedTestEmployees() {
+  console.log('\n👥 Seeding Test Employees...');
+
+  const employees = [
+    {
+      uid: 'test-employee-1',
+      email: 'john.doe@company.com',
+      password: 'Password123!',
+      name: 'John Doe',
+      department: 'Engineering',
+      position: 'Senior Developer',
+      phoneNumber: '+94771234567',
+    },
+    {
+      uid: 'test-employee-2',
+      email: 'jane.smith@company.com',
+      password: 'Password123!',
+      name: 'Jane Smith',
+      department: 'Marketing',
+      position: 'Marketing Manager',
+      phoneNumber: '+94771234568',
+    },
+    {
+      uid: 'test-employee-3',
+      email: 'bob.johnson@company.com',
+      password: 'Password123!',
+      name: 'Bob Johnson',
+      department: 'Engineering',
+      position: 'Junior Developer',
+      phoneNumber: '+94771234569',
+    },
+    {
+      uid: 'test-employee-4',
+      email: 'alice.williams@company.com',
+      password: 'Password123!',
+      name: 'Alice Williams',
+      department: 'HR',
+      position: 'HR Specialist',
+      phoneNumber: '+94771234570',
+    },
+    {
+      uid: 'test-employee-5',
+      email: 'charlie.brown@company.com',
+      password: 'Password123!',
+      name: 'Charlie Brown',
+      department: 'Sales',
+      position: 'Sales Representative',
+      phoneNumber: '+94771234571',
+    },
+  ];
+
+  for (const emp of employees) {
+    try {
+      // Create user in Auth
+      let userRecord;
+      try {
+        userRecord = await auth.getUser(emp.uid);
+        console.log(`   ✓ User exists: ${emp.email}`);
+      } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+          userRecord = await auth.createUser({
+            uid: emp.uid,
+            email: emp.email,
+            password: emp.password,
+            displayName: emp.name,
+            emailVerified: true,
+          });
+          console.log(`   ✓ Created user: ${emp.email}`);
+        } else {
+          throw error;
+        }
+      }
+
+      // Set employee role
+      await auth.setCustomUserClaims(emp.uid, { role: 'employee' });
+
+      // Create user document
+      const userRef = db.collection('USERS').doc(emp.uid);
+      const userDoc = await userRef.get();
+
+      if (!userDoc.exists) {
+        await userRef.set({
+          email: emp.email,
+          name: emp.name,
+          role: 'employee',
+          status: 'active',
+          department: emp.department,
+          position: emp.position,
+          phoneNumber: emp.phoneNumber,
+          leaveBalances: {
+            annual: 14,
+            sick: 7,
+            medical: 7,
+            maternity: 84,
+            paternity: 7,
+          },
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`   ✓ Created employee document: ${emp.name}`);
+      }
+    } catch (error) {
+      console.error(`   ✗ Error creating employee ${emp.email}:`, error);
+    }
+  }
+
+  console.log('✅ Test employees seeded successfully');
+}
+
+/**
+ * Seed attendance records (past 7 days)
+ */
+async function seedAttendanceRecords() {
+  console.log('\n📅 Seeding Attendance Records...');
+
+  const employeeIds = [
+    'test-employee-1',
+    'test-employee-2',
+    'test-employee-3',
+    'test-employee-4',
+    'test-employee-5',
+  ];
+
+  const today = new Date();
+  const recordsCreated = [];
+
+  // Generate records for past 7 days
+  for (let daysAgo = 6; daysAgo >= 0; daysAgo--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - daysAgo);
+    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    for (const employeeId of employeeIds) {
+      // Vary attendance patterns
+      let status: string;
+      let checks: any = {};
+
+      const random = Math.random();
+      if (random < 0.6) {
+        // 60% present - all 3 checks
+        status = 'present';
+        checks = {
+          check1: {
+            timestamp: admin.firestore.Timestamp.fromDate(
+              new Date(`${dateStr}T08:35:00`)
+            ),
+            location: new admin.firestore.GeoPoint(6.9271, 79.8612),
+            status: 'on_time',
+          },
+          check2: {
+            timestamp: admin.firestore.Timestamp.fromDate(
+              new Date(`${dateStr}T13:10:00`)
+            ),
+            location: new admin.firestore.GeoPoint(6.9271, 79.8612),
+            status: 'on_time',
+          },
+          check3: {
+            timestamp: admin.firestore.Timestamp.fromDate(
+              new Date(`${dateStr}T17:00:00`)
+            ),
+            location: new admin.firestore.GeoPoint(6.9271, 79.8612),
+            status: 'on_time',
+          },
+        };
+      } else if (random < 0.75) {
+        // 15% late
+        status = 'present';
+        checks = {
+          check1: {
+            timestamp: admin.firestore.Timestamp.fromDate(
+              new Date(`${dateStr}T09:00:00`)
+            ),
+            location: new admin.firestore.GeoPoint(6.9271, 79.8612),
+            status: 'late',
+          },
+          check2: {
+            timestamp: admin.firestore.Timestamp.fromDate(
+              new Date(`${dateStr}T13:15:00`)
+            ),
+            location: new admin.firestore.GeoPoint(6.9271, 79.8612),
+            status: 'on_time',
+          },
+          check3: {
+            timestamp: admin.firestore.Timestamp.fromDate(
+              new Date(`${dateStr}T17:05:00`)
+            ),
+            location: new admin.firestore.GeoPoint(6.9271, 79.8612),
+            status: 'on_time',
+          },
+        };
+      } else if (random < 0.85) {
+        // 10% half-day (2 checks)
+        status = 'half_day_absent';
+        checks = {
+          check1: {
+            timestamp: admin.firestore.Timestamp.fromDate(
+              new Date(`${dateStr}T08:40:00`)
+            ),
+            location: new admin.firestore.GeoPoint(6.9271, 79.8612),
+            status: 'on_time',
+          },
+          check2: {
+            timestamp: admin.firestore.Timestamp.fromDate(
+              new Date(`${dateStr}T13:20:00`)
+            ),
+            location: new admin.firestore.GeoPoint(6.9271, 79.8612),
+            status: 'on_time',
+          },
+        };
+      } else {
+        // 15% absent
+        status = 'absent';
+        checks = {};
+      }
+
+      const docId = `${employeeId}_${dateStr}`;
+      const recordRef = db.collection('ATTENDANCE_RECORDS').doc(docId);
+
+      await recordRef.set({
+        userId: employeeId,
+        date: dateStr,
+        status,
+        checks,
+        isManualEntry: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      recordsCreated.push(docId);
+    }
+  }
+
+  console.log(`✅ Created ${recordsCreated.length} attendance records`);
+}
+
+/**
+ * Seed leave requests
+ */
+async function seedLeaveRequests() {
+  console.log('\n🏖️  Seeding Leave Requests...');
+
+  const leaveRequests = [
+    {
+      userId: 'test-employee-1',
+      type: 'Annual',
+      startDate: '2025-10-25',
+      endDate: '2025-10-27',
+      reason: 'Family vacation',
+      status: 'pending',
+      totalDays: 3,
+    },
+    {
+      userId: 'test-employee-2',
+      type: 'Sick',
+      startDate: '2025-10-15',
+      endDate: '2025-10-16',
+      reason: 'Flu',
+      status: 'approved',
+      totalDays: 2,
+      reviewedBy: process.env.SEED_ADMIN_UID || 'admin-uid',
+      reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+      reviewNotes: 'Approved - get well soon',
+    },
+    {
+      userId: 'test-employee-3',
+      type: 'Annual',
+      startDate: '2025-10-12',
+      endDate: '2025-10-13',
+      reason: 'Personal matters',
+      status: 'rejected',
+      totalDays: 2,
+      reviewedBy: process.env.SEED_ADMIN_UID || 'admin-uid',
+      reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+      reviewNotes: 'Rejected - insufficient notice period',
+    },
+    {
+      userId: 'test-employee-4',
+      type: 'Medical',
+      startDate: '2025-10-22',
+      endDate: '2025-10-24',
+      reason: 'Medical appointment',
+      status: 'pending',
+      totalDays: 3,
+      hasAttachment: true,
+    },
+    {
+      userId: 'test-employee-5',
+      type: 'Annual',
+      startDate: '2025-11-01',
+      endDate: '2025-11-03',
+      reason: 'Wedding',
+      status: 'pending',
+      totalDays: 3,
+    },
+  ];
+
+  for (const leave of leaveRequests) {
+    await db.collection('LEAVE_REQUESTS').add({
+      ...leave,
+      appliedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  console.log(`✅ Created ${leaveRequests.length} leave requests`);
+}
+
+/**
+ * Seed penalties
+ */
+async function seedPenalties() {
+  console.log('\n⚠️  Seeding Penalties...');
+
+  const penalties = [
+    {
+      userId: 'test-employee-1',
+      violationType: 'late',
+      amount: 10,
+      status: 'active',
+      incurredAt: admin.firestore.Timestamp.fromDate(
+        new Date('2025-10-01')
+      ),
+      reason: '4th late arrival in October',
+    },
+    {
+      userId: 'test-employee-3',
+      violationType: 'absent',
+      amount: 20,
+      status: 'waived',
+      incurredAt: admin.firestore.Timestamp.fromDate(
+        new Date('2025-09-28')
+      ),
+      reason: '4th absence in September',
+      waivedAt: admin.firestore.Timestamp.fromDate(new Date('2025-10-01')),
+      waivedBy: process.env.SEED_ADMIN_UID || 'admin-uid',
+      waivedReason: 'First-time offense - issuing warning instead',
+    },
+    {
+      userId: 'test-employee-5',
+      violationType: 'half_day_absent',
+      amount: 15,
+      status: 'active',
+      incurredAt: admin.firestore.Timestamp.fromDate(
+        new Date('2025-10-05')
+      ),
+      reason: '4th half-day absence in October',
+    },
+  ];
+
+  for (const penalty of penalties) {
+    await db.collection('PENALTIES').add({
+      ...penalty,
+      acknowledged: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  console.log(`✅ Created ${penalties.length} penalties`);
+}
+
+/**
+ * Seed notifications
+ */
+async function seedNotifications() {
+  console.log('\n🔔 Seeding Notifications...');
+
+  const notifications = [
+    {
+      userId: 'test-employee-1',
+      title: 'Penalty Issued',
+      message: 'You have been issued a penalty for late arrival.',
+      category: 'penalty',
+      type: 'warning',
+      isRead: false,
+    },
+    {
+      userId: 'test-employee-2',
+      title: 'Leave Approved',
+      message: 'Your sick leave request has been approved.',
+      category: 'leave',
+      type: 'success',
+      isRead: true,
+      readAt: admin.firestore.Timestamp.fromDate(new Date('2025-10-16')),
+    },
+    {
+      userId: 'test-employee-3',
+      title: 'Leave Rejected',
+      message: 'Your leave request was rejected due to insufficient notice.',
+      category: 'leave',
+      type: 'error',
+      isRead: false,
+    },
+    {
+      userId: 'test-employee-4',
+      title: 'Clock-In Reminder',
+      message: 'Don\'t forget to clock in for your morning check.',
+      category: 'attendance',
+      type: 'info',
+      isRead: true,
+      readAt: admin.firestore.Timestamp.fromDate(new Date('2025-10-18')),
+    },
+    {
+      userId: 'test-employee-5',
+      title: 'System Maintenance',
+      message: 'System will be down for maintenance tonight at 10 PM.',
+      category: 'system',
+      type: 'info',
+      isRead: false,
+    },
+  ];
+
+  for (const notification of notifications) {
+    await db.collection('NOTIFICATIONS').add({
+      ...notification,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  console.log(`✅ Created ${notifications.length} notifications`);
+}
+
+/**
  * Main seeding function
  */
 async function seed() {
@@ -240,9 +672,21 @@ async function seed() {
   try {
     await seedCompanySettings();
     await seedAdminUser();
+    await seedTestEmployees();
+    await seedAttendanceRecords();
+    await seedLeaveRequests();
+    await seedPenalties();
+    await seedNotifications();
 
     console.log('\n' + '=' .repeat(50));
     console.log('✅ Seeding completed successfully!\n');
+    console.log('📊 Summary:');
+    console.log('   - 5 test employees created');
+    console.log('   - ~35 attendance records (7 days × 5 employees)');
+    console.log('   - 5 leave requests (pending, approved, rejected)');
+    console.log('   - 3 penalties (active and waived)');
+    console.log('   - 5 notifications (various categories)');
+    console.log('\n');
 
     process.exit(0);
   } catch (error) {

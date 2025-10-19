@@ -94,13 +94,16 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     const db = getFirestore(app);
     const functions = getFunctions(app);
 
+    // Determine emulator host - use environment variable or default to localhost
+    const emulatorHost = process.env.NEXT_PUBLIC_EMULATOR_HOST || 'localhost';
+
     // Connect to emulators (only called once)
     try {
-      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-      connectFirestoreEmulator(db, 'localhost', 8080);
-      connectFunctionsEmulator(functions, 'localhost', 5001);
+      connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
+      connectFirestoreEmulator(db, emulatorHost, 8080);
+      connectFunctionsEmulator(functions, emulatorHost, 5001);
 
-      console.log('🔧 Connected to Firebase Emulators');
+      console.log(`🔧 Connected to Firebase Emulators @ ${emulatorHost}`);
     } catch (error) {
       console.log(error);
     }
