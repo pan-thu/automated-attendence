@@ -1,0 +1,38 @@
+sequenceDiagram
+    participant E as 📱 Employee (Flutter App)
+    participant LC as 🕹️ LoginController
+    participant AR as 📦 AuthRepository
+    participant FA as 🔥 Firebase Auth
+    participant SC as 🔒 SessionController
+    participant Router as 🗺️ AppRouter
+
+    Note over E, Router: User is initially unauthenticated and sees the Login Screen.
+
+    E->>+LC: 1. Enters email and password
+    E->>+LC: 2. Taps "Sign In" button
+
+    LC->>+AR: 3. Calls `signIn(email, password)`
+    AR->>+FA: 4. `signInWithEmailAndPassword()`
+    FA-->>-AR: 5. Returns UserCredential (contains ID Token)
+
+    AR->>+FA: 6. `getIdTokenResult(true)` to fetch custom claims
+    FA-->>-AR: 7. Returns ID Token with claims (e.g., role)
+
+    AR->>AR: 8. **Validates if `claims['role'] == 'employee'`**
+    Note right of AR: If the role is not 'employee', the repository signs the user out and throws an error.
+
+    AR-->>-LC: 9. Returns success (void)
+
+    Note over FA, SC: Firebase Auth state changes, triggering a global update.
+
+    FA->>+SC: 10. `onAuthStateChanged` stream fires with the new User object
+    SC->>+FA: 11. Fetches fresh ID token and claims again to hydrate the session
+    FA-->>-SC: 12. Returns fresh token and claims
+
+    SC->>SC: 13. Updates internal state (isAuthenticated = true, user, claims)
+    SC->>+Router: 14. `notifyListeners()` signals a state change to the router
+    
+    Router->>Router: 15. Redirect logic re-evaluates due to state change
+    Note right of Router: Checks if user is authenticated and if onboarding is complete.
+
+    Router-->>-E: 16. Redirects user from Login Screen to Home Screen ('/')

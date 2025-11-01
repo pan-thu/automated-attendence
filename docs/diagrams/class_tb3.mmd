@@ -1,0 +1,111 @@
+classDiagram
+    %% Timebox 3 — Automated Backend and Reporting
+
+    %% === Core Entities (Data Models) ===
+    class CompanySettings {
+        +object timeWindows
+        +object gracePeriods
+        +object penaltyRules
+        +Array holidays
+        +object workingDays
+    }
+
+    class AttendanceRecord {
+        +string userId
+        +Date attendanceDate
+        +string status
+        +string check1_status
+        +string check2_status
+        +string check3_status
+    }
+
+    class LeaveRequest {
+        +string userId
+        +string status
+        +Date startDate
+    }
+
+    class Penalty {
+        +string penaltyId
+        +string userId
+        +string violationType
+        +number amount
+        +string status
+        +Date dateIncurred
+    }
+
+    class Notification {
+      +string userId
+      +string title
+      +string message
+    }
+    
+    class AuditLog {
+        <<New Entity>>
+        +string logId
+        +string identity  // "system" or a userId
+        +string action
+        +string resource
+        +Date timestamp
+    }
+
+    %% === Scheduled Functions (Entry Points) ===
+    class ScheduledJobs {
+        <<Firebase Scheduler>>
+        +runPenaltyCalculation()
+        +runDailyReminders()
+    }
+
+    %% === Backend Services (Cloud Functions Logic) ===
+    class PenaltyCalculationService {
+        -SettingsService settingsService
+        -AuditLogService auditLogService
+        +calculateMonthlyPenalties()
+        -countViolations(records)
+        -applyPenaltyRules(violations, rules)
+        -createPenaltyRecord(user, violation)
+    }
+
+    class ReminderService {
+        -NotificationService notificationService
+        +sendDailyReminders()
+        -findMissingAttendance()
+        -findPendingLeaves()
+    }
+
+    class ReportService {
+        +generateAttendanceSummary(filters)
+        +generateLeaveSummary(filters)
+    }
+    
+    class NotificationService {
+        +sendNotification(userId, title, message)
+    }
+
+    class AuditLogService {
+        +recordSystemAction(action, resource, details)
+    }
+    
+    class SettingsService {
+        +getCompanySettings() : CompanySettings
+    }
+
+    %% === Relationships ===
+    ScheduledJobs ..> PenaltyCalculationService : triggers
+    ScheduledJobs ..> ReminderService : triggers
+
+    PenaltyCalculationService ..> SettingsService : uses
+    PenaltyCalculationService ..> AuditLogService : uses
+    PenaltyCalculationService ..> AttendanceRecord : reads
+    PenaltyCalculationService ..> Penalty : creates
+
+    ReminderService ..> NotificationService : uses
+    ReminderService ..> AttendanceRecord : reads
+    ReminderService ..> LeaveRequest : reads
+    
+    ReportService ..> AttendanceRecord : reads
+    ReportService ..> LeaveRequest : reads
+    
+    NotificationService ..> Notification : creates
+    AuditLogService ..> AuditLog : creates
+    SettingsService ..> CompanySettings : reads

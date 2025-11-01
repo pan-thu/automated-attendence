@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { getFirebaseAuth } from "@/lib/firebase/config";
+import { authLogger } from "@/lib/logger";
 import type { UserSummary } from "@/types";
 
 type FirebaseAuthModule = typeof import("firebase/auth");
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthModule(authMod);
         setFirebaseAuthInstance(authInstance);
       } catch (err) {
-        console.error("Unable to initialize Firebase Auth", err);
+        authLogger.error("Unable to initialize Firebase Auth", err);
         if (mounted) {
           setError("Authentication is unavailable. Check Firebase configuration.");
           setLoading(false);
@@ -112,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
         }
       } catch (err) {
-        console.error("Failed to resolve auth claims", err);
+        authLogger.error("Failed to resolve auth claims", err);
         setError("Authentication check failed. Please try again.");
         setUser(null);
         await authModule.signOut(firebaseAuth);

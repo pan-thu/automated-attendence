@@ -1,0 +1,37 @@
+flowchart LR
+ subgraph subGraph0["System"]
+    direction TB
+        UC_Auth("Authenticate")
+        UC_Audit("Record Action in Audit Log")
+        UC1("Configure System Settings")
+        UC2("Manage Employees")
+        UC3("Review Attendance Records")
+        UC4("Approve / Reject Leave Requests")
+        UC5("Manage Penalties")
+        UC6("View Audit Log")
+        UC5_Extend("Waive Penalty")
+  end
+    Admin@{ icon: "aws:res-user", pos: "b"} --> UC1 & UC2 & UC3 & UC4 & UC5 & UC6
+    UC1 -. &lt;&gt; .-> UC_Auth & UC_Audit
+    UC2 -. &lt;&gt; .-> UC_Auth & UC_Audit
+    UC3 -. &lt;&gt; .-> UC_Auth
+    UC4 -. &lt;&gt; .-> UC_Auth & UC_Audit
+    UC5 -. &lt;&gt; .-> UC_Auth & UC5_Extend
+    UC6 -. &lt;&gt; .-> UC_Auth
+    UC5_Extend -. &lt;&gt; .-> UC_Audit
+
+     Admin["Admin"]   
+     UC_Auth:::supportingUC
+     UC_Audit:::supportingUC
+     UC1:::primaryUC
+     UC2:::primaryUC
+     UC3:::primaryUC
+     UC4:::primaryUC
+     UC5:::primaryUC
+     UC6:::primaryUC
+     UC5_Extend:::primaryUC
+    classDef primaryUC fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#333
+    classDef supportingUC fill:#fffde7,stroke:#f57f17,stroke-width:2px,color:#333
+    style Admin fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,rx:10,ry:10,font-weight:bold
+
+

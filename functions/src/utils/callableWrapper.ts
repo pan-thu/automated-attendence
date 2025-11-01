@@ -1,13 +1,24 @@
 import * as functions from 'firebase-functions';
 import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
+import { RateLimiter, RATE_LIMITS } from './rateLimiter';
+import { systemLogger } from './logger';
 
 /**
- * Wraps a callable function handler with consistent error mapping and logging.
+ * Options for configuring the callable wrapper
+ */
+interface WrapCallableOptions {
+  /** Rate limit configuration. Pass false to disable rate limiting */
+  rateLimit?: typeof RATE_LIMITS[keyof typeof RATE_LIMITS] | false;
+}
+
+/**
+ * Wraps a callable function handler with consistent error mapping, logging, and rate limiting.
  * Converts uncaught errors to HttpsError to prevent "internal" error on client.
  *
  * @param handler - The async function handler to wrap
  * @param functionName - Name of the function for logging purposes
- * @returns Wrapped handler with error handling and logging
+ * @param options - Optional configuration for rate limiting and other features
+ * @returns Wrapped handler with error handling, logging, and rate limiting
  *
  * @example
  * ```typescript
@@ -16,20 +27,28 @@ import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
  *     assertAdmin(request);
  *     // ... business logic
  *     return { success: true };
- *   }, 'myFunction')
+ *   }, 'myFunction', { rateLimit: RATE_LIMITS.WRITE })
  * );
  * ```
  */
 export function wrapCallable<T = any, R = any>(
   handler: (request: CallableRequest<T>) => Promise<R>,
-  functionName: string
+  functionName: string,
+  options?: WrapCallableOptions
 ) {
   return async (request: CallableRequest<T>): Promise<R> => {
     const startTime = Date.now();
     const userId = request.auth?.uid || 'unauthenticated';
 
     try {
-      functions.logger.info(`[${functionName}] Started`, {
+      // Apply rate limiting if configured
+      if (options?.rateLimit !== false) {
+        const rateLimitConfig = options?.rateLimit || RATE_LIMITS.READ; // Default to READ limit
+        const limiter = new RateLimiter(functionName, rateLimitConfig);
+        await limiter.checkLimit(request);
+      }
+
+      systemLogger.info(`[${functionName}] Started`, {
         userId,
         hasAuth: !!request.auth,
         hasData: !!request.data,
@@ -38,7 +57,7 @@ export function wrapCallable<T = any, R = any>(
       const result = await handler(request);
 
       const duration = Date.now() - startTime;
-      functions.logger.info(`[${functionName}] Completed successfully`, {
+      systemLogger.info(`[${functionName}] Completed successfully`, {
         userId,
         durationMs: duration,
       });
@@ -48,7 +67,7 @@ export function wrapCallable<T = any, R = any>(
       const duration = Date.now() - startTime;
 
       // Log detailed error information for debugging
-      functions.logger.error(`[${functionName}] Failed`, {
+      systemLogger.error(`[${functionName}] Failed`, err, {
         userId,
         durationMs: duration,
         errorMessage: err?.message,

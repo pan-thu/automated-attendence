@@ -1,0 +1,47 @@
+sequenceDiagram
+    participant S as 🤖 Firebase Scheduler
+    participant CF as ⚡ Cloud Function (scheduledPenaltyAutomation)
+    participant PS as ⚙️ PenaltyCalculationService
+    participant D as 🗄️ Firestore Database
+    participant NS as 🔔 Notification Service
+    participant AL as 📜 Audit Log Service
+
+    Note over S, AL: Process runs automatically on the 1st of every month.
+
+    S->>+CF: 1. Triggers the scheduled job
+    CF->>CF: 2. Determines the previous month to process (e.g., '2025-10')
+
+    CF->>+D: 3. Fetches `COMPANY_SETTINGS`
+    D-->>-CF: 4. Returns penalty rules (thresholds, amounts)
+
+    CF->>+PS: 5. Calls `calculateMonthlyViolations(month, settings)`
+    PS->>+D: 6. Queries all `ATTENDANCE_RECORDS` for the specified month
+    D-->>-PS: 7. Returns attendance documents
+
+    PS->>PS: 8. **Aggregates violations by user**<br/>(counts 'absent', 'half_day_absent', 'late', 'early_leave')
+
+    loop For each user with violations
+        PS->>PS: 9. Compares user's violation counts against thresholds from settings
+        
+        alt Violation count >= Threshold
+            PS->>+D: 10a. Creates a new document in `PENALTIES` collection
+            D-->>-PS: 11a. Confirms penalty creation
+            
+            PS->>+NS: 12a. Queues a notification for the employee about the new penalty
+            NS->>+D: 13a. Creates a new document in `NOTIFICATIONS` collection
+            D-->>-NS: 14a. Confirms notification creation
+            NS-->>-PS: 15a. Acknowledges queuing
+        end
+        
+        PS->>+D: 16. Creates a `VIOLATION_HISTORY` document for the user's monthly summary
+        D-->>-PS: 17. Confirms history log creation
+    end
+
+    PS-->>-CF: 18. Returns summary of actions (e.g., penalties created)
+
+    CF->>+AL: 19. Calls `recordSystemAction()` to log the job's execution
+    AL->>+D: 20. Creates a new document in `AUDIT_LOGS` collection
+    D-->>-AL: 21. Confirms audit log creation
+    AL-->>-CF: 22. Acknowledges logging
+
+    CF-->>-S: 23. Execution completes successfully

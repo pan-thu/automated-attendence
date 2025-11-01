@@ -1,0 +1,52 @@
+sequenceDiagram
+    actor Admin
+    participant Dashboard as "React Dashboard"
+    participant Functions as "Cloud Functions (handleLeaveApproval)"
+    participant Auth as "Firebase Auth"
+    participant Firestore as "Cloud Firestore"
+
+    %% -- 1. Admin views and acts on a leave request --
+    Admin->>+Dashboard: Views pending leave requests
+    Dashboard->>+Firestore: Fetch LEAVE_REQUESTS data
+    Firestore-->>-Dashboard: Return request details
+
+    Admin->>Dashboard: Clicks 'Approve' or 'Reject' (with optional notes)
+    Dashboard->>+Functions: Secure call: handleLeaveApproval({requestId, action, notes})
+    Note right of Dashboard: Sends Admin's ID Token in header
+
+    %% -- 2. Backend validation and processing --
+    Functions->>+Auth: Validate Admin ID Token
+    Auth-->>-Functions: Token OK (role: 'admin')
+
+    %% -- 3. Atomic database transaction begins --
+    Functions->>+Firestore: Start Transaction
+    Note over Firestore: All subsequent operations are atomic.<br>If one fails, all are rolled back.
+
+    Firestore->>Firestore: 1. Read LEAVE_REQUESTS doc
+    Note over Firestore: Verify request status is 'pending'
+    
+    Firestore->>Firestore: 2. Update LEAVE_REQUESTS doc (status: 'approved'/'rejected', notes)
+
+    alt Action is 'Approve'
+        Firestore->>Firestore: 3a. Read USERS doc for leave balance
+        Note over Firestore: Calculate new balance = current - totalDays
+        Firestore->>Firestore: 4a. Update USERS doc with new balance
+        
+        Note over Firestore: 5a. Loop through leave dates &<br>backfill ATTENDANCE_RECORDS<br>with status: 'on_leave'
+    end
+
+    Firestore->>Firestore: 6. Create NOTIFICATIONS doc for the employee
+    
+    Firestore-->>-Functions: Commit Transaction Success
+
+    %% -- 4. Post-transaction auditing --
+    Functions->>+Firestore: recordAuditLog('leave_approval' or 'leave_rejection', ...)
+    Note over Firestore: Log includes admin UID, request ID, and notes
+    Firestore-->>-Functions: Audit Log Created
+
+    %% -- 5. Final response to the client --
+    Functions-->>-Dashboard: {success: true}
+
+    %% -- 6. UI feedback for the Admin --
+    Dashboard->>Admin: Show "Decision Recorded" confirmation
+    deactivate Dashboard

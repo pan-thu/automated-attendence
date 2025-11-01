@@ -1,0 +1,190 @@
+classDiagram
+%% Timebox 1 — Admin Operations only
+
+%% === Core actors ===
+class User {
+  +string id
+  +string fullName
+  +string email
+  +Role role
+  +bool isActive
+  +string? department
+  +string? position
+  +string? phoneNumber
+  +Date createdAt
+}
+
+class Role {
+  <<enumeration>>
+  ADMIN
+  EMPLOYEE
+}
+
+%% === Settings ===
+class CompanySettings {
+  +string id            %% singleton (e.g., "org-default")
+  +GeoPoint workplaceCenter
+  +double workplaceRadiusMeters
+  +TimeWindow[] timeWindows
+  +int gracePeriodMinutes
+  +PenaltyRule[] penaltyRules
+  +LeavePolicy leavePolicy
+  +int[] workingDays    %% 0=Sun..6=Sat
+  +Holiday[] holidays
+  +Date updatedAt
+}
+
+class GeoPoint { 
+  +double lat
+  +double lng
+}
+
+class TimeWindow { 
+  +string name
+  +string start   %% prefer TIME type: HH:mm
+  +string end     %% prefer TIME type: HH:mm
+}
+
+class PenaltyRule { 
+  +string violationType
+  +int threshold
+  +decimal amount
+}
+
+class LeavePolicy { 
+  +int annualDays
+  +int sickDays
+  +string[] approvals
+}
+
+class Holiday { 
+  +Date date
+  +string name
+}
+
+%% === Attendance ===
+class AttendanceRecord {
+  +string id
+  +string userId
+  +Date attendanceDate
+  +AttendanceStatus status
+  +bool isManualEntry
+  +string? notes
+  +Check[] checks
+  +Date createdAt
+}
+
+class Check {
+  +string label        %% "check_1","check_2","check_3"
+  +Date timestamp
+  +string? status
+}
+
+class AttendanceStatus {
+  <<enumeration>>
+  present
+  absent
+  half_day_absent
+  on_leave
+  late
+  early_leave
+  missed
+}
+
+%% === Leaves ===
+class LeaveRequest {
+  +string id
+  +string userId
+  +LeaveType leaveType
+  +Date startDate
+  +Date endDate
+  +string reason
+  +string? documentUrl
+  +LeaveStatus status
+  +string? approverId
+  +string? reviewComment   %% comment for approve/reject
+  +string? rejectionReason
+  +Date createdAt
+  +Date? decidedAt
+}
+
+class LeaveType {
+  <<enumeration>>
+  annual
+  sick
+  unpaid
+  other
+}
+
+class LeaveStatus {
+  <<enumeration>>
+  pending
+  approved
+  rejected
+}
+
+%% === Penalties ===
+class Penalty {
+  +string id
+  +string userId
+  +string reason
+  +decimal amount
+  +PenaltyStatus status
+  +string? waivedReason
+  +Date createdAt
+}
+
+class PenaltyStatus {
+  <<enumeration>>
+  active
+  waived
+}
+
+%% === Audit ===
+class AuditLog {
+  +string id
+  +string action
+  +Resource resource
+  +string? resourceId
+  +string performedById
+  +string? performedByEmail
+  +AuditStatus status
+  +Date timestamp
+  +string? oldValuesJson
+  +string? newValuesJson
+  +string? errorMessage
+  +string? metadataJson
+}
+
+class Resource {
+  <<enumeration>>
+  USERS
+  ATTENDANCE_RECORDS
+  LEAVE_REQUESTS
+  PENALTIES
+  COMPANY_SETTINGS
+  AUDIT_LOGS
+}
+
+class AuditStatus {
+  <<enumeration>>
+  success
+  failure
+  error
+}
+
+%% === Relationships (TB1 scope) ===
+User "1" -- "0..*" AttendanceRecord : records
+User "1" -- "0..*" LeaveRequest : requests
+User "1" -- "0..*" Penalty : penalties
+User "1" -- "0..*" AuditLog : performed
+
+AttendanceRecord "1" *-- "0..3" Check : checks
+
+CompanySettings ..> GeoPoint
+CompanySettings ..> TimeWindow
+CompanySettings ..> PenaltyRule
+CompanySettings ..> LeavePolicy
+CompanySettings ..> Holiday
+
+LeaveRequest "0..1" --> User : approver

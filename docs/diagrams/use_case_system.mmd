@@ -1,0 +1,29 @@
+flowchart LR
+    %% 1. Define Actors as simple nodes
+    Scheduler("System (Scheduler)")
+    Admin("Admin")
+
+    %% 2. Define the System Boundary and Use Cases within it
+    subgraph System
+        direction TB
+        
+        UC_Penalties("Calculate Monthly Penalties")
+        UC_Reminders("Send Daily Reminders")
+        UC_Reports("Generate Attendance & Leave Reports")
+    end
+
+    %% 3. Define relationships between actors and use cases
+    Scheduler --> UC_Penalties
+    Scheduler --> UC_Reminders
+    Admin --> UC_Reports
+
+    
+    %% 5. Apply all styling at the end
+    classDef primaryUC fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#333
+    classDef supportingUC fill:#fffde7,stroke:#f57f17,stroke-width:2px,color:#333
+    
+    class UC_Penalties,UC_Reminders,UC_Reports primaryUC
+    class UC_Audit,UC_ReadSettings,UC_CountViolations,UC_CreatePenalty,UC_FindMissing,UC_FindPending,UC_SendNotify,UC_SummarizeData,UC_Auth supportingUC
+
+    style Scheduler fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,font-weight:bold
+    style Admin fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,font-weight:bold

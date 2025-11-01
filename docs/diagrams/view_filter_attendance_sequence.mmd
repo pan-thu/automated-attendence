@@ -1,0 +1,37 @@
+sequenceDiagram
+    actor Admin
+    participant Dashboard as "React Dashboard"
+    participant Functions as "Cloud Functions (generateAttendanceReport)"
+    participant Auth as "Firebase Auth"
+    participant Firestore as "Cloud Firestore"
+
+    %% -- 1. Admin navigates and applies filters --
+    Admin->>+Dashboard: Navigates to Attendance page
+    Admin->>Dashboard: Selects filters (e.g., date range, employee ID)
+    Admin->>Dashboard: Clicks 'Run Report'
+
+    %% -- 2. Client sends request to backend --
+    Dashboard->>+Functions: Secure call: generateAttendanceReport({filters})
+    Note right of Dashboard: Sends Admin's ID Token in header
+
+    %% -- 3. Backend validation and data fetching --
+    Functions->>+Auth: Validate Admin ID Token
+    Auth-->>-Functions: Token OK (role: 'admin')
+
+    Functions->>+Firestore: 1. Query 'ATTENDANCE_RECORDS' with filters
+    Note over Firestore: Uses 'where' clauses for date range and userId
+    Firestore-->>-Functions: Return attendance documents
+
+    %% -- 4. Data Enrichment Step --
+    Note over Functions: Extract unique user IDs from attendance records
+    Functions->>+Firestore: 2. Query 'USERS' collection for employee details (name, email, department)
+    Firestore-->>-Functions: Return user profile documents
+
+    %% -- 5. Backend processes and responds --
+    Note over Functions: Merge attendance data with user details to create a full report
+    Functions-->>-Dashboard: { total: X, records: [...] }
+
+    %% -- 6. UI renders the results for the Admin --
+    Dashboard->>Dashboard: Update state with the fetched report data
+    Dashboard->>Admin: Display filtered attendance records in a table
+    deactivate Dashboard

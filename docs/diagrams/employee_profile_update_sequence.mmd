@@ -1,0 +1,42 @@
+sequenceDiagram
+    participant E as 📱 Employee (Flutter App)
+    participant PC as 🕹️ ProfileController
+    participant PR as 📦 ProfileRepository
+    participant F as ⚡ Cloud Function (updateMyProfile)
+    participant FA as 🔥 Firebase Auth
+    participant D as 🗄️ Firestore Database
+    participant AL as 📜 Audit Log Service
+
+    Note over E, D: User navigates to a new "Edit Profile" screen within the Settings area.
+
+    E->>+PC: 1. Edits their name and phone number in text fields
+    E->>+PC: 2. Taps the "Save Profile" button
+
+    PC->>PC: 3. Validates input (e.g., name is not empty)
+    PC->>+PR: 4. Calls `updateMyProfile(newName, newPhoneNumber)`
+
+    PR->>+F: 5. Makes an HTTPS callable request to a new 'updateMyProfile' function
+    
+    F->>F: 6. **Security Check:** `assertEmployeeV2()` verifies the caller is an authenticated employee.
+    F->>F: 7. Gets the user's own UID from the auth context (`requireAuthUidV2`).
+    
+    F->>+FA: 8. Updates Firebase Auth record with `admin.auth().updateUser(uid, { displayName: newName })`
+    FA-->>-F: 9. Confirms Auth record update
+
+    F->>+D: 10. Updates the user's own document in the 'USERS' collection
+    Note over D: `db.collection('USERS').doc(uid).update({ fullName: newName, phoneNumber: newPhoneNumber, updatedAt: ... })`
+    D-->>-F: 11. Confirms Firestore document update
+    
+    F->>+AL: 12. Calls `recordAuditLog()` for the self-update action
+    AL->>+D: 13. Creates a new document in `AUDIT_LOGS` collection
+    D-->>-AL: 14. Confirms log was created
+    AL-->>-F: 15. Returns success
+
+    F-->>-PR: 16. Returns a success response to the repository
+    PR-->>-PC: 17. Returns success to the controller
+
+    PC->>PC: 18. Sets loading state to false and clears errors
+    PC-->>-E: 19. Notifies the UI of the successful update
+    
+    E->>E: 20. Displays a confirmation SnackBar ("Profile updated successfully")
+    E->>E: 21. Refreshes the UI to show the new name and phone number

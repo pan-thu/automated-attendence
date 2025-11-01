@@ -1,0 +1,44 @@
+sequenceDiagram
+    actor Admin
+    participant Dashboard as "React Dashboard"
+    participant Functions as "Cloud Functions (updateCompanySettings)"
+    participant Auth as "Firebase Auth"
+    participant Firestore as "Cloud Firestore"
+
+    %% -- 1. Admin initiates the update --
+    Admin->>+Dashboard: Modifies settings form (e.g., geofence radius)
+    Dashboard->>Dashboard: Gathers and structures form data into a payload
+    Admin->>Dashboard: Clicks 'Save Settings'
+
+    %% -- 2. Client sends request to backend --
+    Dashboard->>+Functions: Secure call: updateCompanySettings({payload})
+    Note right of Dashboard: Sends Admin's ID Token in header
+
+    %% -- 3. Backend processing begins --
+    Functions->>+Auth: Validate Admin ID Token
+    Auth-->>-Functions: Token OK (role: 'admin')
+
+    Note over Functions: Sanitize & Validate Payload:<br/>- Check data types (string, number, boolean)<br/>- Validate ranges (lat/lng, radius)<br/>- Check time formats (HH:MM)
+
+    Functions->>+Firestore: Start Transaction
+    Note over Firestore: Prepare to update the singleton document
+
+    %% -- 4. Update the settings document --
+    Firestore->>Firestore: Read 'COMPANY_SETTINGS/main' (for merge)
+    Note over Firestore: Convert coordinate object to GeoPoint
+    Firestore->>Firestore: Set('COMPANY_SETTINGS/main', {updates}, {merge: true})
+
+    Firestore-->>-Functions: Transaction Success
+
+    %% -- 5. Record the action in the audit log --
+    Functions->>+Firestore: Add document to 'AUDIT_LOGS' collection
+    Note over Firestore: Log includes: performedBy (Admin UID),<br/>action: 'update_company_settings',<br/>resourceId: 'main',<br/>newValues: {payload}
+    Firestore-->>-Functions: Audit Log Created
+
+    %% -- 6. Respond to the client --
+    Functions-->>-Dashboard: {success: true}
+
+    %% -- 7. UI provides feedback to the Admin --
+    Dashboard->>Admin: Show "Settings Saved" notification
+    Dashboard->>Dashboard: Redirect to main settings page
+    deactivate Dashboard

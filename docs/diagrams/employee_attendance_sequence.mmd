@@ -1,0 +1,51 @@
+sequenceDiagram
+    participant E as 📱 Employee (Flutter App)
+    participant ACC as 🕹️ AttendanceCalendarController
+    participant AHR as 📦 AttendanceHistoryRepository
+    participant F as ⚡ Cloud Function (listEmployeeAttendance)
+    participant D as 🗄️ Firestore Database
+
+    Note over E, D: Employee navigates to the Attendance History screen.
+
+    E->>+ACC: 1. `initialize()` is called on screen load
+    ACC->>ACC: 2. Sets `isLoading = true`, notifies UI
+    ACC-->>E: 3. UI displays a loading spinner
+
+    ACC->>+AHR: 4. `fetchAttendance(default filters)`
+    AHR->>+F: 5. Makes HTTPS callable request with `userId` and default date range (e.g., current month)
+
+    F->>F: 6. **Security Check:** Verifies user is authenticated and is an employee
+    F->>+D: 7. Queries `ATTENDANCE_RECORDS` collection
+    Note over D: Query: `where('userId', '==', auth.uid)`<br/>`where('attendanceDate', '>=', monthStart)`<br/>`orderBy('attendanceDate', 'desc')`
+    D-->>-F: 8. Returns matching attendance documents
+
+    F->>F: 9. Formats documents into `AttendanceDaySummary` objects
+    F-->>-AHR: 10. Returns structured list of summaries
+
+    AHR-->>-ACC: 11. Returns the fetched data
+    ACC->>ACC: 12. Updates its internal state with the list of days and sets `isLoading = false`
+    ACC-->>-E: 13. `notifyListeners()` triggers a UI rebuild
+
+    E->>E: 14. Renders the calendar and list with the fetched attendance data
+
+    alt User applies a filter (e.g., Status = 'absent')
+        E->>E: 15. User opens `HistoryFiltersSheet` and selects 'absent'
+        E->>+ACC: 16. `applyFilters(filters)` is called with the new selection
+
+        ACC->>ACC: 17. Clears cache, updates internal filters, sets `isLoading = true`
+        ACC-->>E: 18. UI shows a loading indicator
+
+        ACC->>+AHR: 19. `fetchAttendance(status: 'absent')`
+        AHR->>+F: 20. Makes HTTPS callable request with new filter parameters
+
+        F->>+D: 21. Queries `ATTENDANCE_RECORDS` collection with additional filter
+        Note over D: Query now includes: `where('status', '==', 'absent')`
+        D-->>-F: 22. Returns filtered documents
+
+        F-->>-AHR: 23. Returns the filtered list of summaries
+        AHR-->>-ACC: 24. Returns filtered data
+
+        ACC->>ACC: 25. Updates its state with the new filtered list
+        ACC-->>-E: 26. `notifyListeners()` triggers a UI rebuild
+        E->>E: 27. Renders the updated list showing only 'absent' days
+    end

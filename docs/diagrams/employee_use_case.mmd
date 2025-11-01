@@ -1,0 +1,52 @@
+flowchart LR
+ subgraph subGraph0["System"]
+    direction TB
+        %% Supporting use cases
+        UC_Auth("Authenticate (Sign In / Sign Out)")
+        UC_Audit("Record Action in Audit Log")
+        UC_Geo("Validate Geofence")
+        UC_Time("Validate Time Window")
+        UC_Mock("Detect Mock/Invalid Location")
+        UC_Offline("Queue Offline & Retry")
+        UC_Upload("Upload Attachment")
+        UC_Fetch("Fetch Attendance History")
+
+        %% Primary employee use cases
+        UC1("Clock-In / Clock-Out")
+        UC2("Create Leave Request")
+        UC3("View Attendance History")
+        UC4("View Notifications")
+        UC5("Update Profile")
+  end
+
+    %% Actor to primary use cases (and explicit access to sign-in/out)
+    Employee@{ icon: "aws:res-user", pos: "b"} --> UC1 & UC2 & UC3 & UC4 & UC5 & UC_Auth
+
+    %% Includes (dashed) to supporting use cases
+    UC1 -. &lt;&gt; .-> UC_Auth & UC_Geo & UC_Time & UC_Mock & UC_Offline
+    UC2 -. &lt;&gt; .-> UC_Auth & UC_Upload & UC_Offline
+    UC3 -. &lt;&gt; .-> UC_Auth & UC_Fetch
+    UC4 -. &lt;&gt; .-> UC_Auth
+    UC5 -. &lt;&gt; .-> UC_Auth & UC_Audit
+
+     Employee["Employee"]
+
+     %% Styling (same scheme as Admin diagram)
+     UC1:::primaryUC
+     UC2:::primaryUC
+     UC3:::primaryUC
+     UC4:::primaryUC
+     UC5:::primaryUC
+
+     UC_Auth:::supportingUC
+     UC_Audit:::supportingUC
+     UC_Geo:::supportingUC
+     UC_Time:::supportingUC
+     UC_Mock:::supportingUC
+     UC_Offline:::supportingUC
+     UC_Upload:::supportingUC
+     UC_Fetch:::supportingUC
+
+    classDef primaryUC fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#333
+    classDef supportingUC fill:#fffde7,stroke:#f57f17,stroke-width:2px,color:#333
+    style Employee fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,rx:10,ry:10,font-weight:bold

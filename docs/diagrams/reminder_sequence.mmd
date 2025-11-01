@@ -1,0 +1,38 @@
+sequenceDiagram
+    participant S as 🤖 Firebase Scheduler
+    participant CF as ⚡ Cloud Function (scheduledDailyClockInReminder)
+    participant RS as 📦 Reminder Service
+    participant D as 🗄️ Firestore Database
+    participant NS as 🔔 Notification Service
+    participant FM as 📲 Firebase Messaging
+    participant E as 📱 Employee's Device
+
+    Note over S, E: Process runs automatically at 8:30, 13:30, and 17:30 UTC.
+
+    S->>+CF: 1. Triggers the scheduled job
+    CF->>CF: 2. Determines current date and check slot (e.g., 'check1' for 8:30 run)
+
+    CF->>+RS: 3. Calls `getEmployeesNeedingClockInReminder(date, slot)`
+    RS->>+D: 4. Fetches all active employee IDs from the 'USERS' collection
+    D-->>-RS: 5. Returns list of active user IDs
+
+    RS->>+D: 6. Queries `ATTENDANCE_RECORDS` for the current date
+    D-->>-RS: 7. Returns today's attendance documents
+
+    RS->>RS: 8. **Filters users:**<br/>- Starts with all active employees.<br/>- Removes users already marked 'present' or 'on_leave'.<br/>- Removes users who have a valid status for the current check slot.
+    RS-->>-CF: 9. Returns the final list of user IDs needing a reminder
+
+    alt Users need reminding
+        CF->>CF: 10. Prepares the specific reminder message (e.g., "Don't forget to clock in!")
+        CF->>+NS: 11. Calls `queueBulkNotifications(userIds, message)`
+        NS->>+D: 12. **Batch Write:** Creates a new notification document in the `NOTIFICATIONS` collection for each user ID
+        D-->>-NS: 13. Confirms batch write
+        NS-->>-CF: 14. Acknowledges that notifications are queued
+
+        Note over D, FM: A Firestore trigger (on new notification) sends the push notification.
+        D->>+FM: 15. `onDocumentCreated` trigger fires for each new notification
+        FM->>+E: 16. Sends a push notification to each targeted employee's device
+        E-->>-FM: 17. Device receives reminder
+    end
+
+    CF-->>-S: 18. Execution completes

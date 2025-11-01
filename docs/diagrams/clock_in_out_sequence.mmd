@@ -1,0 +1,49 @@
+sequenceDiagram
+    actor Employee
+    participant App as "Flutter App"
+    participant Auth as "Firebase Auth"
+    participant Functions as "Cloud Functions (handleClockIn)"
+    participant Firestore as "Cloud Firestore"
+
+    %% -- 1. Employee initiates clock-in --
+    Employee->>+App: Taps 'Clock In' button
+    App->>App: Get GPS Location
+    App->>+Functions: Secure call: handleClockIn({location, timestamp})
+    Note right of App: Sends Auth ID Token in header
+
+    %% -- 2. Server-side validation begins --
+    Functions->>+Auth: Validate ID Token
+    Auth-->>-Functions: Token OK (UID, role: 'employee')
+
+    Functions->>+Firestore: Get 'COMPANY_SETTINGS/main'
+    Firestore-->>-Functions: Return {geofence, timeWindows, gracePeriods}
+
+    %% -- 3. Geofence & Time Window Validation --
+    alt Geofence & Time Checks Pass
+        Note over Functions: Validate location is within workplace_radius
+        Note over Functions: Determine current check slot (e.g., 'check1') and status ('on_time', 'late')
+
+        %% -- 4. Atomic Firestore Update --
+        Functions->>+Firestore: Start Transaction
+        Note over Firestore: Read today's ATTENDANCE_RECORDS doc for user
+        Note over Firestore: Verify check slot is not already filled
+        Note over Firestore: Calculate new daily status ('in_progress' or 'present')
+        Firestore->>Firestore: Write {check1_timestamp, check1_status, dailyStatus}
+        Firestore-->>-Functions: Transaction Success
+
+        %% -- 5. Post-update actions (Audit & Notify) --
+        Functions->>Firestore: recordAuditLog('clock_in', ...)
+        Functions->>Firestore: queueNotification('Clock-in recorded', ...)
+        
+        Note over Functions: Preparing success response...
+
+    else Geofence Check Fails
+        Note over Functions: Validate location is outside workplace_radius
+        Note over Functions: Preparing failure response...
+    end
+
+    %% -- 6. Respond to client --
+    Functions-->>-App: Return Final Response (Success or Error)
+
+    %% -- 7. Client UI Update --
+    App-->>-Employee: Show Success/Error Message

@@ -3,10 +3,11 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { admin } from './firebase';
 import type * as firebaseAdmin from 'firebase-admin';
-import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue, GeoPoint } from 'firebase-admin/firestore';
 import { assertAdmin, requireAuthUid, CallableContext, assertAuthenticated, assertEmployee } from './utils/auth';
 import { assertAdmin as assertAdminV2, assertEmployee as assertEmployeeV2, assertAuthenticated as assertAuthenticatedV2, requireAuthUid as requireAuthUidV2 } from './utils/authV2';
 import { wrapCallable } from './utils/callableWrapper';
+import { RATE_LIMITS } from './utils/rateLimiter';
 import { assertPayload, assertString, assertEmail, assertBoolean } from './utils/validators';
 import {
   createEmployee as createEmployeeService,
@@ -170,7 +171,7 @@ export const setUserRole = onCall(
       success: true,
       message: `Role for ${userRecord.uid} set to ${role}.`,
     };
-  }, 'setUserRole')
+  }, 'setUserRole', { rateLimit: RATE_LIMITS.AUTH })
 );
 
 export const createEmployee = onCall(
@@ -212,7 +213,7 @@ export const createEmployee = onCall(
     });
 
     return { uid };
-  }, 'createEmployee')
+  }, 'createEmployee', { rateLimit: RATE_LIMITS.WRITE })
 );
 
 export const updateEmployee = onCall(
@@ -365,13 +366,20 @@ export const updateCompanySettings = onCall(
 
     await updateCompanySettingsService(payload, requireAuthUidV2(request));
 
+    // Convert workplace_center to GeoPoint for audit log to prevent serialization errors
+    const auditPayload = { ...payload };
+    if (auditPayload.workplace_center && typeof auditPayload.workplace_center === 'object') {
+      const center = auditPayload.workplace_center as { latitude: number; longitude: number };
+      auditPayload.workplace_center = new GeoPoint(center.latitude, center.longitude);
+    }
+
     await recordAuditLog({
       action: 'update_company_settings',
       resource: 'COMPANY_SETTINGS',
       resourceId: 'main',
       status: 'success',
       performedBy: requireAuthUidV2(request),
-      newValues: payload,
+      newValues: auditPayload,
     });
 
     return { success: true };
@@ -561,7 +569,7 @@ export const handleClockIn = onCall(
     });
 
     return result;
-  }, 'handleClockIn')
+  }, 'handleClockIn', { rateLimit: RATE_LIMITS.CLOCK_IN })
 );
 
 export const getEmployeeProfile = onCall(
@@ -661,7 +669,7 @@ export const submitLeaveRequest = onCall(
     });
 
     return result;
-  }, 'submitLeaveRequest')
+  }, 'submitLeaveRequest', { rateLimit: RATE_LIMITS.WRITE })
 );
 
 export const cancelLeaveRequest = onCall(

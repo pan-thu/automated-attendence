@@ -3,6 +3,7 @@ import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 import { getCompanySettings } from './settings';
+import { penaltyLogger } from '../utils/logger';
 
 const PENALTIES_COLLECTION = 'PENALTIES';
 const VIOLATION_HISTORY_COLLECTION = 'VIOLATION_HISTORY';
@@ -137,9 +138,11 @@ export const calculateMonthlyViolations = async (input: CalculateMonthlyViolatio
   // Start of NEXT month at 00:00:00 UTC (exclusive end)
   const end = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0));
 
-  console.log(`Calculating penalties for ${year}-${monthIndex + 1}`);
-  console.log(`Start: ${start.toISOString()}`);
-  console.log(`End (exclusive): ${end.toISOString()}`);
+  penaltyLogger.info(`Calculating penalties for ${year}-${monthIndex + 1}`, {
+    startDate: start.toISOString(),
+    endDate: end.toISOString(),
+    userId: userId ?? 'all',
+  });
 
   const companySettings = await getCompanySettings();
   const violationThresholds = companySettings.penaltyRules?.violationThresholds ?? {};

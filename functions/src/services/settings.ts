@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions';
-import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue, GeoPoint } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 
@@ -374,7 +374,7 @@ export const updateCompanySettings = async (
 
   if (sanitized.workplace_center) {
     const center = sanitized.workplace_center as { latitude: number; longitude: number };
-    payload.workplace_center = new admin.firestore.GeoPoint(center.latitude, center.longitude);
+    payload.workplace_center = new GeoPoint(center.latitude, center.longitude);
   }
 
   await firestore.collection(SETTINGS_COLLECTION).doc('main').set(payload, { merge: true });

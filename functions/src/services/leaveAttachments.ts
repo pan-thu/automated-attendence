@@ -3,6 +3,7 @@ import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore, runTransaction } from '../utils/firestore';
 import { getCompanySettings } from './settings';
+import { leaveLogger } from '../utils/logger';
 
 const ATTACHMENTS_COLLECTION = 'LEAVE_ATTACHMENTS';
 const DEFAULT_ALLOWED_ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -125,7 +126,7 @@ const validateFileMagicBytes = (buffer: Buffer, contentType: string): boolean =>
       return magicBytes[0] === 0x89 && magicBytes[1] === 0x50 && magicBytes[2] === 0x4E && magicBytes[3] === 0x47;
     default:
       // Unknown type - allow but log warning
-      console.warn(`Unknown content type for magic byte validation: ${contentType}`);
+      leaveLogger.warn(`Unknown content type for magic byte validation: ${contentType}`);
       return true;
   }
 };
@@ -266,15 +267,15 @@ export const registerLeaveAttachment = async (
 
     if (!isValidFile) {
       // Delete invalid file
-      await file.delete().catch((err) => console.error('Failed to delete invalid file:', err));
-      await attachmentsCollection.doc(attachmentId).delete().catch((err) => console.error('Failed to delete attachment record:', err));
+      await file.delete().catch((err) => leaveLogger.error('Failed to delete invalid file:', err));
+      await attachmentsCollection.doc(attachmentId).delete().catch((err) => leaveLogger.error('Failed to delete attachment record:', err));
       throw new functions.https.HttpsError('failed-precondition', 'File appears to be corrupted or invalid. The file content does not match the declared type.');
     }
   } catch (error) {
     if (error instanceof functions.https.HttpsError) {
       throw error;
     }
-    console.error('Magic byte validation error:', error);
+    leaveLogger.error('Magic byte validation error:', error);
     throw new functions.https.HttpsError('internal', 'Failed to validate file content.');
   }
 

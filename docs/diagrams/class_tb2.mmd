@@ -1,0 +1,151 @@
+classDiagram
+    %% Timebox 2 — Employee Mobile Features
+
+    %% === Core Entities (Employee Perspective) ===
+    class User {
+        +string id
+        +string fullName
+        +string email
+        +string? phoneNumber
+        +bool isActive
+        +signIn(email, password)
+        +signOut()
+        +updateProfile(details)
+    }
+
+    class AttendanceRecord {
+        +string id
+        +string userId
+        +Date attendanceDate
+        +AttendanceStatus status
+        +Check[] checks
+        +recordCheck(location)
+    }
+
+    class Check {
+        +string label
+        +Date timestamp
+        +GeoPoint location
+        +CheckStatus status
+    }
+
+    class GeoPoint {
+        +double latitude
+        +double longitude
+    }
+
+    class AttendanceStatus {
+        <<enumeration>>
+        present
+        absent
+        half_day_absent
+        on_leave
+    }
+
+    class CheckStatus {
+      <<enumeration>>
+      on_time
+      late
+      early_leave
+      missed
+    }
+
+    class LeaveRequest {
+        +string id
+        +string userId
+        +LeaveType leaveType
+        +Date startDate
+        +Date endDate
+        +string reason
+        +LeaveStatus status
+        +Attachment? attachment
+        +submit()
+        +cancel()
+    }
+
+    class Attachment {
+      +string id
+      +string fileName
+      +string mimeType
+      +string storagePath
+    }
+
+    class LeaveType {
+        <<enumeration>>
+        full
+        medical
+        maternity
+        ...
+    }
+
+    class LeaveStatus {
+        <<enumeration>>
+        pending
+        approved
+        rejected
+        cancelled
+    }
+
+    class Notification {
+      +string id
+      +string title
+      +string message
+      +bool isRead
+      +Date sentAt
+      +markAsRead()
+    }
+
+    %% === Client-Side Logic (Flutter App) ===
+    class ClockInController {
+      -ClockInRepository repository
+      +bool isLoading
+      +string? statusMessage
+      +string? errorMessage
+      +attemptClockIn()
+    }
+
+    class LeaveRequestController {
+      -LeaveRepository repository
+      +bool isSubmitting
+      +submit()
+      +pickAndUploadAttachment()
+    }
+    
+    class ProfileController {
+      -UserRepository repository
+      +saveChanges(details)
+    }
+
+    class AuthRepository {
+      +signIn(email, password)
+      +signOut()
+    }
+
+    class ClockInRepository {
+      +clockIn(latitude, longitude)
+    }
+
+    class LeaveRepository {
+      +submitLeaveRequest(request)
+      +uploadAttachment(file)
+    }
+    
+    class UserRepository {
+        +updateProfile(details)
+    }
+
+    %% === Relationships ===
+    User "1" -- "0..*" AttendanceRecord : views
+    User "1" -- "0..*" LeaveRequest : submits
+    User "1" -- "0..*" Notification : receives
+
+    AttendanceRecord "1" *-- "1..3" Check : contains
+    Check "1" *-- "1" GeoPoint : has location
+    LeaveRequest "1" -- "0..1" Attachment : has optional
+
+    ClockInController ..> ClockInRepository : uses
+    LeaveRequestController ..> LeaveRepository : uses
+    ProfileController ..> UserRepository: uses
+
+    %% UI to Controller relationship implied
+    %% Controller to Service relationship is explicit

@@ -1,0 +1,68 @@
+---
+config:
+  layout: dagre
+---
+flowchart TD
+ subgraph Actors["Actors"]
+        Actor_Employee["Employee"]
+        Actor_Admin["Admin"]
+        Actor_System["System"]
+  end
+ subgraph subGraph1["System Boundary"]
+    direction TB
+        UC1("Clock In / Out")
+        UC2("Submit & Track Leave")
+        UC3("View Personal Records")
+        UC4("Acknowledge Penalties")
+        UC_Docs("Upload Leave Documents")
+        UC10("Manage Employees")
+        UC11("Configure System Settings")
+        UC12("Review Leave Requests")
+        UC13("Oversee & Correct Attendance")
+        UC14("Generate Reports")
+        UC15("Waive Penalties")
+        UC16("Send Notifications")
+        UC17("View Audit Logs")
+        UC20("Calculate Monthly Penalties")
+        UC21("Send Clock-In Reminders")
+        UC22("Aggregate Analytics Data")
+        Auth("Authenticate User")
+  end
+    Actor_Employee --> UC1 & UC2 & UC3 & UC4
+    Actor_Admin --> UC10 & UC11 & UC12 & UC13 & UC14 & UC15 & UC16 & UC17
+    Actor_System --> UC20 & UC21 & UC22
+    UC1 -. &lt;&gt; .-> Auth
+    UC2 -. &lt;&gt; .-> Auth & UC_Docs
+    UC3 -. &lt;&gt; .-> Auth
+    UC10 -. &lt;&gt; .-> Auth
+    UC11 -. &lt;&gt; .-> Auth
+    UC12 -. &lt;&gt; .-> Auth
+    Actor_Employee@{ icon: "aws:res-user", pos: "b"}
+    Actor_Admin@{ icon: "aws:res-user", pos: "b"}
+    Actor_System@{ icon: "gcp:gce-systems-management", pos: "b", h: 60}
+     Actor_Employee:::actor
+     Actor_Admin:::adminActor
+     Actor_System:::systemActor
+     UC1:::usecase
+     UC2:::usecase
+     UC3:::usecase
+     UC4:::usecase
+     UC_Docs:::usecase
+     UC10:::usecase
+     UC11:::usecase
+     UC12:::usecase
+     UC13:::usecase
+     UC14:::usecase
+     UC15:::usecase
+     UC16:::usecase
+     UC17:::usecase
+     UC20:::system_uc
+     UC21:::system_uc
+     UC22:::system_uc
+     Auth:::core_uc
+    classDef actor fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,font-weight:bold
+    classDef adminActor fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,font-weight:bold
+    classDef systemActor fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,font-weight:bold
+    classDef usecase fill:#fff,stroke:#32329f,stroke-width:2px,color:#333
+    classDef core_uc fill:#fffde7,stroke:#f57f17,stroke-width:2px
+    classDef system_uc fill:#fce4ec,stroke:#ad1457,stroke-width:2px

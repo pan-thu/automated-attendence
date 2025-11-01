@@ -1,0 +1,41 @@
+sequenceDiagram
+    actor Admin
+    participant Dashboard as "React Dashboard"
+    participant Functions as "Cloud Functions (waivePenalty)"
+    participant Auth as "Firebase Auth"
+    participant Firestore as "Cloud Firestore"
+
+    %% -- 1. Admin initiates the action --
+    Admin->>+Dashboard: Views penalties list
+    Admin->>Dashboard: Clicks 'Waive' on a specific penalty
+
+    Dashboard->>Admin: Opens dialog asking for a reason
+    Admin->>Dashboard: Enters reason and clicks 'Confirm Waive'
+
+    %% -- 2. Client sends request to backend --
+    Dashboard->>+Functions: Secure call: waivePenalty({penaltyId, waivedReason})
+    Note right of Dashboard: Sends Admin's ID Token in header
+
+    %% -- 3. Backend validation and processing --
+    Functions->>+Auth: Validate Admin ID Token
+    Auth-->>-Functions: Token OK (role: 'admin')
+
+    Note over Functions: Sanitize & Validate Payload:<br/>- Ensure penaltyId is a non-empty string<br/>- Ensure waivedReason is a non-empty string
+
+    %% -- 4. Update the penalty document in Firestore --
+    Functions->>+Firestore: Update 'PENALTIES' document
+    Note over Firestore: Set doc with penaltyId to:<br/>- status: 'waived'<br/>- waivedReason: (from payload)<br/>- waivedBy: (Admin UID)<br/>- waivedAt: (server timestamp)
+    Firestore-->>-Functions: Update Success
+
+    %% -- 5. Record the action in the audit log --
+    Functions->>+Firestore: Create document in 'AUDIT_LOGS'
+    Note over Firestore: Log includes: performedBy (Admin UID),<br/>action: 'waive_penalty',<br/>resourceId: penaltyId,<br/>reason: waivedReason
+    Firestore-->>-Functions: Audit Log Created
+
+    %% -- 6. Final response to the client --
+    Functions-->>-Dashboard: {success: true}
+
+    %% -- 7. UI provides feedback to the Admin --
+    Dashboard->>Admin: Show "Penalty Waived" notification
+    Dashboard->>Dashboard: Refresh penalties list to show updated status
+    deactivate Dashboard

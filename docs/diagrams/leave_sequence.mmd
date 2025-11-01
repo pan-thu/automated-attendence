@@ -1,0 +1,89 @@
+sequenceDiagram
+    actor Employee
+    actor Admin
+    participant App as "Flutter App"
+    participant Dashboard as "React Dashboard"
+    participant Functions as "Cloud Functions"
+    participant Firestore as "Cloud Firestore"
+    participant Storage as "Cloud Storage"
+
+    %% --- Part 1: Employee Submits Leave Request ---
+
+    note over Employee, App: Employee initiates a new leave request
+
+    Employee->>+App: Fills out leave form (type, dates, reason)
+
+    opt Attachment is required or added
+        App->>+Functions: 1. call: generateLeaveAttachmentUploadUrl({fileName, mimeType})
+        Functions->>+Firestore: Create 'LEAVE_ATTACHMENTS' doc (status: pending)
+        Firestore-->>-Functions: Return attachmentId
+        Functions->>+Storage: Get v4 Signed URL for writing
+        Storage-->>-Functions: Return uploadUrl
+        Functions-->>-App: Respond with {attachmentId, uploadUrl}
+        
+        App->>+Storage: 2. PUT file to uploadUrl
+        Storage-->>-App: Upload Complete (200 OK)
+        
+        App->>+Functions: 3. call: registerLeaveAttachment({attachmentId})
+        Functions->>+Storage: Verify file exists & get metadata
+        Storage-->>-Functions: Return file metadata (size, contentType)
+        Functions->>Functions: Validate file (size, magic bytes)
+        Functions->>+Firestore: Update 'LEAVE_ATTACHMENTS' doc (status: ready)
+        Firestore-->>-Functions: Acknowledged
+        Functions-->>-App: Finalized attachment metadata
+    end
+
+    App->>+Functions: 4. call: submitLeaveRequest({leaveType, dates, reason, attachmentId?})
+    Functions->>+Firestore: Read 'USERS' doc for leave balance
+    Functions->>+Firestore: Query 'LEAVE_REQUESTS' to check for overlaps
+    Firestore-->>-Functions: Return balance & existing requests
+
+    Note over Functions: Validate: sufficient balance & no overlapping dates
+
+    Functions->>+Firestore: Create 'LEAVE_REQUESTS' doc (status: pending)
+    Firestore-->>-Functions: Acknowledged
+
+    Functions->>Firestore: queueNotification('Leave Submitted', to Employee)
+    Functions->>Firestore: queueNotification('New Leave Request', to Admins)
+
+    Functions-->>-App: {success: true, requestId}
+    App-->>-Employee: Show "Request Submitted" confirmation
+
+    %% --- Part 2: Admin Approves/Rejects Leave Request ---
+
+    note over Admin, Dashboard: Admin reviews the pending request
+
+    Admin->>+Dashboard: Views pending leave request
+    Dashboard->>+Firestore: Fetch 'LEAVE_REQUESTS' data
+    Firestore-->>-Dashboard: Return request details
+
+    Admin->>Dashboard: Clicks 'Approve' or 'Reject' (with notes)
+    Dashboard->>+Functions: 5. call: handleLeaveApproval({requestId, action, notes})
+    
+    Functions->>+Auth: Validate Admin role
+    Auth-->>-Functions: Token OK (role: 'admin')
+    
+    Functions->>+Firestore: Start Transaction
+        Note over Firestore: All subsequent reads/writes are atomic
+        
+        Firestore->>Firestore: 1. Read 'LEAVE_REQUESTS' doc
+        Note over Firestore: Verify status is 'pending'
+        
+        Firestore->>Firestore: 2. Update 'LEAVE_REQUESTS' doc (status: 'approved'/'rejected')
+        
+        alt Action is 'Approve'
+            Firestore->>Firestore: 3a. Read 'USERS' doc for leave balance
+            Note over Firestore: Calculate new balance = current - totalDays
+            Firestore->>Firestore: 4a. Update 'USERS' doc with new balance
+            
+            Note over Firestore: 5a. Backfill 'ATTENDANCE_RECORDS' for each leave day with 'on_leave' status
+        end
+
+        Firestore->>Firestore: 6. Create 'NOTIFICATIONS' doc for Employee (approved/rejected)
+        
+    Firestore-->>-Functions: Commit Transaction
+
+    Functions->>Firestore: recordAuditLog('leave_approval' / 'leave_rejection', ...)
+    
+    Functions-->>-Dashboard: {success: true}
+    Dashboard-->>-Admin: Show "Decision Recorded" confirmation   

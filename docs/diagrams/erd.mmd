@@ -1,0 +1,119 @@
+erDiagram
+    USERS {
+        string userId PK "Firebase Auth UID, primary key"
+        string email UK "Unique email address"
+        string fullName "Employee's full name"
+        string role "Custom claim: 'employee' or 'admin'"
+        string department "e.g., Engineering, HR"
+        string position "e.g., Senior Developer"
+        boolean isActive "Account status"
+        number fullLeaveBalance "Annual leave balance"
+        number medicalLeaveBalance "Medical leave balance"
+        timestamp createdAt "Account creation timestamp"
+    }
+
+    ATTENDANCE_RECORDS {
+        string recordId PK "Composite key: {userId}_{YYYY-MM-DD}"
+        string userId FK "Links to USERS"
+        timestamp attendanceDate "The specific date of the record"
+        string status "'present', 'absent', 'half_day_absent', 'on_leave'"
+        string check1_status "'on_time', 'late', 'missed'"
+        timestamp check1_timestamp "Timestamp of the first check"
+        geopoint check1_location "GPS coordinates of the first check"
+        string check2_status "'on_time', 'late', 'missed'"
+        timestamp check2_timestamp "Timestamp of the second check"
+        geopoint check2_location "GPS coordinates of the second check"
+        string check3_status "'on_time', 'early_leave', 'missed'"
+        timestamp check3_timestamp "Timestamp of the third check"
+        geopoint check3_location "GPS coordinates of the third check"
+        boolean isManualEntry "Flag for admin overrides"
+    }
+
+    LEAVE_REQUESTS {
+        string requestId PK "Auto-generated document ID"
+        string userId FK "The employee submitting the request"
+        string leaveType "'annual', 'sick', 'medical', etc."
+        timestamp startDate "Start date of the leave"
+        timestamp endDate "End date of the leave"
+        number totalDays "Calculated duration of the leave"
+        string reason "Reason provided by the employee"
+        string status "'pending', 'approved', 'rejected', 'cancelled'"
+        string reviewedBy FK "Admin who reviewed the request"
+        timestamp reviewedAt "Timestamp of the review"
+    }
+
+    LEAVE_ATTACHMENTS {
+        string attachmentId PK "Auto-generated document ID"
+        string userId FK "The user who uploaded the file"
+        string leaveRequestId FK "The leave request this is attached to"
+        string storagePath "Full path to the file in Cloud Storage"
+        string mimeType "e.g., 'application/pdf'"
+        number sizeBytes "File size in bytes"
+        string status "'pending', 'ready', 'attached', 'expired'"
+    }
+
+    PENALTIES {
+        string penaltyId PK "Auto-generated document ID"
+        string userId FK "The employee who incurred the penalty"
+        timestamp dateIncurred "Date the penalty was issued"
+        string violationType "'late', 'absent', etc."
+        number amount "Penalty amount in USD"
+        string status "'active', 'waived', 'acknowledged', 'paid'"
+        string waivedBy FK "Admin who waived the penalty"
+        string waivedReason "Justification for waiving"
+    }
+
+    VIOLATION_HISTORY {
+        string historyId PK "Auto-generated document ID"
+        string userId FK "The employee this history belongs to"
+        string month "The month of this summary, e.g., '2025-10'"
+        object violationCounts "Map of violation types to their counts for the month"
+        boolean penaltyTriggered "Flag indicating if a penalty was created"
+        string penaltyId FK "Link to the resulting penalty, if any"
+    }
+
+    COMPANY_SETTINGS {
+        string settingId PK "Singleton document, always 'main'"
+        object workplace_center "GeoPoint for office location"
+        number workplace_radius "Geofence radius in meters"
+        object timeWindows "Defines start/end for check1, check2, check3"
+        object penaltyRules "Defines thresholds and amounts for violations"
+        object leavePolicy "Defines default leave balances"
+        string updatedBy FK "Admin who last updated the settings"
+    }
+
+    NOTIFICATIONS {
+        string notificationId PK "Auto-generated document ID"
+        string userId FK "The recipient of the notification"
+        string title "Notification title"
+        string message "Notification body text"
+        string category "'attendance', 'leave', 'penalty', 'system'"
+        boolean isRead "Indicates if the user has seen the notification"
+        string relatedId "ID of the related document (e.g., a leaveRequestId)"
+    }
+
+    AUDIT_LOGS {
+        string logId PK "Auto-generated document ID"
+        string performedBy FK "Admin who performed the action"
+        string action "'create_employee', 'waive_penalty', etc."
+        string resource "The collection affected, e.g., 'USERS', 'PENALTIES'"
+        string resourceId "The document ID affected"
+        timestamp timestamp "When the action occurred"
+        object newValues "Data after the change"
+        object oldValues "Data before the change"
+    }
+
+    %% --- Defining Relationships ---
+    USERS ||--|{ ATTENDANCE_RECORDS : "has"
+    USERS ||--|{ LEAVE_REQUESTS : "submits"
+    USERS ||--|{ PENALTIES : "incurs"
+    USERS ||--|{ NOTIFICATIONS : "receives"
+    USERS ||--|{ VIOLATION_HISTORY : "accumulates"
+    USERS ||--|{ LEAVE_ATTACHMENTS : "uploads"
+    USERS }o--|{ AUDIT_LOGS : "performs"
+    USERS }o--|| COMPANY_SETTINGS : "manages"
+    USERS }o--|{ LEAVE_REQUESTS : "reviews"
+    USERS }o--|{ PENALTIES : "manages"
+
+    LEAVE_REQUESTS ||--o| LEAVE_ATTACHMENTS : "can have"
+    VIOLATION_HISTORY |o--o| PENALTIES : "can trigger"
