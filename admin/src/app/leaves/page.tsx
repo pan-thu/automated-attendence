@@ -1,246 +1,345 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useLeaves } from "@/hooks/useLeaves";
-import type { LeaveStatus } from "@/types";
+import { useLeaveApproval } from "@/hooks/useLeaveApproval";
+import { useEmployees } from "@/hooks/useEmployees";
 
-const statusFilters: Array<{ value: LeaveStatus | "all"; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "pending", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
-];
-
-const statusStyles: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700",
-  approved: "bg-emerald-100 text-emerald-600",
-  rejected: "bg-destructive/10 text-destructive",
-};
-
-const formatDate = (value: Date | null) => (value ? value.toLocaleDateString() : "Unknown");
+// Import new components
+import { LeaveRequestCard } from "@/components/leaves/LeaveRequestCard";
+import { LeaveFilters } from "@/components/leaves/LeaveFilters";
+import { Calendar, FileText, Users, TrendingUp } from "lucide-react";
+import { format } from "date-fns";
 
 export default function LeavesPage() {
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const { records, loading, error, search, setSearch, filters, setStatusFilter, setDateFilter } = useLeaves();
+  const [detailsDialog, setDetailsDialog] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("pending");
 
-  const selectedRecord = useMemo(() => records.find((record) => record.id === detailId) ?? null, [records, detailId]);
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "all",
+    leaveType: "all",
+    dateRange: { start: null as Date | null, end: null as Date | null },
+    employee: ""
+  });
 
-  const statusLabel = useMemo(
-    () => statusFilters.find((filter) => filter.value === filters.status)?.label ?? "All",
-    [filters.status]
-  );
+  const { records, loading, error, refresh } = useLeaves();
+  const { employees } = useEmployees();
+  const { submitLeaveDecision, loading: processing } = useLeaveApproval();
+
+  // Filter and transform records
+  const transformedRecords = useMemo(() => {
+    if (!records) return [];
+
+    return records
+      .filter((record) => {
+        // Apply filters
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          if (!record.userName?.toLowerCase().includes(searchLower) &&
+              !record.notes?.toLowerCase().includes(searchLower)) {
+            return false;
+          }
+        }
+
+        if (filters.status !== "all" && record.status !== filters.status) {
+          return false;
+        }
+
+        if (filters.leaveType !== "all" && record.leaveType !== filters.leaveType) {
+          return false;
+        }
+
+        if (filters.employee && record.userId !== filters.employee) {
+          return false;
+        }
+
+        if (filters.dateRange.start && record.startDate && record.startDate < filters.dateRange.start) {
+          return false;
+        }
+
+        if (filters.dateRange.end && record.endDate && record.endDate > filters.dateRange.end) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((record) => ({
+        id: record.id,
+        userId: record.userId,
+        userName: record.userName || "Unknown",
+        userEmail: record.userEmail || "",
+        department: "Engineering", // Mock data
+        avatar: undefined,
+        leaveType: record.leaveType as any,
+        startDate: record.startDate || new Date(),
+        endDate: record.endDate || new Date(),
+        totalDays: record.totalDays,
+        reason: record.notes || "",
+        status: record.status as any,
+        appliedAt: record.appliedAt || new Date(),
+        attachments: (record as any).attachments?.map((a: any) => ({
+          id: a.id,
+          name: a.fileName || "Document",
+          url: a.url || ""
+        })),
+        reviewedBy: (record as any).reviewedBy,
+        reviewedAt: (record as any).reviewedAt,
+        reviewerNotes: record.reviewerNotes || undefined,
+        leaveBalance: { used: 5, total: 21 } // Mock data
+      }));
+  }, [records, filters]);
+
+  // Separate records by status
+  const pendingRecords = transformedRecords.filter(r => r.status === "pending");
+  const approvedRecords = transformedRecords.filter(r => r.status === "approved");
+  const rejectedRecords = transformedRecords.filter(r => r.status === "rejected");
+
+  // Calculate stats
+  const stats = useMemo(() => ({
+    pending: pendingRecords.length,
+    approved: approvedRecords.length,
+    rejected: rejectedRecords.length,
+    total: transformedRecords.length
+  }), [pendingRecords, approvedRecords, rejectedRecords, transformedRecords]);
+
+  const handleApprove = async (id: string, notes: string) => {
+    try {
+      await submitLeaveDecision({
+        requestId: id,
+        action: "approve",
+        notes: notes
+      });
+      await refresh();
+    } catch (err) {
+      console.error("Failed to approve leave", err);
+    }
+  };
+
+  const handleReject = async (id: string, notes: string) => {
+    try {
+      await submitLeaveDecision({
+        requestId: id,
+        action: "reject",
+        notes: notes
+      });
+      await refresh();
+    } catch (err) {
+      console.error("Failed to reject leave", err);
+    }
+  };
+
+  const handleExport = () => {
+    console.log("Exporting leave requests");
+  };
+
+  const handleViewDetails = (request: any) => {
+    setDetailsDialog(request);
+  };
+
+  const getRecordsByTab = () => {
+    switch (activeTab) {
+      case "pending":
+        return pendingRecords;
+      case "approved":
+        return approvedRecords;
+      case "rejected":
+        return rejectedRecords;
+      default:
+        return transformedRecords;
+    }
+  };
 
   return (
     <ProtectedLayout>
       <DashboardLayout>
         <div className="flex flex-col gap-6 p-6">
-          <header className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold">Leaves</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Review pending and historical leave requests for employees.
-              </p>
-            </div>
-          </header>
+          {/* Filters */}
+          <LeaveFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            onRefresh={refresh}
+            onExport={handleExport}
+            isLoading={loading}
+            employees={employees.map(e => ({ id: e.id, name: e.fullName }))}
+            stats={stats}
+          />
 
-          <section className="rounded-lg border bg-card p-4 shadow-sm">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-wrap items-center gap-3">
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by employee, status, or type"
-                  className="w-full sm:w-72"
-                />
-                <Select
-                  value={filters.status ?? "all"}
-                  onChange={(event) => setStatusFilter(event.target.value as LeaveStatus | "all")}
-                  className="w-36"
-                >
-                  {statusFilters.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="startDate" className="text-xs text-muted-foreground">
-                    From
-                  </Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={filters.startDate ? filters.startDate.toISOString().slice(0, 10) : ""}
-                    onChange={(event) =>
-                      setDateFilter(event.target.value ? new Date(event.target.value) : null, filters.endDate ?? null)
-                    }
-                  />
-                  <Label htmlFor="endDate" className="text-xs text-muted-foreground">
-                    To
-                  </Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={filters.endDate ? filters.endDate.toISOString().slice(0, 10) : ""}
-                    onChange={(event) =>
-                      setDateFilter(filters.startDate ?? null, event.target.value ? new Date(event.target.value) : null)
-                    }
-                  />
+          {/* Error Message */}
+          {error && (
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full max-w-[400px] grid-cols-4">
+              <TabsTrigger value="all">
+                All ({transformedRecords.length})
+              </TabsTrigger>
+              <TabsTrigger value="pending">
+                Pending ({pendingRecords.length})
+              </TabsTrigger>
+              <TabsTrigger value="approved">
+                Approved ({approvedRecords.length})
+              </TabsTrigger>
+              <TabsTrigger value="rejected">
+                Rejected ({rejectedRecords.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={activeTab} className="mt-6">
+              {loading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 </div>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setSearch("");
-                  setStatusFilter("all");
-                  setDateFilter(null, null);
-                }}
-                disabled={!search && (!filters.status || filters.status === "all") && !filters.startDate && !filters.endDate}
-              >
-                Reset filters
-              </Button>
-            </div>
-
-            {error ? (
-              <div className="mt-4 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="mt-4 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Applied</TableHead>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Range</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Total Days</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                        Loading leave requests...
-                      </TableCell>
-                    </TableRow>
-                  ) : records.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                        No leave requests found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    records.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>{formatDate(record.appliedAt)}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col text-sm">
-                            <span className="font-medium">{record.userName ?? record.userId}</span>
-                            <span className="text-xs text-muted-foreground">{record.userEmail ?? "No email"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="capitalize">{record.leaveType.replace(/_/g, " ")}</TableCell>
-                        <TableCell>
-                          {formatDate(record.startDate)} - {formatDate(record.endDate)}
-                        </TableCell>
-                        <TableCell>
-                          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${statusStyles[record.status] ?? "bg-slate-200 text-slate-700"}`}>
-                            {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                          </span>
-                        </TableCell>
-                        <TableCell>{record.totalDays}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            type="button"
-                            variant="link"
-                            className="p-0 text-sm"
-                            onClick={() => setDetailId(record.id)}
-                          >
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            <p className="mt-3 text-xs text-muted-foreground">
-              Showing {records.length} request{records.length === 1 ? "" : "s"}. Status filter: {statusLabel}.
-            </p>
-          </section>
-
-          <Dialog open={detailId !== null && Boolean(selectedRecord)} onOpenChange={(open) => (!open ? setDetailId(null) : null)}>
-            <DialogContent>
-              <DialogHeader title="Leave Request" description="Review the details before taking action." />
-              {selectedRecord ? (
-                <div className="space-y-4 text-sm">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h2 className="text-lg font-semibold">{selectedRecord.userName ?? selectedRecord.userId}</h2>
-                      <p className="text-xs text-muted-foreground">{selectedRecord.userEmail ?? "No email"}</p>
-                    </div>
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${statusStyles[selectedRecord.status] ?? "bg-slate-200 text-slate-700"}`}
-                    >
-                      {selectedRecord.status.charAt(0).toUpperCase() + selectedRecord.status.slice(1)}
-                    </span>
-                  </div>
-
-                  <dl className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-xs uppercase text-muted-foreground">Leave type</dt>
-                      <dd className="mt-1 capitalize">{selectedRecord.leaveType.replace(/_/g, " ")}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs uppercase text-muted-foreground">Total days</dt>
-                      <dd className="mt-1">{selectedRecord.totalDays}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs uppercase text-muted-foreground">Start date</dt>
-                      <dd className="mt-1">{formatDate(selectedRecord.startDate)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs uppercase text-muted-foreground">End date</dt>
-                      <dd className="mt-1">{formatDate(selectedRecord.endDate)}</dd>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <dt className="text-xs uppercase text-muted-foreground">Employee reason</dt>
-                      <dd className="mt-1 whitespace-pre-line text-muted-foreground">{selectedRecord.notes ?? "—"}</dd>
-                    </div>
-                    {selectedRecord.reviewerNotes ? (
-                      <div className="sm:col-span-2">
-                        <dt className="text-xs uppercase text-muted-foreground">Reviewer notes</dt>
-                        <dd className="mt-1 whitespace-pre-line text-muted-foreground">{selectedRecord.reviewerNotes}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-
-                  <div className="flex justify-end gap-2 text-xs text-muted-foreground">
-                    <Link href={`/employees/${selectedRecord.userId}`} className="text-primary hover:underline">
-                      View employee profile
-                    </Link>
-                  </div>
+              ) : getRecordsByTab().length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-center">
+                  <FileText className="h-12 w-12 text-gray-400 mb-3" />
+                  <p className="text-sm font-medium text-gray-900">No leave requests found</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {activeTab === "all"
+                      ? "No leave requests match your filters"
+                      : `No ${activeTab} leave requests`}
+                  </p>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Unable to load leave details.</p>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {getRecordsByTab().map((request) => (
+                    <LeaveRequestCard
+                      key={request.id}
+                      request={request}
+                      onApprove={activeTab === "pending" ? handleApprove : undefined}
+                      onReject={activeTab === "pending" ? handleReject : undefined}
+                      onViewDetails={handleViewDetails}
+                      isProcessing={processing}
+                    />
+                  ))}
+                </div>
               )}
+            </TabsContent>
+          </Tabs>
+
+          {/* Details Dialog */}
+          <Dialog open={!!detailsDialog} onOpenChange={(open) => !open && setDetailsDialog(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Leave Request Details</DialogTitle>
+                <DialogDescription>
+                  Complete information about the leave request
+                </DialogDescription>
+              </DialogHeader>
+              {detailsDialog && (
+                <div className="space-y-4">
+                  {/* Employee Info */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-medium">{detailsDialog.userName}</h3>
+                      <p className="text-sm text-muted-foreground">{detailsDialog.userEmail}</p>
+                      {detailsDialog.department && (
+                        <p className="text-sm text-muted-foreground">{detailsDialog.department}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Applied on</p>
+                      <p className="text-sm font-medium">
+                        {format(detailsDialog.appliedAt, "MMM dd, yyyy")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Leave Details */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <p className="text-sm font-medium mb-1">Leave Type</p>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {detailsDialog.leaveType.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Status</p>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {detailsDialog.status}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Start Date</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(detailsDialog.startDate, "MMM dd, yyyy")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">End Date</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(detailsDialog.endDate, "MMM dd, yyyy")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Total Days</p>
+                      <p className="text-sm text-muted-foreground">
+                        {detailsDialog.totalDays} day{detailsDialog.totalDays > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Reason */}
+                  <div>
+                    <p className="text-sm font-medium mb-1">Reason</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {detailsDialog.reason || "No reason provided"}
+                    </p>
+                  </div>
+
+                  {/* Attachments */}
+                  {detailsDialog.attachments && detailsDialog.attachments.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2">Attachments</p>
+                      <div className="space-y-2">
+                        {detailsDialog.attachments.map((att: any) => (
+                          <div key={att.id} className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <a
+                              href={att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline"
+                            >
+                              {att.name}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Review Notes */}
+                  {detailsDialog.reviewerNotes && (
+                    <div>
+                      <p className="text-sm font-medium mb-1">Review Notes</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {detailsDialog.reviewerNotes}
+                      </p>
+                      {detailsDialog.reviewedBy && detailsDialog.reviewedAt && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Reviewed by {detailsDialog.reviewedBy} on{" "}
+                          {format(detailsDialog.reviewedAt, "MMM dd, yyyy")}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDetailsDialog(null)}>
+                  Close
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -248,4 +347,3 @@ export default function LeavesPage() {
     </ProtectedLayout>
   );
 }
-

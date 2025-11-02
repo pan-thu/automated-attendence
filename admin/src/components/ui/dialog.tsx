@@ -71,12 +71,25 @@ export function DialogContent({ children, className }: { children: React.ReactNo
   );
 }
 
-export function DialogHeader({ title, description }: { title: string; description?: string }) {
+export function DialogHeader({ title, description, children }: { title?: string; description?: string; children?: React.ReactNode }) {
+  if (children) return <div className="mb-4 space-y-1">{children}</div>;
   return (
     <div className="mb-4 space-y-1">
-      <h2 className="text-xl font-semibold">{title}</h2>
+      {title && <h2 className="text-xl font-semibold">{title}</h2>}
       {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
     </div>
   );
+}
+
+export function DialogTitle({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <h2 className={`text-xl font-semibold ${className ?? ""}`}>{children}</h2>;
+}
+
+export function DialogDescription({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <p className={`text-sm text-muted-foreground ${className ?? ""}`}>{children}</p>;
+}
+
+export function DialogFooter({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={`mt-6 flex justify-end gap-2 ${className ?? ""}`}>{children}</div>;
 }
 

@@ -145,7 +145,7 @@ export class RateLimiter {
           count: data.count + 1,
           lastRequest: now,
         };
-        transaction.update(docRef, updatedEntry);
+        transaction.update(docRef, updatedEntry as { [x: string]: any });
 
         return { allowed: true, count: data.count + 1 };
       });

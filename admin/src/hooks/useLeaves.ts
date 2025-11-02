@@ -39,6 +39,7 @@ export function useLeaves(initialFilters?: LeaveFilter) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
+  const [watchKey, setWatchKey] = useState(0);
   const [filters, setFilters] = useState<LeaveFilter>({
     status: initialFilters?.status ?? "all",
     userId: initialFilters?.userId,
@@ -80,13 +81,13 @@ export function useLeaves(initialFilters?: LeaveFilter) {
             userId: (data.userId as string | undefined) ?? "",
             userName: (data.userName as string | undefined) ?? null,
             userEmail: (data.userEmail as string | undefined) ?? null,
-            leaveType: (data.leaveType as string | undefined) ?? "unknown",
+            leaveType: (data.type as string | undefined) ?? (data.leaveType as string | undefined) ?? "unknown",
             status: normalizeStatus(data.status),
             startDate: parseTimestamp(data.startDate),
             endDate: parseTimestamp(data.endDate),
             totalDays: (data.totalDays as number | undefined) ?? 0,
             appliedAt: parseTimestamp(data.appliedAt),
-            notes: (data.notes as string | undefined) ?? null,
+            notes: (data.reason as string | undefined) ?? (data.notes as string | undefined) ?? null,
             reviewerNotes: (data.reviewerNotes as string | undefined) ?? null,
           } satisfies LeaveRequestSummary;
         });
@@ -104,7 +105,11 @@ export function useLeaves(initialFilters?: LeaveFilter) {
     );
 
     return () => unsubscribe();
-  }, [filters]);
+  }, [filters, watchKey]);
+
+  const refresh = useCallback(() => {
+    setWatchKey((prev) => prev + 1);
+  }, []);
 
   const filteredRecords = useMemo(() => {
     const trimmed = search.trim().toLowerCase();
@@ -147,5 +152,6 @@ export function useLeaves(initialFilters?: LeaveFilter) {
     setStatusFilter,
     setDateFilter,
     setUserFilter,
+    refresh,
   };
 }

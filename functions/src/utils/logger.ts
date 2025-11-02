@@ -30,7 +30,7 @@ export class Logger {
 
     functions.logger.error(this.formatMessage('ERROR', message), {
       error: errorData,
-      ...metadata,
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
     });
   }
 
@@ -47,7 +47,7 @@ export class Logger {
       context: this.context,
       value,
       unit,
-      ...metadata,
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
     });
   }
 

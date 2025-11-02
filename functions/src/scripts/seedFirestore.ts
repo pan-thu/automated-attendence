@@ -479,10 +479,22 @@ async function seedAttendanceRecords() {
 async function seedLeaveRequests() {
   console.log('\n🏖️  Seeding Leave Requests...');
 
+  // Clear existing leave requests first
+  const existingLeaves = await db.collection('LEAVE_REQUESTS').get();
+  const batch = db.batch();
+  existingLeaves.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  if (!existingLeaves.empty) {
+    await batch.commit();
+    console.log(`   Deleted ${existingLeaves.size} existing leave requests`);
+  }
+
   const leaveRequests = [
     {
       userId: 'test-employee-1',
-      type: 'Annual',
+      type: 'full',
+      leaveType: 'full',
       startDate: '2025-10-25',
       endDate: '2025-10-27',
       reason: 'Family vacation',
@@ -491,7 +503,8 @@ async function seedLeaveRequests() {
     },
     {
       userId: 'test-employee-2',
-      type: 'Sick',
+      type: 'medical',
+      leaveType: 'medical',
       startDate: '2025-10-15',
       endDate: '2025-10-16',
       reason: 'Flu',
@@ -503,7 +516,8 @@ async function seedLeaveRequests() {
     },
     {
       userId: 'test-employee-3',
-      type: 'Annual',
+      type: 'full',
+      leaveType: 'full',
       startDate: '2025-10-12',
       endDate: '2025-10-13',
       reason: 'Personal matters',
@@ -515,7 +529,8 @@ async function seedLeaveRequests() {
     },
     {
       userId: 'test-employee-4',
-      type: 'Medical',
+      type: 'medical',
+      leaveType: 'medical',
       startDate: '2025-10-22',
       endDate: '2025-10-24',
       reason: 'Medical appointment',
@@ -525,10 +540,11 @@ async function seedLeaveRequests() {
     },
     {
       userId: 'test-employee-5',
-      type: 'Annual',
+      type: 'maternity',
+      leaveType: 'maternity',
       startDate: '2025-11-01',
       endDate: '2025-11-03',
-      reason: 'Wedding',
+      reason: 'Maternity leave',
       status: 'pending',
       totalDays: 3,
     },
@@ -537,6 +553,8 @@ async function seedLeaveRequests() {
   for (const leave of leaveRequests) {
     await db.collection('LEAVE_REQUESTS').add({
       ...leave,
+      startDate: admin.firestore.Timestamp.fromDate(new Date(leave.startDate)),
+      endDate: admin.firestore.Timestamp.fromDate(new Date(leave.endDate)),
       appliedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),

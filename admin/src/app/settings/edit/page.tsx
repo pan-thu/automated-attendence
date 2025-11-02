@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useUpdateCompanySettings } from "@/hooks/useUpdateCompanySettings";
+import { SectionNav } from "@/components/settings/SectionNav";
+import { SettingsHeader } from "@/components/settings/SettingsHeader";
+import { WorkingDaysGrid } from "@/components/settings/WorkingDaysGrid";
 
 const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 
@@ -37,6 +40,11 @@ export default function EditSettingsPage() {
   const { settings, loading } = useCompanySettings();
   const { submitCompanySettings, loading: submitting, error, setError } = useUpdateCompanySettings();
   const router = useRouter();
+
+  // Section navigation
+  const [activeSection, setActiveSection] = useState("company");
+  const [modifiedSections, setModifiedSections] = useState(new Set<string>());
+  const [originalData, setOriginalData] = useState<any>(null);
 
   const [form, setForm] = useState({
     companyName: "",
@@ -67,14 +75,17 @@ export default function EditSettingsPage() {
   useEffect(() => {
     if (!settings) return;
 
-    setForm({
+    const initialData = {
       companyName: settings.companyName ?? "",
       timezone: settings.timezone ?? "",
       workplaceLat: settings.workplace_center ? String(settings.workplace_center.latitude) : "",
       workplaceLng: settings.workplace_center ? String(settings.workplace_center.longitude) : "",
       workplaceRadius: settings.workplace_radius ? String(settings.workplace_radius) : "",
       geoFencingEnabled: Boolean(settings.geoFencingEnabled),
-    });
+    };
+
+    setForm(initialData);
+    setOriginalData(initialData);
 
     setMapCenter(
       settings.workplace_center
@@ -229,10 +240,6 @@ export default function EditSettingsPage() {
 
   const removeLeavePolicyEntry = (index: number) => {
     setLeavePolicy((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
-  const toggleWorkingDay = (day: (typeof DAY_ORDER)[number]) => {
-    setWorkingDays((prev) => ({ ...prev, [day]: !prev[day] }));
   };
 
   const handleMapSelect = (location: { latitude: number; longitude: number }) => {
@@ -391,19 +398,59 @@ export default function EditSettingsPage() {
 
   const disableSubmit = submitting || loading;
 
+  // Calculate if form is dirty
+  const isDirty = useMemo(() => {
+    if (!originalData) return false;
+    return JSON.stringify(form) !== JSON.stringify(originalData);
+  }, [form, originalData]);
+
+  const handleReset = useCallback(() => {
+    if (originalData) {
+      setForm(originalData);
+      setModifiedSections(new Set());
+    }
+  }, [originalData]);
+
+  const scrollToSection = useCallback((sectionId: string) => {
+    const element = document.getElementById(`section-${sectionId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  const handleSectionChange = useCallback((sectionId: string) => {
+    setActiveSection(sectionId);
+    scrollToSection(sectionId);
+  }, [scrollToSection]);
+
   return (
     <ProtectedLayout>
       <DashboardLayout>
-        <div className="flex flex-col gap-6 p-6">
-          <header>
-            <h1 className="text-2xl font-semibold">Edit Settings</h1>
-            <p className="text-sm text-muted-foreground">
-              Update company-wide attendance configuration. Changes apply globally once saved.
-            </p>
-          </header>
+        <div className="flex h-[calc(100vh-64px)] overflow-hidden">
+          {/* Sidebar Navigation */}
+          <div className="w-72 flex-shrink-0">
+            <SectionNav
+              activeSection={activeSection}
+              onSectionChange={handleSectionChange}
+              modifiedSections={modifiedSections}
+            />
+          </div>
 
-          <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-            <section className="rounded-lg border bg-card p-5 shadow-sm">
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Header */}
+            <SettingsHeader
+              isDirty={isDirty}
+              isSaving={submitting}
+              lastSaved={settings?.updatedAt ?? undefined}
+              onSave={() => handleSubmit(new Event('submit') as any)}
+              onReset={handleReset}
+            />
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto bg-gray-50">
+              <form className="max-w-4xl mx-auto p-6 space-y-6" onSubmit={handleSubmit}>
+            <section id="section-company" className="rounded-lg border bg-card p-5 shadow-sm scroll-mt-6">
               <h2 className="text-lg font-semibold">Company Details</h2>
               <p className="text-xs text-muted-foreground">General metadata used throughout the dashboard.</p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -428,7 +475,7 @@ export default function EditSettingsPage() {
             </div>
             </section>
 
-            <section className="rounded-lg border bg-card p-5 shadow-sm">
+            <section id="section-workplace" className="rounded-lg border bg-card p-5 shadow-sm scroll-mt-6">
               <h2 className="text-lg font-semibold">Geofencing</h2>
               <p className="text-xs text-muted-foreground">Select the workplace center and radius employees must be within when clocking in.</p>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -473,7 +520,7 @@ export default function EditSettingsPage() {
               </div>
             </section>
 
-            <section className="rounded-lg border bg-card p-5 shadow-sm">
+            <section id="section-attendance" className="rounded-lg border bg-card p-5 shadow-sm scroll-mt-6">
               <h2 className="text-lg font-semibold">Attendance Windows & Grace Periods</h2>
               <p className="text-xs text-muted-foreground">
                 Configure the daily check windows and any grace periods employees receive.
@@ -564,7 +611,7 @@ export default function EditSettingsPage() {
               </div>
             </section>
 
-            <section className="rounded-lg border bg-card p-5 shadow-sm">
+            <section id="section-penalties" className="rounded-lg border bg-card p-5 shadow-sm scroll-mt-6">
               <h2 className="text-lg font-semibold">Penalty Rules</h2>
               <p className="text-xs text-muted-foreground">Define violation thresholds and fee amounts per violation type. Penalties apply when a violation type exceeds its threshold within a month.</p>
 
@@ -639,25 +686,17 @@ export default function EditSettingsPage() {
               </div>
             </section>
 
-            <section className="rounded-lg border bg-card p-5 shadow-sm">
+            <section id="section-schedule" className="rounded-lg border bg-card p-5 shadow-sm scroll-mt-6">
               <h2 className="text-lg font-semibold">Working Days & Holidays</h2>
               <p className="text-xs text-muted-foreground">Control which days require attendance and the official holiday list.</p>
 
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
+              <div className="mt-4 space-y-6">
+                <div className="space-y-3">
                   <Label>Working Days</Label>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {DAY_ORDER.map((day) => (
-                      <label key={day} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={workingDays[day]}
-                          onChange={() => toggleWorkingDay(day)}
-                        />
-                        <span className="capitalize">{day}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <WorkingDaysGrid
+                    value={workingDays}
+                    onChange={setWorkingDays}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="holidays">Holidays (one per line)</Label>
@@ -672,7 +711,7 @@ export default function EditSettingsPage() {
               </div>
             </section>
 
-            <section className="rounded-lg border bg-card p-5 shadow-sm">
+            <section id="section-leaves" className="rounded-lg border bg-card p-5 shadow-sm scroll-mt-6">
               <h2 className="text-lg font-semibold">Leave Policy & Attachments</h2>
               <p className="text-xs text-muted-foreground">Set annual allowances and any attachment requirements for supporting documents.</p>
 
@@ -743,22 +782,30 @@ export default function EditSettingsPage() {
               </div>
             </section>
 
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                {/* Error Display */}
+                {error && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                    <p className="text-sm text-red-800">{error}</p>
+                  </div>
+                )}
 
-            <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push("/settings")}
-                disabled={disableSubmit}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={disableSubmit}>
-                {submitting ? "Saving..." : "Save Settings"}
-              </Button>
+                {/* Submit Buttons */}
+                <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end gap-3 -mx-6 -mb-6 rounded-b-lg">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push("/settings")}
+                    disabled={disableSubmit}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={!isDirty || disableSubmit}>
+                    {submitting ? "Saving Changes..." : "Save All Changes"}
+                  </Button>
+                </div>
+              </form>
             </div>
-          </form>
+          </div>
         </div>
       </DashboardLayout>
     </ProtectedLayout>

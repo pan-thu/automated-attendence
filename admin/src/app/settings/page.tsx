@@ -40,18 +40,6 @@ export default function SettingsPage() {
     <ProtectedLayout>
       <DashboardLayout>
         <div className="flex flex-col gap-6 p-6">
-          <header className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-semibold">Company Settings</h1>
-              <p className="text-sm text-muted-foreground">
-                View the active configuration for attendance, policies, geofencing, and more.
-              </p>
-            </div>
-            <Button asChild>
-              <Link href="/settings/edit">Edit Settings</Link>
-            </Button>
-          </header>
-
           {error ? (
             <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
@@ -59,7 +47,12 @@ export default function SettingsPage() {
           ) : null}
 
           <section className="rounded-lg border bg-card p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Summary</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Summary</h2>
+              <Button asChild size="sm">
+                <Link href="/settings/edit">Edit Settings</Link>
+              </Button>
+            </div>
             {loading ? (
               <p className="mt-4 text-sm text-muted-foreground">Loading settings...</p>
             ) : settings ? (

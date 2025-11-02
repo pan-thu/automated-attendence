@@ -5,21 +5,13 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useAttendanceReport } from "@/hooks/useAttendanceReport";
-import { callGenerateAttendanceReport } from "@/lib/firebase/functions";
-
-const defaultFilters = {
-  startDate: "",
-  endDate: "",
-  userId: "",
-  department: "",
-};
+import { ReportBuilder, type ReportConfiguration } from "@/components/reports/ReportBuilder";
+import { FileDown, TrendingUp, Calendar } from "lucide-react";
+import { format } from "date-fns";
 
 const formatDate = (date: Date | null) => {
   if (!date) return "—";
@@ -27,10 +19,14 @@ const formatDate = (date: Date | null) => {
 };
 
 export default function ReportsPage() {
-  const [filters, setFilters] = useState(defaultFilters);
-  const { records, loading, error, runReport } = useAttendanceReport();
-  const [notes, setNotes] = useState("Attendance report generated via dashboard.");
-  const [exporting, setExporting] = useState<boolean>(false);
+  const { records, loading, runReport } = useAttendanceReport();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedReport, setGeneratedReport] = useState<{
+    config: ReportConfiguration;
+    generatedAt: Date;
+    startDate: Date;
+    endDate: Date;
+  } | null>(null);
 
   const totalByStatus = useMemo(() => {
     return records.reduce<Record<string, number>>((acc, record) => {
@@ -40,219 +36,199 @@ export default function ReportsPage() {
     }, {});
   }, [records]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!filters.startDate || !filters.endDate) {
-      setNotes("Please select a start and end date before running the report.");
-      return;
-    }
-
-    await runReport({
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      userId: filters.userId || undefined,
-      department: filters.department || undefined,
-    });
-  }
-
-  async function exportReport(format: "csv" | "json") {
-    if (!filters.startDate || !filters.endDate) {
-      setNotes("Please select a start and end date before exporting.");
-      return;
-    }
-
+  const handleGenerate = async (config: ReportConfiguration) => {
+    setIsGenerating(true);
     try {
-      setExporting(true);
-      const response = await callGenerateAttendanceReport({
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        userId: filters.userId || undefined,
-        department: filters.department || undefined,
-      });
+      // Calculate date range
+      let startDate: Date;
+      let endDate: Date;
 
-      const payload = response.data as { records?: Array<Record<string, unknown>> };
-      const entries = payload.records ?? [];
-
-      if (format === "json") {
-        const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = `attendance-report-${filters.startDate}-to-${filters.endDate}.json`;
-        anchor.click();
-        URL.revokeObjectURL(url);
-        return;
+      if (config.dateRange.type === "quick" && config.dateRange.quick) {
+        const now = new Date();
+        switch (config.dateRange.quick) {
+          case "today":
+            startDate = new Date(now.setHours(0, 0, 0, 0));
+            endDate = new Date(now.setHours(23, 59, 59, 999));
+            break;
+          case "week":
+            startDate = new Date(now.setDate(now.getDate() - now.getDay()));
+            endDate = new Date();
+            break;
+          case "month":
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date();
+            break;
+          case "quarter":
+            const quarter = Math.floor(now.getMonth() / 3);
+            startDate = new Date(now.getFullYear(), quarter * 3, 1);
+            endDate = new Date();
+            break;
+          case "year":
+            startDate = new Date(now.getFullYear(), 0, 1);
+            endDate = new Date();
+            break;
+          default:
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date();
+        }
+      } else if (config.dateRange.start && config.dateRange.end) {
+        startDate = config.dateRange.start;
+        endDate = config.dateRange.end;
+      } else {
+        throw new Error("Invalid date range");
       }
 
-      let csv = "Date,Employee,Email,Status,Department,Position\n";
-      entries.forEach((entry) => {
-        const date = entry.attendanceDate ?? "";
-        const userName = entry.userName ?? entry.userId ?? "";
-        const email = entry.userEmail ?? "";
-        const status = entry.status ?? "";
-        const department = entry.department ?? "";
-        const position = entry.position ?? "";
-
-        const row = [date, userName, email, status, department, position]
-          .map((value) => {
-            if (typeof value !== "string") {
-              return String(value ?? "");
-            }
-            if (value.includes(",") || value.includes("\"")) {
-              return `"${value.replace(/"/g, '""')}"`;
-            }
-            return value;
-          })
-          .join(",");
-
-        csv += `${row}\n`;
+      // Run report
+      await runReport({
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(endDate, "yyyy-MM-dd"),
+        userId: undefined,
+        department: undefined,
       });
 
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      setGeneratedReport({
+        config,
+        generatedAt: new Date(),
+        startDate,
+        endDate
+      });
+    } catch (err) {
+      console.error("Failed to generate report", err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleExport = async (exportFormat: "csv" | "json") => {
+    if (records.length === 0) return;
+
+    const entries = records.map(r => ({
+      attendanceDate: r.attendanceDate ? format(r.attendanceDate, "yyyy-MM-dd") : "",
+      userName: r.userName || r.userId || "",
+      userEmail: r.userEmail || "",
+      status: r.status || "",
+      department: r.department || "",
+      position: r.position || ""
+    }));
+
+    if (exportFormat === "json") {
+      const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `attendance-report-${filters.startDate}-to-${filters.endDate}.csv`;
+      anchor.download = `attendance-report-${format(new Date(), "yyyy-MM-dd")}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to export attendance report", err);
-      setNotes("Export failed. Please try again.");
-    } finally {
-      setExporting(false);
+      return;
     }
-  }
+
+    // CSV export
+    let csv = "Date,Employee,Email,Status,Department,Position\n";
+    entries.forEach((entry) => {
+      const row = Object.values(entry)
+        .map((value) => {
+          if (typeof value !== "string") {
+            return String(value ?? "");
+          }
+          if (value.includes(",") || value.includes("\"")) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        })
+        .join(",");
+
+      csv += `${row}\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `attendance-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <ProtectedLayout>
       <DashboardLayout>
         <div className="flex flex-col gap-6 p-6">
-          <header className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold">Attendance Reports</h1>
-            <p className="text-sm text-muted-foreground">
-              Generate attendance summaries for custom date ranges, departments, or employees.
-            </p>
-          </header>
+          {/* Report Builder */}
+          <ReportBuilder
+            onGenerate={handleGenerate}
+            isGenerating={isGenerating}
+          />
 
+          {/* Report Metadata (if generated) */}
+          {generatedReport && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                    <p className="text-sm text-blue-900">
+                      Report generated at <span className="font-semibold">{format(generatedReport.generatedAt, "PPpp")}</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                    <p className="text-sm text-blue-900">
+                      {format(generatedReport.startDate, "MMM d, yyyy")} — {format(generatedReport.endDate, "MMM d, yyyy")}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Status Statistics */}
+          {records.length > 0 && (
+            <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {Object.entries(totalByStatus).map(([status, total]) => (
+                <Card key={status}>
+                  <CardHeader>
+                    <CardTitle className="text-sm capitalize">{status.replace(/_/g, " ")}</CardTitle>
+                    <CardDescription>Occurrences in current report</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-semibold">{total}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </section>
+          )}
+
+          {/* Report Results */}
           <Card>
             <CardHeader>
-              <CardTitle>Report Filters</CardTitle>
-              <CardDescription>Select the range and criteria for the attendance report.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={filters.startDate}
-                    onChange={(event) => setFilters((prev) => ({ ...prev, startDate: event.target.value }))}
-                    required
-                  />
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Report Results</CardTitle>
+                  <CardDescription>{records.length} record{records.length === 1 ? "" : "s"} returned.</CardDescription>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">End Date</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={filters.endDate}
-                    onChange={(event) => setFilters((prev) => ({ ...prev, endDate: event.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="userId">Employee ID</Label>
-                  <Input
-                    id="userId"
-                    value={filters.userId}
-                    onChange={(event) => setFilters((prev) => ({ ...prev, userId: event.target.value }))}
-                    placeholder="Optional"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Input
-                    id="department"
-                    value={filters.department}
-                    onChange={(event) => setFilters((prev) => ({ ...prev, department: event.target.value }))}
-                    placeholder="Optional"
-                  />
-                </div>
-
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
-                    placeholder="Add context for this report"
-                  />
-                </div>
-
-                {error ? <p className="md:col-span-2 text-sm text-destructive">{error}</p> : null}
-
-                <div className="md:col-span-2 flex flex-wrap items-center justify-end gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setFilters(defaultFilters);
-                      setNotes("Attendance report generated via dashboard.");
-                    }}
-                    disabled={loading}
-                  >
-                    Reset
-                  </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "Generating..." : "Run Report"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={loading || exporting}
-                    onClick={() => {
-                      void exportReport("csv");
-                    }}
-                  >
-                    {exporting ? "Exporting..." : "Export CSV"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={loading || exporting}
-                    onClick={() => {
-                      void exportReport("json");
-                    }}
-                  >
-                    {exporting ? "Exporting..." : "Download JSON"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-
-          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Object.entries(totalByStatus).map(([status, total]) => (
-              <Card key={status}>
-                <CardHeader>
-                  <CardTitle className="text-sm capitalize">{status.replace(/_/g, " ")}</CardTitle>
-                  <CardDescription>Occurrences in current report</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-semibold">{total}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </section>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Report Results</CardTitle>
-              <CardDescription>{records.length} record{records.length === 1 ? "" : "s"} returned.</CardDescription>
+                {records.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExport("csv")}
+                      disabled={loading}
+                    >
+                      <FileDown className="h-4 w-4 mr-2" />
+                      Export CSV
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExport("json")}
+                      disabled={loading}
+                    >
+                      <FileDown className="h-4 w-4 mr-2" />
+                      Export JSON
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -270,7 +246,7 @@ export default function ReportsPage() {
                     {records.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                          Run a report to see attendance records.
+                          Configure and generate a report to see attendance records.
                         </TableCell>
                       </TableRow>
                     ) : (

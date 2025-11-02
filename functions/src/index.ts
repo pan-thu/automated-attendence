@@ -58,6 +58,13 @@ import {
   getAttendanceDayDetail as getAttendanceDayDetailService,
 } from './services/attendanceHistory';
 import { recordAuditLog } from './services/audit';
+import {
+  getOwnProfile as getOwnProfileService,
+  updateOwnProfile as updateOwnProfileService,
+  generateProfilePhotoUploadUrl as generateProfilePhotoUploadUrlService,
+  registerProfilePhoto as registerProfilePhotoService,
+  updateOwnPassword as updateOwnPasswordService,
+} from './services/profile';
 
 type SupportedRole = 'admin' | 'employee';
 
@@ -605,6 +612,146 @@ export const getCompanySettingsPublic = onCall(
 
     return settings;
   }, 'getCompanySettingsPublic')
+);
+
+export const getOwnProfile = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAuthenticatedV2(request);
+    const userId = requireAuthUidV2(request);
+
+    const profile = await getOwnProfileService(userId);
+
+    return profile;
+  }, 'getOwnProfile')
+);
+
+export const updateOwnProfile = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAuthenticatedV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
+    const userId = requireAuthUidV2(request);
+
+    const fullName = payload.fullName ? assertString(payload.fullName, 'fullName', { min: 2, max: 120 }) : undefined;
+    const department = payload.department ? assertString(payload.department, 'department', { max: 80 }) : undefined;
+    const position = payload.position ? assertString(payload.position, 'position', { max: 80 }) : undefined;
+    const phoneNumber = payload.phoneNumber ? assertString(payload.phoneNumber, 'phoneNumber', { max: 20 }) : undefined;
+
+    const leaveBalances = extractLeaveBalances(payload.leaveBalances);
+
+    await updateOwnProfileService(userId, {
+      fullName,
+      department,
+      position,
+      phoneNumber,
+      leaveBalances,
+    });
+
+    // Filter out undefined values for audit log
+    const auditNewValues: Record<string, unknown> = {};
+    if (fullName !== undefined) auditNewValues.fullName = fullName;
+    if (department !== undefined) auditNewValues.department = department;
+    if (position !== undefined) auditNewValues.position = position;
+    if (phoneNumber !== undefined) auditNewValues.phoneNumber = phoneNumber;
+
+    await recordAuditLog({
+      action: 'update_own_profile',
+      resource: 'USERS',
+      resourceId: userId,
+      status: 'success',
+      performedBy: userId,
+      newValues: Object.keys(auditNewValues).length > 0 ? auditNewValues : undefined,
+    });
+
+    return { success: true };
+  }, 'updateOwnProfile', { rateLimit: RATE_LIMITS.WRITE })
+);
+
+export const generateProfilePhotoUploadUrl = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAuthenticatedV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
+    const userId = requireAuthUidV2(request);
+
+    const fileName = assertString(payload.fileName, 'fileName', { min: 1, max: 255 });
+    const mimeType = assertString(payload.mimeType, 'mimeType', { min: 3, max: 255 });
+    const sizeBytes = payload.sizeBytes as number | undefined;
+
+    const result = await generateProfilePhotoUploadUrlService({
+      userId,
+      fileName,
+      mimeType,
+      sizeBytes,
+    });
+
+    await recordAuditLog({
+      action: 'generate_profile_photo_upload_url',
+      resource: 'PROFILE_PHOTOS',
+      resourceId: result.photoId,
+      status: 'success',
+      performedBy: userId,
+      metadata: { fileName, mimeType, sizeBytes },
+    });
+
+    return result;
+  }, 'generateProfilePhotoUploadUrl')
+);
+
+export const registerProfilePhoto = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAuthenticatedV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
+    const userId = requireAuthUidV2(request);
+
+    const photoId = assertString(payload.photoId, 'photoId');
+
+    const result = await registerProfilePhotoService({
+      userId,
+      photoId,
+    });
+
+    await recordAuditLog({
+      action: 'register_profile_photo',
+      resource: 'PROFILE_PHOTOS',
+      resourceId: photoId,
+      status: 'success',
+      performedBy: userId,
+      metadata: { photoURL: result.photoURL },
+    });
+
+    return result;
+  }, 'registerProfilePhoto')
+);
+
+export const updateOwnPassword = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAuthenticatedV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
+    const userId = requireAuthUidV2(request);
+
+    const currentPassword = assertString(payload.currentPassword, 'currentPassword', { min: 6 });
+    const newPassword = assertString(payload.newPassword, 'newPassword', { min: 6 });
+
+    // Get user email for verification
+    const user = await admin.auth().getUser(userId);
+    if (!user.email) {
+      throw new HttpsError('failed-precondition', 'User email not found.');
+    }
+
+    await updateOwnPasswordService(userId, user.email, {
+      currentPassword,
+      newPassword,
+    });
+
+    await recordAuditLog({
+      action: 'update_own_password',
+      resource: 'USERS',
+      resourceId: userId,
+      status: 'success',
+      performedBy: userId,
+    });
+
+    return { success: true };
+  }, 'updateOwnPassword', { rateLimit: RATE_LIMITS.AUTH })
 );
 
 export const listEmployeeAttendance = onCall(

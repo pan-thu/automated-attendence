@@ -95,6 +95,7 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
   } | null = null;
 
   await runTransaction(async (tx) => {
+    // ===== PHASE 1: ALL READS FIRST =====
     const leaveRef = firestore.collection(LEAVE_COLLECTION).doc(requestId);
     const leaveSnap = await tx.get(leaveRef);
 
@@ -108,6 +109,66 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
       throw new Error('Leave request no longer pending.');
     }
 
+    const userId = leaveData.userId as string;
+    const leaveTypeRaw = leaveData.leaveType as string | undefined;
+    const leaveType = leaveTypeRaw?.toLowerCase();
+    const totalDays = leaveData.totalDays as number;
+    const startDateTimestamp = leaveData.startDate as FirebaseFirestore.Timestamp | undefined;
+    const endDateTimestamp = leaveData.endDate as FirebaseFirestore.Timestamp | undefined;
+    const startUtc = startDateTimestamp ? asUtcDate(startDateTimestamp.toDate()) : asUtcDate(new Date());
+    const endUtc = endDateTimestamp ? asUtcDate(endDateTimestamp.toDate()) : startUtc;
+
+    leaveSummary = {
+      userId,
+      startDate: startUtc,
+      endDate: endUtc,
+      totalDays,
+      leaveType: leaveType ?? 'unknown',
+    };
+
+    // Read user document if approving
+    let userSnap: FirebaseFirestore.DocumentSnapshot | null = null;
+    let balanceField: string | undefined = undefined;
+    if (action === 'approve') {
+      balanceField = leaveType ? leaveTypeFieldMap[leaveType] : undefined;
+      if (!balanceField) {
+        throw new Error(`Unsupported leave type: ${leaveTypeRaw ?? 'unknown'}`);
+      }
+      const userRef = firestore.collection(USERS_COLLECTION).doc(userId);
+      userSnap = await tx.get(userRef);
+      if (!userSnap.exists) {
+        throw new Error('User not found for leave request.');
+      }
+    }
+
+    // Read all attendance records if approving
+    const attendanceSnapshots: Array<{
+      ref: FirebaseFirestore.DocumentReference;
+      snap: FirebaseFirestore.DocumentSnapshot;
+      dateKey: string;
+    }> = [];
+
+    if (action === 'approve') {
+      let cursor = new Date(startUtc.getTime());
+      const attendanceCollection = firestore.collection(ATTENDANCE_COLLECTION);
+
+      while (cursor.getTime() <= endUtc.getTime()) {
+        const dateKey = formatDateKey(cursor);
+        const docId = `${userId}_${dateKey}`;
+        const attendanceRef = attendanceCollection.doc(docId);
+        const attendanceSnap = await tx.get(attendanceRef);
+
+        attendanceSnapshots.push({
+          ref: attendanceRef,
+          snap: attendanceSnap,
+          dateKey,
+        });
+
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+    }
+
+    // ===== PHASE 2: ALL WRITES AFTER ALL READS =====
     const now = FieldValue.serverTimestamp();
     const updates: Record<string, unknown> = {
       status: action === 'approve' ? 'approved' : 'rejected',
@@ -127,55 +188,26 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
 
     tx.update(leaveRef, updates);
 
-    const userId = leaveData.userId as string;
-    const leaveTypeRaw = leaveData.leaveType as string | undefined;
-    const leaveType = leaveTypeRaw?.toLowerCase();
-    const totalDays = leaveData.totalDays as number;
-    const startDateTimestamp = leaveData.startDate as FirebaseFirestore.Timestamp | undefined;
-    const endDateTimestamp = leaveData.endDate as FirebaseFirestore.Timestamp | undefined;
-    const startUtc = startDateTimestamp ? asUtcDate(startDateTimestamp.toDate()) : asUtcDate(new Date());
-    const endUtc = endDateTimestamp ? asUtcDate(endDateTimestamp.toDate()) : startUtc;
-
-    leaveSummary = {
-      userId,
-      startDate: startUtc,
-      endDate: endUtc,
-      totalDays,
-      leaveType: leaveType ?? 'unknown',
-    };
-
     if (action === 'approve') {
-      const balanceField = leaveType ? leaveTypeFieldMap[leaveType] : undefined;
-      if (!balanceField) {
-        throw new Error(`Unsupported leave type: ${leaveTypeRaw ?? 'unknown'}`);
-      }
-      if (balanceField) {
-        const userRef = firestore.collection(USERS_COLLECTION).doc(userId);
-        const userSnap = await tx.get(userRef);
-        if (!userSnap.exists) {
-          throw new Error('User not found for leave request.');
-        }
-
+      // Update user balance
+      if (balanceField && userSnap) {
         const currentBalance = (userSnap.get(balanceField) as number) ?? 0;
         const updatedBalance = Math.max(currentBalance - totalDays, 0);
 
-        tx.update(userRef, {
+        tx.update(userSnap.ref, {
           [balanceField]: updatedBalance,
           updatedAt: now,
         });
       }
 
-      let cursor = new Date(startUtc.getTime());
-      const attendanceCollection = firestore.collection(ATTENDANCE_COLLECTION);
-
-      while (cursor.getTime() <= endUtc.getTime()) {
-        const dateKey = formatDateKey(cursor);
-        const docId = `${userId}_${dateKey}`;
-        const attendanceRef = attendanceCollection.doc(docId);
-        const attendanceSnap = await tx.get(attendanceRef);
+      // Update attendance records
+      for (const { ref: attendanceRef, snap: attendanceSnap, dateKey } of attendanceSnapshots) {
 
         const previousValues = attendanceSnap.exists ? attendanceSnap.data() ?? null : null;
         const previousStatus = previousValues ? (previousValues.status as string | undefined) : undefined;
+
+        // Parse date from dateKey (format: YYYY-MM-DD)
+        const attendanceDate = new Date(dateKey + 'T00:00:00.000Z');
 
         tx.set(
           attendanceRef,
@@ -186,7 +218,7 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
             leaveBackfill: true,
             updatedAt: now,
             updatedBy: reviewerId,
-            attendanceDate: Timestamp.fromDate(cursor),
+            attendanceDate: Timestamp.fromDate(attendanceDate),
             notes: notes ?? previousValues?.notes ?? null,
           },
           { merge: true }
@@ -195,8 +227,6 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
         if (previousStatus && previousStatus !== 'on_leave') {
           overrides.push({ userId, date: dateKey, previousValues });
         }
-
-        cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
       }
 
     }

@@ -1,399 +1,475 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useEmployees } from "@/hooks/useEmployees";
 import { callSendBulkNotification, callSendNotification } from "@/lib/firebase/functions";
 
-const readFilters: Array<{ value: boolean | "all"; label: string }> = [
-  { value: "all", label: "All" },
-  { value: false, label: "Unread" },
-  { value: true, label: "Read" },
-];
-
-const formatDateTime = (value: Date | null) => (value ? value.toLocaleString() : "—");
+// Import new components
+import { NotificationCard } from "@/components/notifications/NotificationCard";
+import { NotificationFilters } from "@/components/notifications/NotificationFilters";
+import { NotificationComposer } from "@/components/notifications/NotificationComposer";
+import { Bell, Send, Users, Clock } from "lucide-react";
+import { format } from "date-fns";
 
 export default function NotificationsPage() {
-  const {
-    records,
-    loading,
-    error,
-    search,
-    setSearch,
-    filters,
-    setCategoryFilter,
-    setTypeFilter,
-    setIsReadFilter,
-    setDateFilter,
-    refresh,
-  } = useNotifications();
+  const [detailsDialog, setDetailsDialog] = useState<any>(null);
+  const [recipientsDialog, setRecipientsDialog] = useState<any>(null);
   const [composeOpen, setComposeOpen] = useState(false);
-  const [bulkMode, setBulkMode] = useState(false);
-  const [formState, setFormState] = useState({
-    userId: "",
-    userIds: "",
-    title: "",
-    message: "",
-    category: "",
-    type: "",
+  const [activeTab, setActiveTab] = useState("all");
+
+  const [filters, setFilters] = useState({
+    search: "",
+    type: "all",
+    status: "all",
+    priority: "all",
+    channel: "all",
+    targetType: "all",
+    sentBy: "",
+    dateRange: { start: null as Date | null, end: null as Date | null }
   });
-  const [composeError, setComposeError] = useState<string | null>(null);
-  const [composeSuccess, setComposeSuccess] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
-  const categoryLabel = useMemo(() => (filters.category && filters.category !== "all" ? filters.category : "All"), [
-    filters.category,
-  ]);
-  const typeLabel = useMemo(() => (filters.type && filters.type !== "all" ? filters.type : "All"), [filters.type]);
-  const readLabel = useMemo(
-    () => readFilters.find((item) => item.value === filters.isRead)?.label ?? "All",
-    [filters.isRead]
-  );
+  const { records, loading, error, refresh } = useNotifications();
+  const { employees } = useEmployees();
 
-  async function handleComposeSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
-    setComposeError(null);
-    setComposeSuccess(null);
+  // Transform and filter notifications
+  const transformedNotifications = useMemo(() => {
+    if (!records) return [];
 
-    const { userId, userIds, title, message, category, type } = formState;
-    if (!title.trim() || !message.trim()) {
-      setComposeError("Title and message are required.");
-      setSubmitting(false);
-      return;
+    return records
+      .filter((notification) => {
+        // Apply filters
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          if (!notification.title?.toLowerCase().includes(searchLower) &&
+              !notification.message?.toLowerCase().includes(searchLower) &&
+              !notification.userName?.toLowerCase().includes(searchLower)) {
+            return false;
+          }
+        }
+
+        const notifType = notification.type || "info";
+        if (filters.type !== "all" && notifType !== filters.type) {
+          return false;
+        }
+
+        const notifStatus = notification.isRead ? "read" : "sent";
+        if (filters.status !== "all" && notifStatus !== filters.status) {
+          return false;
+        }
+
+        if (filters.priority !== "all") {
+          // Infer priority based on type
+          const priority = notifType === "error" ? "high" :
+                          notifType === "warning" ? "medium" : "low";
+          if (priority !== filters.priority) {
+            return false;
+          }
+        }
+
+        if (filters.dateRange.start && notification.sentAt && notification.sentAt < filters.dateRange.start) {
+          return false;
+        }
+
+        if (filters.dateRange.end && notification.sentAt && notification.sentAt > filters.dateRange.end) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((notification) => {
+        const employee = employees.find(e => e.id === notification.userId);
+
+        // Determine notification type based on category
+        let type: any = "info";
+        if (notification.type) {
+          type = notification.type;
+        } else if (notification.category === "penalty") {
+          type = "penalty";
+        } else if (notification.category === "leave") {
+          type = "leave";
+        } else if (notification.category === "attendance") {
+          type = "attendance";
+        } else if (notification.category === "system") {
+          type = "system";
+        }
+
+        // Infer priority
+        let priority: any = "medium";
+        if (notification.type === "error") priority = "high";
+        else if (notification.type === "warning") priority = "high";
+        else if (notification.type === "success") priority = "low";
+
+        // Determine status
+        let status: any = "sent";
+        if (notification.isRead) status = "read";
+        if (notification.sentAt && !(notification as any).deliveredAt) status = "pending";
+
+        return {
+          id: notification.id,
+          title: notification.title || "Notification",
+          message: notification.message || "",
+          type,
+          priority,
+          status,
+          targetType: notification.userId ? "specific" : "all" as any,
+          targetUsers: notification.userId ? [notification.userId] : undefined,
+          targetUserNames: employee ? [employee.fullName] : notification.userName ? [notification.userName] : undefined,
+          targetRoles: undefined,
+          targetGroups: undefined,
+          sentBy: (notification as any).sentBy || "System",
+          sentByName: (notification as any).sentByName || "System",
+          sentByEmail: (notification as any).sentByEmail || "",
+          sentAt: notification.sentAt || new Date(),
+          deliveredAt: (notification as any).deliveredAt,
+          readAt: (notification as any).readAt,
+          failedAt: undefined,
+          failureReason: undefined,
+          channel: "in-app" as any,
+          channels: ["in-app"],
+          metadata: notification.metadata || undefined,
+          actionUrl: (notification as any).actionUrl,
+          actionLabel: (notification as any).actionLabel,
+          recipientCount: 1,
+          deliveredCount: (notification as any).deliveredAt ? 1 : 0,
+          readCount: notification.isRead ? 1 : 0,
+          failedCount: 0
+        };
+      })
+      .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
+  }, [records, employees, filters]);
+
+  // Separate notifications by status
+  const pendingNotifications = transformedNotifications.filter(n => n.status === "pending");
+  const sentNotifications = transformedNotifications.filter(n => n.status === "sent");
+  const deliveredNotifications = transformedNotifications.filter(n => n.status === "delivered");
+  const readNotifications = transformedNotifications.filter(n => n.status === "read");
+  const failedNotifications = transformedNotifications.filter(n => n.status === "failed");
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const byChannel = {
+      inApp: transformedNotifications.filter(n => n.channel === "in-app").length,
+      email: transformedNotifications.filter(n => n.channels?.includes("email")).length,
+      push: transformedNotifications.filter(n => n.channels?.includes("push")).length,
+      sms: transformedNotifications.filter(n => n.channels?.includes("sms")).length
+    };
+
+    return {
+      total: transformedNotifications.length,
+      pending: pendingNotifications.length,
+      sent: sentNotifications.length,
+      delivered: deliveredNotifications.length,
+      read: readNotifications.length,
+      failed: failedNotifications.length,
+      byChannel
+    };
+  }, [transformedNotifications, pendingNotifications, sentNotifications, deliveredNotifications, readNotifications, failedNotifications]);
+
+  const handleSendNotification = async (notification: any) => {
+    if (notification.targetType === "all") {
+      // Get all employee IDs
+      const allEmployeeIds = employees.map(e => e.id);
+      await callSendBulkNotification({
+        userIds: allEmployeeIds,
+        title: notification.title,
+        message: notification.message,
+        category: notification.type,
+        type: notification.priority
+      });
+    } else if (notification.targetType === "specific") {
+      await callSendBulkNotification({
+        userIds: notification.targetUsers,
+        title: notification.title,
+        message: notification.message,
+        category: notification.type,
+        type: notification.priority
+      });
     }
 
-    try {
-      if (bulkMode) {
-        const splitIds = userIds
-          .split(",")
-          .map((value) => value.trim())
-          .filter(Boolean);
-        if (splitIds.length === 0) {
-          setComposeError("Provide at least one user ID for bulk notifications.");
-          setSubmitting(false);
-          return;
-        }
-        await callSendBulkNotification({
-          userIds: splitIds,
-          title: title.trim(),
-          message: message.trim(),
-          category: category || undefined,
-          type: type || undefined,
+    await refresh();
+  };
+
+  const handleResend = async (id: string) => {
+    // TODO: Implement resend functionality
+    console.log("Resending notification", id);
+    await refresh();
+  };
+
+  const handleCancel = async (id: string) => {
+    // TODO: Implement cancel functionality
+    console.log("Cancelling notification", id);
+    await refresh();
+  };
+
+  const handleExport = () => {
+    console.log("Exporting notifications");
+  };
+
+  const handleViewDetails = (notification: any) => {
+    setDetailsDialog(notification);
+  };
+
+  const handleViewRecipients = (notification: any) => {
+    setRecipientsDialog(notification);
+  };
+
+  const getNotificationsByTab = () => {
+    switch (activeTab) {
+      case "pending":
+        return pendingNotifications;
+      case "sent":
+        return sentNotifications;
+      case "delivered":
+        return deliveredNotifications;
+      case "read":
+        return readNotifications;
+      case "failed":
+        return failedNotifications;
+      default:
+        return transformedNotifications;
+    }
+  };
+
+  // Get unique senders for filter
+  const senders = useMemo(() => {
+    const uniqueSenders = new Map<string, { id: string; name: string }>();
+
+    transformedNotifications.forEach(notif => {
+      if (notif.sentBy && !uniqueSenders.has(notif.sentBy)) {
+        uniqueSenders.set(notif.sentBy, {
+          id: notif.sentBy,
+          name: notif.sentByName
         });
-        setComposeSuccess(`Bulk notification queued for ${splitIds.length} user${splitIds.length === 1 ? "" : "s"}.`);
-      } else {
-        if (!userId.trim()) {
-          setComposeError("User ID is required for single notifications.");
-          setSubmitting(false);
-          return;
-        }
-        await callSendNotification({
-          userId: userId.trim(),
-          title: title.trim(),
-          message: message.trim(),
-          category: category || undefined,
-          type: type || undefined,
-        });
-        setComposeSuccess("Notification queued successfully.");
       }
+    });
 
-      setFormState({ userId: "", userIds: "", title: "", message: "", category: "", type: "" });
-      setBulkMode(false);
-      await refresh();
-    } catch (err) {
-      console.error("Failed to send notification", err);
-      const messageText = err instanceof Error ? err.message : "Unable to send notification. Try again.";
-      setComposeError(messageText);
-    } finally {
-      setSubmitting(false);
-    }
-  }
+    return Array.from(uniqueSenders.values());
+  }, [transformedNotifications]);
 
   return (
     <ProtectedLayout>
       <DashboardLayout>
         <div className="flex flex-col gap-6 p-6">
-          <header className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold">Notifications</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Monitor announcements and alerts sent to employees, and dispatch targeted or bulk notifications.
-              </p>
+          {/* Filters */}
+          <NotificationFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            onRefresh={refresh}
+            onExport={handleExport}
+            onComposeNew={() => setComposeOpen(true)}
+            isLoading={loading}
+            users={senders}
+            stats={stats}
+          />
+
+          {/* Error Message */}
+          {error && (
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
             </div>
-            <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-              <DialogTrigger asChild>
-                <Button type="button">Compose notification</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader
-                  title="Compose Notification"
-                  description="Send a targeted or bulk notification. All sends are logged in audit trails."
-                />
-                <form className="space-y-4" onSubmit={handleComposeSubmit}>
-                  <div className="flex items-center justify-between gap-2">
-                    <Label className="text-sm font-medium">Audience</Label>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setBulkMode((prev) => !prev);
-                        setComposeError(null);
-                        setComposeSuccess(null);
-                      }}
-                    >
-                      {bulkMode ? "Switch to single" : "Switch to bulk"}
-                    </Button>
-                  </div>
+          )}
 
-                  {bulkMode ? (
-                    <div className="space-y-2">
-                      <Label requiredMarker htmlFor="userIds">
-                        User IDs (comma-separated)
-                      </Label>
-                      <Textarea
-                        id="userIds"
-                        value={formState.userIds}
-                        onChange={(event) => setFormState((prev) => ({ ...prev, userIds: event.target.value }))}
-                        placeholder="uid-1, uid-2, uid-3"
-                        rows={3}
-                        required
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label requiredMarker htmlFor="userId">
-                        User ID
-                      </Label>
-                      <Input
-                        id="userId"
-                        value={formState.userId}
-                        onChange={(event) => setFormState((prev) => ({ ...prev, userId: event.target.value }))}
-                        placeholder="Target user UID"
-                        required
-                      />
-                    </div>
-                  )}
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full max-w-[600px] grid-cols-6">
+              <TabsTrigger value="all">
+                All ({transformedNotifications.length})
+              </TabsTrigger>
+              <TabsTrigger value="pending">
+                Pending ({pendingNotifications.length})
+              </TabsTrigger>
+              <TabsTrigger value="sent">
+                Sent ({sentNotifications.length})
+              </TabsTrigger>
+              <TabsTrigger value="delivered">
+                Delivered ({deliveredNotifications.length})
+              </TabsTrigger>
+              <TabsTrigger value="read">
+                Read ({readNotifications.length})
+              </TabsTrigger>
+              <TabsTrigger value="failed">
+                Failed ({failedNotifications.length})
+              </TabsTrigger>
+            </TabsList>
 
-                  <div className="space-y-2">
-                    <Label requiredMarker htmlFor="title">
-                      Title
-                    </Label>
-                    <Input
-                      id="title"
-                      value={formState.title}
-                      onChange={(event) => setFormState((prev) => ({ ...prev, title: event.target.value }))}
-                      placeholder="Notification title"
-                      required
+            <TabsContent value={activeTab} className="mt-6">
+              {loading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              ) : getNotificationsByTab().length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-center">
+                  <Bell className="h-12 w-12 text-gray-400 mb-3" />
+                  <p className="text-sm font-medium text-gray-900">No notifications found</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {activeTab === "all"
+                      ? "No notifications match your filters"
+                      : `No ${activeTab} notifications`}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+                  {getNotificationsByTab().map((notification) => (
+                    <NotificationCard
+                      key={notification.id}
+                      notification={notification}
+                      onResend={notification.status === "failed" ? handleResend : undefined}
+                      onCancel={notification.status === "pending" ? handleCancel : undefined}
+                      onViewDetails={handleViewDetails}
+                      onViewRecipients={handleViewRecipients}
+                      isProcessing={false}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label requiredMarker htmlFor="message">
-                      Message
-                    </Label>
-                    <Textarea
-                      id="message"
-                      value={formState.message}
-                      onChange={(event) => setFormState((prev) => ({ ...prev, message: event.target.value }))}
-                      placeholder="Short description or call to action"
-                      rows={4}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Category (optional)</Label>
-                      <Input
-                        id="category"
-                        value={formState.category}
-                        onChange={(event) => setFormState((prev) => ({ ...prev, category: event.target.value }))}
-                        placeholder="attendance, leave, system, ..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="type">Type (optional)</Label>
-                      <Input
-                        id="type"
-                        value={formState.type}
-                        onChange={(event) => setFormState((prev) => ({ ...prev, type: event.target.value }))}
-                        placeholder="info, success, warning, ..."
-                      />
-                    </div>
-                  </div>
-
-                  {composeError ? <p className="text-sm text-destructive">{composeError}</p> : null}
-                  {composeSuccess ? <p className="text-sm text-emerald-600">{composeSuccess}</p> : null}
-
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setComposeOpen(false)} disabled={submitting}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={submitting}>
-                      {submitting ? "Sending..." : "Send"}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </header>
-
-          <section className="rounded-lg border bg-card p-4 shadow-sm">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-wrap items-center gap-3">
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by employee, category, or message"
-                  className="w-full sm:w-72"
-                />
-                <Input
-                  type="date"
-                  value={filters.startDate ? filters.startDate.toISOString().slice(0, 10) : ""}
-                  onChange={(event) =>
-                    setDateFilter(event.target.value ? new Date(event.target.value) : null, filters.endDate ?? null)
-                  }
-                />
-                <Input
-                  type="date"
-                  value={filters.endDate ? filters.endDate.toISOString().slice(0, 10) : ""}
-                  onChange={(event) =>
-                    setDateFilter(filters.startDate ?? null, event.target.value ? new Date(event.target.value) : null)
-                  }
-                />
-                <Select
-                  value={filters.category ?? "all"}
-                  onChange={(event) => setCategoryFilter(event.target.value)}
-                  className="w-36"
-                >
-                  <option value="all">All categories</option>
-                  <option value="attendance">Attendance</option>
-                  <option value="leave">Leave</option>
-                  <option value="penalty">Penalty</option>
-                  <option value="system">System</option>
-                </Select>
-                <Select value={filters.type ?? "all"} onChange={(event) => setTypeFilter(event.target.value)} className="w-36">
-                  <option value="all">All types</option>
-                  <option value="info">Info</option>
-                  <option value="success">Success</option>
-                  <option value="warning">Warning</option>
-                  <option value="error">Error</option>
-                </Select>
-                <Select
-                  value={String(filters.isRead ?? "all")}
-                  onChange={(event) => setIsReadFilter(event.target.value === "all" ? "all" : event.target.value === "true")}
-                  className="w-28"
-                >
-                  {readFilters.map((option) => (
-                    <option key={String(option.value)} value={String(option.value)}>
-                      {option.label}
-                    </option>
                   ))}
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setSearch("");
-                    setCategoryFilter("all");
-                    setTypeFilter("all");
-                    setIsReadFilter("all");
-                    setDateFilter(null, null);
-                  }}
-                  disabled={
-                    !search &&
-                    (!filters.category || filters.category === "all") &&
-                    (!filters.type || filters.type === "all") &&
-                    (!filters.isRead || filters.isRead === "all") &&
-                    !filters.startDate &&
-                    !filters.endDate
-                  }
-                >
-                  Reset filters
-                </Button>
-                <Button type="button" variant="outline" onClick={() => refresh()} disabled={loading}>
-                  Refresh
-                </Button>
-              </div>
-            </div>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
 
-            {error ? (
-              <div className="mt-4 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            ) : null}
+          {/* Notification Composer */}
+          <NotificationComposer
+            open={composeOpen}
+            onClose={() => setComposeOpen(false)}
+            onSend={handleSendNotification}
+            employees={employees.map(e => ({
+              id: e.id,
+              name: e.fullName,
+              email: e.email,
+              department: e.department || undefined
+            }))}
+          />
 
-            <div className="mt-4 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sent</TableHead>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Read at</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                        Loading notifications...
-                      </TableCell>
-                    </TableRow>
-                  ) : records.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                        No notifications found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    records.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>{formatDateTime(record.sentAt)}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col text-sm">
-                            <span className="font-medium">{record.userName ?? record.userId}</span>
-                            <span className="text-xs text-muted-foreground">{record.userEmail ?? "No email"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium">{record.title}</span>
-                            <span className="text-xs text-muted-foreground">{record.message}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="capitalize">{record.category ?? "—"}</TableCell>
-                        <TableCell className="capitalize">{record.type ?? "—"}</TableCell>
-                        <TableCell>{record.isRead ? "Read" : "Unread"}</TableCell>
-                        <TableCell>{formatDateTime(record.readAt ?? null)}</TableCell>
-                      </TableRow>
-                    ))
+          {/* Details Dialog */}
+          <Dialog open={!!detailsDialog} onOpenChange={(open) => !open && setDetailsDialog(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Notification Details</DialogTitle>
+                <DialogDescription>
+                  Complete information about the notification
+                </DialogDescription>
+              </DialogHeader>
+              {detailsDialog && (
+                <div className="space-y-4">
+                  {/* Basic Info */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <p className="text-sm font-medium mb-1">Title</p>
+                      <p className="text-sm text-muted-foreground">{detailsDialog.title}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Type</p>
+                      <p className="text-sm text-muted-foreground capitalize">{detailsDialog.type}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Priority</p>
+                      <p className="text-sm text-muted-foreground capitalize">{detailsDialog.priority}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Status</p>
+                      <p className="text-sm text-muted-foreground capitalize">{detailsDialog.status}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Channel</p>
+                      <p className="text-sm text-muted-foreground capitalize">{detailsDialog.channel}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Target</p>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {detailsDialog.targetType}
+                        {detailsDialog.recipientCount && (
+                          <span> ({detailsDialog.recipientCount} recipients)</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Message */}
+                  <div>
+                    <p className="text-sm font-medium mb-1">Message</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {detailsDialog.message}
+                    </p>
+                  </div>
+
+                  {/* Sender Info */}
+                  <div>
+                    <p className="text-sm font-medium mb-1">Sent By</p>
+                    <p className="text-sm text-muted-foreground">
+                      {detailsDialog.sentByName}
+                      {detailsDialog.sentByEmail && (
+                        <span className="text-xs ml-2">({detailsDialog.sentByEmail})</span>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Timestamps */}
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div>
+                      <p className="text-sm font-medium mb-1">Sent At</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(detailsDialog.sentAt, "MMM dd, yyyy hh:mm a")}
+                      </p>
+                    </div>
+                    {detailsDialog.deliveredAt && (
+                      <div>
+                        <p className="text-sm font-medium mb-1">Delivered At</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(detailsDialog.deliveredAt, "MMM dd, yyyy hh:mm a")}
+                        </p>
+                      </div>
+                    )}
+                    {detailsDialog.readAt && (
+                      <div>
+                        <p className="text-sm font-medium mb-1">Read At</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(detailsDialog.readAt, "MMM dd, yyyy hh:mm a")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action URL */}
+                  {detailsDialog.actionUrl && (
+                    <div>
+                      <p className="text-sm font-medium mb-1">Action</p>
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                          {detailsDialog.actionUrl}
+                        </code>
+                        {detailsDialog.actionLabel && (
+                          <span className="text-sm text-muted-foreground">
+                            ({detailsDialog.actionLabel})
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </TableBody>
-              </Table>
-            </div>
 
-            <p className="mt-3 text-xs text-muted-foreground">
-              Showing {records.length} notification{records.length === 1 ? "" : "s"}. Filters: category {categoryLabel}, type {typeLabel},
-              status {readLabel}.
-            </p>
-          </section>
+                  {/* Metadata */}
+                  {detailsDialog.metadata && Object.keys(detailsDialog.metadata).length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2">Metadata</p>
+                      <div className="p-3 bg-muted/50 rounded">
+                        <pre className="text-xs whitespace-pre-wrap">
+                          {JSON.stringify(detailsDialog.metadata, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDetailsDialog(null)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </DashboardLayout>
     </ProtectedLayout>

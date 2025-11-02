@@ -1,0 +1,311 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  AlertTriangle,
+  DollarSign,
+  Calendar,
+  ChevronRight,
+  CheckCircle,
+  XCircle,
+  Clock,
+  FileText,
+  TrendingUp,
+  TrendingDown
+} from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+
+interface Penalty {
+  id: string;
+  amount: number;
+  reason: string;
+  violationDate: Date;
+  issuedDate: Date;
+  status: "pending" | "acknowledged" | "waived" | "paid";
+  violationType: "late" | "absent" | "half_day" | "early_leave";
+  acknowledgedAt?: Date;
+  waivedAt?: Date;
+  waivedBy?: string;
+  waivedReason?: string;
+}
+
+interface PenaltiesCardProps {
+  penalties?: Penalty[];
+  loading?: boolean;
+  onViewAll?: () => void;
+  onWaivePenalty?: (penaltyId: string) => void;
+}
+
+const statusConfig = {
+  pending: {
+    label: "Pending",
+    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    icon: Clock
+  },
+  acknowledged: {
+    label: "Acknowledged",
+    color: "bg-blue-100 text-blue-700 border-blue-200",
+    icon: CheckCircle
+  },
+  waived: {
+    label: "Waived",
+    color: "bg-green-100 text-green-700 border-green-200",
+    icon: CheckCircle
+  },
+  paid: {
+    label: "Paid",
+    color: "bg-gray-100 text-gray-700 border-gray-200",
+    icon: CheckCircle
+  }
+};
+
+const violationTypeConfig = {
+  late: {
+    label: "Late Arrival",
+    color: "text-yellow-600"
+  },
+  absent: {
+    label: "Absent",
+    color: "text-red-600"
+  },
+  half_day: {
+    label: "Half Day",
+    color: "text-orange-600"
+  },
+  early_leave: {
+    label: "Early Leave",
+    color: "text-amber-600"
+  }
+};
+
+export function PenaltiesCard({
+  penalties = [],
+  loading = false,
+  onViewAll,
+  onWaivePenalty
+}: PenaltiesCardProps) {
+  const [expandedPenalty, setExpandedPenalty] = useState<string | null>(null);
+
+  // Mock data for demonstration
+  const mockPenalties: Penalty[] = penalties.length > 0 ? penalties : [
+    {
+      id: "1",
+      amount: 10,
+      reason: "Late arrival on November 15",
+      violationDate: new Date(2024, 10, 15),
+      issuedDate: new Date(2024, 10, 16),
+      status: "pending",
+      violationType: "late"
+    },
+    {
+      id: "2",
+      amount: 20,
+      reason: "Absent without notice on November 10",
+      violationDate: new Date(2024, 10, 10),
+      issuedDate: new Date(2024, 10, 11),
+      status: "acknowledged",
+      violationType: "absent",
+      acknowledgedAt: new Date(2024, 10, 12)
+    },
+    {
+      id: "3",
+      amount: 15,
+      reason: "Half day on November 5",
+      violationDate: new Date(2024, 10, 5),
+      issuedDate: new Date(2024, 10, 6),
+      status: "waived",
+      violationType: "half_day",
+      waivedAt: new Date(2024, 10, 7),
+      waivedBy: "Admin",
+      waivedReason: "Medical emergency"
+    }
+  ];
+
+  const pendingPenalties = mockPenalties.filter(p => p.status === "pending");
+  const totalPending = pendingPenalties.reduce((sum, p) => sum + p.amount, 0);
+  const totalPenalties = mockPenalties.reduce((sum, p) => sum + p.amount, 0);
+  const waivedPenalties = mockPenalties.filter(p => p.status === "waived");
+  const totalWaived = waivedPenalties.reduce((sum, p) => sum + p.amount, 0);
+
+  // Get recent penalties (last 3)
+  const recentPenalties = mockPenalties.slice(0, 3);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            Penalties & Violations
+          </CardTitle>
+          {onViewAll && mockPenalties.length > 3 && (
+            <Button variant="ghost" size="sm" onClick={onViewAll}>
+              View All
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {loading ? (
+          <div className="flex h-32 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        ) : mockPenalties.length === 0 ? (
+          <div className="text-center py-8">
+            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+            <p className="text-sm font-medium">No penalties</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Great attendance record!
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Summary Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-2xl font-bold text-primary">{mockPenalties.length}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-yellow-50 border border-yellow-200">
+                <p className="text-2xl font-bold text-yellow-700">${totalPending}</p>
+                <p className="text-xs text-yellow-600">Pending</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-green-50 border border-green-200">
+                <p className="text-2xl font-bold text-green-700">${totalWaived}</p>
+                <p className="text-xs text-green-600">Waived</p>
+              </div>
+            </div>
+
+            {/* Recent Penalties */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-muted-foreground">Recent Penalties</h4>
+              {recentPenalties.map((penalty) => {
+                const isExpanded = expandedPenalty === penalty.id;
+                const StatusIcon = statusConfig[penalty.status].icon;
+                const violationConfig = violationTypeConfig[penalty.violationType];
+
+                return (
+                  <div
+                    key={penalty.id}
+                    className={cn(
+                      "rounded-lg border p-3 transition-all",
+                      penalty.status === "pending" && "border-yellow-200 bg-yellow-50/50",
+                      penalty.status === "waived" && "border-green-200 bg-green-50/50",
+                      isExpanded && "shadow-md"
+                    )}
+                  >
+                    <div
+                      className="flex items-start justify-between cursor-pointer"
+                      onClick={() => setExpandedPenalty(isExpanded ? null : penalty.id)}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">${penalty.amount}</span>
+                          <Badge
+                            variant="outline"
+                            className={cn("text-xs", violationConfig.color)}
+                          >
+                            {violationConfig.label}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {format(penalty.violationDate, "MMM dd, yyyy")}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn("text-xs", statusConfig[penalty.status].color)}
+                      >
+                        <StatusIcon className="h-3 w-3 mr-1" />
+                        {statusConfig[penalty.status].label}
+                      </Badge>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="mt-3 pt-3 border-t space-y-2">
+                        <div className="text-xs space-y-1">
+                          <p>
+                            <span className="text-muted-foreground">Reason:</span>{" "}
+                            <span className="font-medium">{penalty.reason}</span>
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Issued:</span>{" "}
+                            {format(penalty.issuedDate, "MMM dd, yyyy")}
+                          </p>
+                          {penalty.acknowledgedAt && (
+                            <p>
+                              <span className="text-muted-foreground">Acknowledged:</span>{" "}
+                              {format(penalty.acknowledgedAt, "MMM dd, yyyy")}
+                            </p>
+                          )}
+                          {penalty.waivedAt && (
+                            <>
+                              <p>
+                                <span className="text-muted-foreground">Waived by:</span>{" "}
+                                {penalty.waivedBy}
+                              </p>
+                              <p>
+                                <span className="text-muted-foreground">Waive reason:</span>{" "}
+                                {penalty.waivedReason}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        {penalty.status === "pending" && onWaivePenalty && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full mt-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onWaivePenalty(penalty.id);
+                            }}
+                          >
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Waive Penalty
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Trend Indicator */}
+            {mockPenalties.length > 0 && (
+              <div className="p-3 rounded-lg bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">This Month</span>
+                  <div className="flex items-center gap-1">
+                    {pendingPenalties.length > 2 ? (
+                      <>
+                        <TrendingUp className="h-3 w-3 text-red-600" />
+                        <span className="text-xs text-red-600">
+                          High violation rate
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <TrendingDown className="h-3 w-3 text-green-600" />
+                        <span className="text-xs text-green-600">
+                          Improving attendance
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

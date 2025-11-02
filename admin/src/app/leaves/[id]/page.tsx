@@ -44,13 +44,11 @@ export default function LeaveDetailPage({ params }: { params: Promise<{ id: stri
     <ProtectedLayout>
       <DashboardLayout>
         <div className="flex flex-col gap-6 p-6">
-          <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <Link className="text-xs text-muted-foreground hover:text-foreground" href="/leaves">
                 ← Back to leaves
               </Link>
-              <h1 className="mt-2 text-2xl font-semibold">Leave Request</h1>
-              <p className="text-sm text-muted-foreground">Review the request and approve or reject it.</p>
             </div>
             <div className="flex gap-2">
               <Button
@@ -70,7 +68,7 @@ export default function LeaveDetailPage({ params }: { params: Promise<{ id: stri
                 {deciding ? "Processing..." : "Reject"}
               </Button>
             </div>
-          </header>
+          </div>
 
           {error ? (
             <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">

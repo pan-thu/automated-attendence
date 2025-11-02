@@ -13,10 +13,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onLogout={signOut} user={user} />
-      <div className="grid min-h-[calc(100vh-72px)] grid-cols-[200px_1fr]">
-        <Sidebar />
-        <main className="bg-muted/20">{children}</main>
+      <Sidebar />
+      <div className="ml-64 flex min-h-screen flex-col">
+        <Header onLogout={signOut} user={user} />
+        <main className="flex-1 bg-muted/20">{children}</main>
       </div>
     </div>
   );

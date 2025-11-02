@@ -1,75 +1,158 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useAttendanceRecords } from "@/hooks/useAttendanceRecords";
 import { useManualAttendance } from "@/hooks/useManualAttendance";
+import { useEmployees } from "@/hooks/useEmployees";
+
+// Import new components
+import { FilterBar } from "@/components/attendance/FilterBar";
+import { AttendanceTable } from "@/components/attendance/AttendanceTable";
 import type { AttendanceStatus } from "@/types";
-
-const statusFilters: Array<{ value: AttendanceStatus | "all"; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "present", label: "Present" },
-  { value: "absent", label: "Absent" },
-  { value: "half_day_absent", label: "Half Day" },
-  { value: "on_leave", label: "On Leave" },
-  { value: "late", label: "Late" },
-  { value: "early_leave", label: "Early Leave" },
-  { value: "missed", label: "Missed" },
-];
-
-const statusStyles: Record<string, string> = {
-  present: "bg-emerald-100 text-emerald-600",
-  absent: "bg-destructive/10 text-destructive",
-  half_day_absent: "bg-amber-100 text-amber-600",
-  on_leave: "bg-blue-100 text-blue-700",
-  late: "bg-orange-100 text-orange-600",
-  early_leave: "bg-orange-100 text-orange-600",
-  missed: "bg-slate-200 text-slate-600",
-};
-
-const formatStatus = (status: string) => status.replace(/_/g, " ");
 
 export default function AttendancePage() {
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
+
   const [manualForm, setManualForm] = useState({
     userId: "",
     attendanceDate: "",
+    checkIn: "",
+    checkOut: "",
+    breakOut: "",
+    breakIn: "",
     status: "present" as AttendanceStatus | string,
     reason: "",
-    notes: "",
+    notes: ""
+  });
+
+  const [filters, setFilters] = useState({
+    quickFilter: "today",
+    dateRange: { start: new Date(), end: new Date() },
+    status: "all",
+    employee: "",
+    source: "all",
+    search: ""
   });
 
   const {
     records,
     loading,
     error,
-    search,
-    setSearch,
-    filters,
-    setStatusFilter,
-    setDateFilter,
-    refresh,
+    refresh
   } = useAttendanceRecords();
+
+  const { employees } = useEmployees();
 
   const { submitManualAttendance, loading: manualSubmitting, error: manualError, setError: setManualError } =
     useManualAttendance();
 
-  const statusLabel = useMemo(
-    () => statusFilters.find((filter) => filter.value === filters.status)?.label ?? "All",
-    [filters.status]
-  );
+  // Transform records to match new interface
+  const transformedRecords = useMemo(() => {
+    if (!records) return [];
 
-  async function handleManualSubmit(event: React.FormEvent<HTMLFormElement>) {
+    return records
+      .filter((record) => {
+        // Apply filters
+        if (filters.search && !record.userName?.toLowerCase().includes(filters.search.toLowerCase()) &&
+            !record.userEmail?.toLowerCase().includes(filters.search.toLowerCase())) {
+          return false;
+        }
+
+        if (filters.status !== "all" && record.status !== filters.status) {
+          return false;
+        }
+
+        if (filters.employee && record.userId !== filters.employee) {
+          return false;
+        }
+
+        if (filters.source !== "all") {
+          const isManual = record.isManualEntry;
+          if (filters.source === "manual" && !isManual) return false;
+          if (filters.source === "app" && isManual) return false;
+        }
+
+        return true;
+      })
+      .map((record) => ({
+        id: record.id,
+        date: record.attendanceDate || new Date(),
+        employee: {
+          uid: record.userId,
+          name: record.userName || "Unknown",
+          email: record.userEmail || "",
+          employeeId: record.userId.slice(0, 8).toUpperCase(),
+          department: "Engineering", // Mock data
+          avatar: undefined
+        },
+        checks: {
+          checkIn: {
+            time: record.checks?.[0]?.timestamp || null,
+            status: record.checks?.[0]?.status as "on_time" | "late" | null || null
+          },
+          break: undefined, // Not in current data model
+          checkOut: {
+            time: record.checks?.[2]?.timestamp || null,
+            status: record.checks?.[2]?.status as "on_time" | "early" | null || null
+          }
+        },
+        status: record.status as "present" | "late" | "half_day" | "absent" | "on_leave",
+        workDuration: undefined,
+        source: record.isManualEntry ? "manual" as const : "app" as const,
+        notes: record.notes || undefined,
+        modifiedBy: undefined,
+        modifiedAt: undefined
+      }));
+  }, [records, filters]);
+
+  // Calculate summary
+  const summary = useMemo(() => {
+    const stats = {
+      present: 0,
+      late: 0,
+      absent: 0,
+      onLeave: 0,
+      issues: 0
+    };
+
+    transformedRecords.forEach((record) => {
+      switch (record.status) {
+        case "present":
+          stats.present++;
+          break;
+        case "late":
+          stats.late++;
+          break;
+        case "absent":
+          stats.absent++;
+          break;
+        case "on_leave":
+          stats.onLeave++;
+          break;
+      }
+
+      // Count issues
+      if (!record.checks.checkOut.time && record.checks.checkIn.time) {
+        stats.issues++;
+      }
+    });
+
+    return stats;
+  }, [transformedRecords]);
+
+  const handleManualSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!manualForm.userId || !manualForm.attendanceDate || !manualForm.reason || !manualForm.status) {
+    if (!manualForm.userId || !manualForm.attendanceDate || !manualForm.reason) {
       setManualError("Please complete all required fields.");
       return;
     }
@@ -80,273 +163,280 @@ export default function AttendancePage() {
         attendanceDate: manualForm.attendanceDate,
         status: manualForm.status,
         reason: manualForm.reason,
-        notes: manualForm.notes || undefined,
+        notes: manualForm.notes || undefined
       });
       setManualDialogOpen(false);
-      setManualForm({ userId: "", attendanceDate: "", status: "present", reason: "", notes: "" });
+      setManualForm({
+        userId: "",
+        attendanceDate: "",
+        checkIn: "",
+        checkOut: "",
+        breakOut: "",
+        breakIn: "",
+        status: "present",
+        reason: "",
+        notes: ""
+      });
       await refresh();
     } catch (err) {
       console.error("Manual attendance submission failed", err);
     }
-  }
+  };
+
+  const handleExport = () => {
+    // Export logic
+    console.log("Exporting attendance records");
+  };
+
+  const handleViewDetails = (record: any) => {
+    setSelectedRecord(record);
+    setDetailsDialogOpen(true);
+  };
+
+  const handleEdit = (record: any) => {
+    setManualForm({
+      userId: record.employee.uid,
+      attendanceDate: record.date.toISOString().split('T')[0],
+      checkIn: record.checks.checkIn.time ?
+               new Date(record.checks.checkIn.time).toTimeString().slice(0, 5) : "",
+      checkOut: record.checks.checkOut.time ?
+                new Date(record.checks.checkOut.time).toTimeString().slice(0, 5) : "",
+      breakOut: "",
+      breakIn: "",
+      status: record.status,
+      reason: "",
+      notes: record.notes || ""
+    });
+    setManualDialogOpen(true);
+  };
+
+  const handleSelectRecord = (id: string) => {
+    setSelectedRecords((prev) =>
+      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (selected: boolean) => {
+    setSelectedRecords(selected ? transformedRecords.map((r) => r.id) : []);
+  };
 
   return (
     <ProtectedLayout>
       <DashboardLayout>
         <div className="flex flex-col gap-6 p-6">
-          <header className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold">Attendance</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Review daily attendance records and manage manual overrides as needed.
+          {/* Filter Bar */}
+          <FilterBar
+            filters={filters}
+            onFiltersChange={setFilters}
+            onExport={handleExport}
+            onRefresh={refresh}
+            isLoading={loading}
+            employees={employees.map((e) => ({ id: e.id, name: e.fullName }))}
+            summary={summary}
+            onManualEntry={() => setManualDialogOpen(true)}
+          />
+
+          {/* Error Message */}
+          {error && (
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          {/* Attendance Table */}
+          <AttendanceTable
+            records={transformedRecords}
+            loading={loading}
+            selectedRecords={selectedRecords}
+            onSelectRecord={handleSelectRecord}
+            onSelectAll={handleSelectAll}
+            onViewDetails={handleViewDetails}
+            onEdit={handleEdit}
+            onExportRecord={(record) => console.log("Export", record)}
+          />
+
+          {/* Pagination */}
+          {transformedRecords.length > 0 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {transformedRecords.length} records
               </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled>
+                  Previous
+                </Button>
+                <Button variant="outline" size="sm" disabled>
+                  Next
+                </Button>
+              </div>
             </div>
-            <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
-              <DialogTrigger>
-                <Button type="button">Manual Entry</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader
-                  title="Manual Attendance Entry"
-                  description="Override or create attendance records with justification."
-                />
-                <form className="space-y-4" onSubmit={handleManualSubmit}>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <Label requiredMarker htmlFor="userId">
-                        Employee ID
-                      </Label>
-                      <Input
-                        id="userId"
-                        value={manualForm.userId}
-                        onChange={(event) => setManualForm((prev) => ({ ...prev, userId: event.target.value }))}
-                        placeholder="e.g. UID from USERS"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label requiredMarker htmlFor="attendanceDate">
-                        Date (YYYY-MM-DD)
-                      </Label>
-                      <Input
-                        id="attendanceDate"
-                        type="date"
-                        value={manualForm.attendanceDate}
-                        onChange={(event) => setManualForm((prev) => ({ ...prev, attendanceDate: event.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="status">Status</Label>
-                      <Select
-                        id="status"
-                        value={manualForm.status}
-                        onChange={(event) =>
-                          setManualForm((prev) => ({ ...prev, status: event.target.value as AttendanceStatus | string }))
-                        }
-                      >
-                        {statusFilters
-                          .filter((option) => option.value !== "all")
-                          .map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                      </Select>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label requiredMarker htmlFor="reason">
-                        Reason
-                      </Label>
-                      <Input
-                        id="reason"
-                        value={manualForm.reason}
-                        onChange={(event) => setManualForm((prev) => ({ ...prev, reason: event.target.value }))}
-                        placeholder="Provide justification"
-                        required
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label htmlFor="notes">Notes</Label>
-                      <Input
-                        id="notes"
-                        value={manualForm.notes}
-                        onChange={(event) => setManualForm((prev) => ({ ...prev, notes: event.target.value }))}
-                        placeholder="Optional notes"
-                      />
-                    </div>
-                  </div>
+          )}
 
-                  {manualError ? <p className="text-sm text-destructive">{manualError}</p> : null}
-
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setManualDialogOpen(false);
-                        setManualForm({ userId: "", attendanceDate: "", status: "present", reason: "", notes: "" });
-                        setManualError(null);
-                      }}
-                      disabled={manualSubmitting}
+          {/* Manual Entry Dialog */}
+          <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Manual Attendance Entry</DialogTitle>
+                <DialogDescription>
+                  Override or create attendance records with justification
+                </DialogDescription>
+              </DialogHeader>
+              <form className="space-y-4" onSubmit={handleManualSubmit}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label requiredMarker htmlFor="userId">
+                      Employee
+                    </Label>
+                    <select
+                      id="userId"
+                      value={manualForm.userId}
+                      onChange={(e) => setManualForm((prev) => ({ ...prev, userId: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                      required
                     >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={manualSubmitting}>
-                      {manualSubmitting ? "Saving..." : "Save"}
-                    </Button>
+                      <option value="">Select employee</option>
+                      {employees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.fullName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </header>
-
-          <section className="rounded-lg border bg-card p-4 shadow-sm">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-wrap items-center gap-3">
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by employee or status"
-                  className="w-full sm:w-72"
-                />
-                <Select
-                  value={filters.status ?? "all"}
-                  onChange={(event) => setStatusFilter(event.target.value as AttendanceStatus | "all")}
-                  className="w-40"
-                >
-                  {statusFilters.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="startDate" className="text-xs text-muted-foreground">
-                    From
-                  </Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={filters.startDate ? filters.startDate.toISOString().slice(0, 10) : ""}
-                    onChange={(event) =>
-                      setDateFilter(event.target.value ? new Date(event.target.value) : null, filters.endDate ?? null)
-                    }
-                  />
-                  <Label htmlFor="endDate" className="text-xs text-muted-foreground">
-                    To
-                  </Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={filters.endDate ? filters.endDate.toISOString().slice(0, 10) : ""}
-                    onChange={(event) =>
-                      setDateFilter(filters.startDate ?? null, event.target.value ? new Date(event.target.value) : null)
-                    }
-                  />
+                  <div>
+                    <Label requiredMarker htmlFor="attendanceDate">
+                      Date
+                    </Label>
+                    <Input
+                      id="attendanceDate"
+                      type="date"
+                      value={manualForm.attendanceDate}
+                      onChange={(e) => setManualForm((prev) => ({ ...prev, attendanceDate: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="checkIn">Check-in Time</Label>
+                    <Input
+                      id="checkIn"
+                      type="time"
+                      value={manualForm.checkIn}
+                      onChange={(e) => setManualForm((prev) => ({ ...prev, checkIn: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="checkOut">Check-out Time</Label>
+                    <Input
+                      id="checkOut"
+                      type="time"
+                      value={manualForm.checkOut}
+                      onChange={(e) => setManualForm((prev) => ({ ...prev, checkOut: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <select
+                      id="status"
+                      value={manualForm.status}
+                      onChange={(e) => setManualForm((prev) => ({ ...prev, status: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                    >
+                      <option value="present">Present</option>
+                      <option value="late">Late</option>
+                      <option value="half_day">Half Day</option>
+                      <option value="absent">Absent</option>
+                      <option value="on_leave">On Leave</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label requiredMarker htmlFor="reason">
+                      Reason
+                    </Label>
+                    <Textarea
+                      id="reason"
+                      value={manualForm.reason}
+                      onChange={(e) => setManualForm((prev) => ({ ...prev, reason: e.target.value }))}
+                      placeholder="Provide justification for manual entry"
+                      required
+                      rows={2}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="notes">Additional Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={manualForm.notes}
+                      onChange={(e) => setManualForm((prev) => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Optional notes"
+                      rows={2}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setSearch("");
-                    setStatusFilter("all");
-                    setDateFilter(null, null);
-                  }}
-                  disabled={!search && (!filters.status || filters.status === "all") && !filters.startDate && !filters.endDate}
-                >
-                  Reset filters
-                </Button>
-                <Button type="button" variant="outline" onClick={() => refresh()} disabled={loading}>
-                  Refresh
-                </Button>
-              </div>
-            </div>
 
-            {error ? (
-              <div className="mt-4 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            ) : null}
+                {manualError && (
+                  <p className="text-sm text-destructive">{manualError}</p>
+                )}
 
-            <div className="mt-4 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Manual</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead className="text-right">Checks</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
-                        Loading attendance records...
-                      </TableCell>
-                    </TableRow>
-                  ) : records.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
-                        No attendance records found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    records.map((record) => {
-                      const badgeStyle = statusStyles[record.status] ?? "bg-slate-200 text-slate-700";
-                      return (
-                        <TableRow key={record.id}>
-                          <TableCell className="font-medium">
-                            {record.attendanceDate ? record.attendanceDate.toLocaleDateString() : "Unknown"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col text-sm">
-                              <span className="font-medium">{record.userName ?? record.userId}</span>
-                              <span className="text-xs text-muted-foreground">{record.userEmail ?? "No email"}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${badgeStyle}`}>
-                              {formatStatus(record.status)}
-                            </span>
-                          </TableCell>
-                          <TableCell>{record.isManualEntry ? "Yes" : "No"}</TableCell>
-                          <TableCell>{record.notes ?? "—"}</TableCell>
-                          <TableCell className="text-right">
-                            {record.checks && record.checks.length > 0 ? (
-                              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                                {record.checks.map((check) => (
-                                  <span key={`${record.id}-${check.check}`}>
-                                    {check.check}: {check.status ?? "unknown"}
-                                    {check.timestamp ? ` @ ${check.timestamp.toLocaleTimeString()}` : ""}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setManualDialogOpen(false);
+                      setManualError(null);
+                    }}
+                    disabled={manualSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={manualSubmitting}>
+                    {manualSubmitting ? "Saving..." : "Save"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Details Dialog */}
+          <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Attendance Details</DialogTitle>
+              </DialogHeader>
+              {selectedRecord && (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium">Employee</p>
+                    <p className="text-sm text-muted-foreground">{selectedRecord.employee.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Date</p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedRecord.date.toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Status</p>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {selectedRecord.status.replace("_", " ")}
+                    </p>
+                  </div>
+                  {selectedRecord.notes && (
+                    <div>
+                      <p className="text-sm font-medium">Notes</p>
+                      <p className="text-sm text-muted-foreground">{selectedRecord.notes}</p>
+                    </div>
                   )}
-                </TableBody>
-              </Table>
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Showing {records.length} record{records.length === 1 ? "" : "s"}. Filters: {statusLabel} status
-              {filters.startDate ? `, from ${filters.startDate.toLocaleDateString()}` : ""}
-              {filters.endDate ? ` to ${filters.endDate.toLocaleDateString()}` : ""}.
-            </p>
-          </section>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </DashboardLayout>
     </ProtectedLayout>
   );
 }
-
