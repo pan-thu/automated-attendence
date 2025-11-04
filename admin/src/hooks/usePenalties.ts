@@ -54,6 +54,8 @@ export function usePenalties(initialFilters?: PenaltyFilter) {
 
   useEffect(() => {
     setLoading(true);
+    const startTime = Date.now();
+    const MIN_LOADING_TIME = 500; // Show skeleton for at least 500ms
 
     const firestore = getFirebaseFirestore();
     const constraints: QueryConstraint[] = [orderBy("dateIncurred", "desc")];
@@ -98,15 +100,28 @@ export function usePenalties(initialFilters?: PenaltyFilter) {
           } satisfies PenaltyRecord;
         });
 
-        setRecords(mapped);
-        setError(null);
-        setLoading(false);
+        // Ensure minimum loading time for skeleton visibility
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+
+        setTimeout(() => {
+          setRecords(mapped);
+          setError(null);
+          setLoading(false);
+        }, remainingTime);
       },
       (err) => {
         console.error("Failed to subscribe to penalties", err);
-        setRecords([]);
-        setError("Unable to load penalties. Please try again later.");
-        setLoading(false);
+
+        // Ensure minimum loading time even on error
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+
+        setTimeout(() => {
+          setRecords([]);
+          setError("Unable to load penalties. Please try again later.");
+          setLoading(false);
+        }, remainingTime);
       }
     );
 

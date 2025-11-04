@@ -6,6 +6,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useAttendanceRecords } from "@/hooks/useAttendanceRecords";
@@ -39,7 +46,7 @@ export default function AttendancePage() {
     quickFilter: "today",
     dateRange: { start: new Date(), end: new Date() },
     status: "all",
-    employee: "",
+    employee: "all",
     source: "all",
     search: ""
   });
@@ -72,7 +79,7 @@ export default function AttendancePage() {
           return false;
         }
 
-        if (filters.employee && record.userId !== filters.employee) {
+        if (filters.employee && filters.employee !== "all" && record.userId !== filters.employee) {
           return false;
         }
 
@@ -287,20 +294,22 @@ export default function AttendancePage() {
                     <Label requiredMarker htmlFor="userId">
                       Employee
                     </Label>
-                    <select
-                      id="userId"
+                    <Select
                       value={manualForm.userId}
-                      onChange={(e) => setManualForm((prev) => ({ ...prev, userId: e.target.value }))}
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                      onValueChange={(value) => setManualForm((prev) => ({ ...prev, userId: value }))}
                       required
                     >
-                      <option value="">Select employee</option>
-                      {employees.map((emp) => (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.fullName}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id="userId">
+                        <SelectValue placeholder="Select employee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.fullName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label requiredMarker htmlFor="attendanceDate">
@@ -334,18 +343,21 @@ export default function AttendancePage() {
                   </div>
                   <div>
                     <Label htmlFor="status">Status</Label>
-                    <select
-                      id="status"
+                    <Select
                       value={manualForm.status}
-                      onChange={(e) => setManualForm((prev) => ({ ...prev, status: e.target.value }))}
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                      onValueChange={(value) => setManualForm((prev) => ({ ...prev, status: value }))}
                     >
-                      <option value="present">Present</option>
-                      <option value="late">Late</option>
-                      <option value="half_day">Half Day</option>
-                      <option value="absent">Absent</option>
-                      <option value="on_leave">On Leave</option>
-                    </select>
+                      <SelectTrigger id="status">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="present">Present</SelectItem>
+                        <SelectItem value="late">Late</SelectItem>
+                        <SelectItem value="half_day">Half Day</SelectItem>
+                        <SelectItem value="absent">Absent</SelectItem>
+                        <SelectItem value="on_leave">On Leave</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="sm:col-span-2">
                     <Label requiredMarker htmlFor="reason">

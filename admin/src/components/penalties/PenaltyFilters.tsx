@@ -162,7 +162,7 @@ export function PenaltyFilters({
       {/* Filter Bar */}
       <div className="flex flex-col md:flex-row gap-3">
         {/* Search */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 md:min-w-[300px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search by employee name or notes..."
@@ -177,7 +177,7 @@ export function PenaltyFilters({
           value={filters.status}
           onValueChange={(value) => onFiltersChange({ ...filters, status: value })}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Select status" />
           </SelectTrigger>
           <SelectContent>
@@ -194,7 +194,7 @@ export function PenaltyFilters({
           value={filters.violationType}
           onValueChange={(value) => onFiltersChange({ ...filters, violationType: value })}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Select violation type" />
           </SelectTrigger>
           <SelectContent>
@@ -212,11 +212,11 @@ export function PenaltyFilters({
             value={filters.employee}
             onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full md:w-[180px]">
               <SelectValue placeholder="All Employees" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Employees</SelectItem>
+              <SelectItem value="all">All Employees</SelectItem>
               {employees.map((emp) => (
                 <SelectItem key={emp.id} value={emp.id}>
                   {emp.name}
@@ -258,7 +258,7 @@ export function PenaltyFilters({
                 status: "all",
                 violationType: "all",
                 dateRange: { start: null, end: null },
-                employee: "",
+                employee: "all",
                 amountRange: { min: null, max: null }
               })}
             >

@@ -9,7 +9,7 @@
  *   npm run seed:firestore
  *
  * Requirements:
- *   - GOOGLE_APPLICATION_CREDENTIALS must be set in .env
+ *   - SERVICE_ACCOUNT_PATH must be set in .env
  *   - SEED_ADMIN_UID must be set in .env (the UID of the admin user)
  */
 

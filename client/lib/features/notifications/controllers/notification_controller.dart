@@ -166,6 +166,51 @@ class NotificationController extends ChangeNotifier {
     }
   }
 
+  Future<void> markAllAsRead() async {
+    // Optimistically update UI - mark all notifications as read
+    final now = DateTime.now();
+    final updatedItems = _items.map((item) {
+      if (item.isRead) {
+        return item;
+      }
+      return item.copyWith(isRead: true, readAt: now);
+    }).toList();
+
+    _items
+      ..clear()
+      ..addAll(updatedItems);
+    notifyListeners();
+
+    try {
+      final result = await _repository.markAllAsRead();
+
+      // Invalidate cache and refresh to get latest state
+      _cache.invalidate(_cacheKey());
+      await refresh();
+
+      _telemetry.recordEvent('notifications_mark_all_read', metadata: {
+        'markedCount': result.markedCount,
+        'success': result.success,
+      });
+    } on NotificationFailure catch (error) {
+      // Revert optimistic update on failure
+      await refresh();
+      _errorMessage = error.message;
+      _telemetry.recordEvent('notifications_mark_all_read_failed', metadata: {
+        'error': error.message,
+      });
+      rethrow;
+    } catch (error) {
+      // Revert optimistic update on failure
+      await refresh();
+      _errorMessage = error.toString();
+      _telemetry.recordEvent('notifications_mark_all_read_failed', metadata: {
+        'error': error.toString(),
+      });
+      rethrow;
+    }
+  }
+
   Future<void> changeFilter(NotificationStatusFilter filter) async {
     if (_statusFilter == filter) {
       return;

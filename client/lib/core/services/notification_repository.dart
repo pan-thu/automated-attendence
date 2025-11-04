@@ -11,6 +11,8 @@ abstract class NotificationRepositoryBase {
   });
 
   Future<void> markAsRead({required String notificationId, String? acknowledgment});
+
+  Future<MarkAllAsReadResult> markAllAsRead();
 }
 
 class NotificationRepository implements NotificationRepositoryBase {
@@ -89,6 +91,30 @@ class NotificationRepository implements NotificationRepositoryBase {
       throw NotificationFailure(message);
     } catch (error) {
       throw NotificationFailure('Failed to update notification: $error');
+    }
+  }
+
+  @override
+  Future<MarkAllAsReadResult> markAllAsRead() async {
+    try {
+      final callable = _functions.httpsCallable('markAllNotificationsAsRead');
+      final response = await callable.call(<String, dynamic>{});
+      final data = Map<String, dynamic>.from(response.data as Map);
+
+      // Invalidate all caches since all unread notifications are now read
+      _cacheManager.invalidate(_cacheKey(NotificationStatusFilter.all));
+      _cacheManager.invalidate(_cacheKey(NotificationStatusFilter.unread));
+      _cacheManager.invalidate(_cacheKey(NotificationStatusFilter.read));
+
+      return MarkAllAsReadResult(
+        success: data['success'] as bool? ?? false,
+        markedCount: (data['markedCount'] as num?)?.toInt() ?? 0,
+      );
+    } on FirebaseFunctionsException catch (error) {
+      final message = error.message?.isNotEmpty == true ? error.message! : 'Failed to mark all as read (${error.code}).';
+      throw NotificationFailure(message);
+    } catch (error) {
+      throw NotificationFailure('Failed to mark all as read: $error');
     }
   }
 }
@@ -195,6 +221,16 @@ enum NotificationStatusFilter {
   all,
   unread,
   read,
+}
+
+class MarkAllAsReadResult {
+  MarkAllAsReadResult({
+    required this.success,
+    required this.markedCount,
+  });
+
+  final bool success;
+  final int markedCount;
 }
 
 class NotificationFailure implements Exception {

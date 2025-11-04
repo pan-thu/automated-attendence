@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/select-radix";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmployeeTableSkeleton } from "./EmployeeTableSkeleton";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { EmployeeSummary, EmployeeStatus } from "@/types";
@@ -220,6 +221,10 @@ export function EmployeeListTable({
       ? <ArrowUp className="ml-2 h-4 w-4" />
       : <ArrowDown className="ml-2 h-4 w-4" />;
   };
+
+  if (loading) {
+    return <EmployeeTableSkeleton />;
+  }
 
   return (
     <Card className="w-full">

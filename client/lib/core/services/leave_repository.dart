@@ -28,6 +28,7 @@ abstract class LeaveRepositoryBase {
   });
   Future<AttachmentMetadata> finalizeAttachment(String attachmentId);
   Future<AttachmentMetadata?> pickAndUploadAttachment();
+  Future<LeaveBalance> getLeaveBalance({int? year});
 }
 
 class LeaveRepository implements LeaveRepositoryBase {
@@ -190,6 +191,25 @@ class LeaveRepository implements LeaveRepositoryBase {
     return finalizeAttachment(uploadInfo.attachmentId);
   }
 
+  @override
+  Future<LeaveBalance> getLeaveBalance({int? year}) async {
+    try {
+      final callable = _functions.httpsCallable('getLeaveBalance');
+      final response = await callable.call({
+        if (year != null) 'year': year,
+      });
+
+      final data = Map<String, dynamic>.from(response.data as Map);
+      return LeaveBalance.fromJson(data);
+    } on FirebaseFunctionsException catch (error) {
+      throw LeaveFailure(
+        error.message ?? 'Failed to fetch leave balance (${error.code}).',
+      );
+    } catch (error) {
+      throw LeaveFailure('Failed to fetch leave balance: $error');
+    }
+  }
+
   String _getMimeType(String? extension) {
     if (extension == null) return 'application/octet-stream';
 
@@ -218,6 +238,82 @@ class LeaveRepository implements LeaveRepositoryBase {
         return 'application/octet-stream';
     }
   }
+}
+
+class LeaveBalance {
+  LeaveBalance({
+    required this.total,
+    required this.used,
+    required this.remaining,
+    required this.year,
+    this.breakdown,
+  });
+
+  factory LeaveBalance.fromJson(Map<String, dynamic> json) {
+    final breakdownData = json['breakdown'] as Map<String, dynamic>?;
+
+    return LeaveBalance(
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      used: (json['used'] as num?)?.toInt() ?? 0,
+      remaining: (json['remaining'] as num?)?.toInt() ?? 0,
+      year: (json['year'] as num?)?.toInt() ?? DateTime.now().year,
+      breakdown: breakdownData != null
+          ? LeaveBreakdown.fromJson(breakdownData)
+          : null,
+    );
+  }
+
+  final int total;
+  final int used;
+  final int remaining;
+  final int year;
+  final LeaveBreakdown? breakdown;
+}
+
+class LeaveBreakdown {
+  LeaveBreakdown({
+    this.sick,
+    this.casual,
+    this.vacation,
+  });
+
+  factory LeaveBreakdown.fromJson(Map<String, dynamic> json) {
+    return LeaveBreakdown(
+      sick: json['sick'] != null
+          ? LeaveTypeBalance.fromJson(Map<String, dynamic>.from(json['sick'] as Map))
+          : null,
+      casual: json['casual'] != null
+          ? LeaveTypeBalance.fromJson(Map<String, dynamic>.from(json['casual'] as Map))
+          : null,
+      vacation: json['vacation'] != null
+          ? LeaveTypeBalance.fromJson(Map<String, dynamic>.from(json['vacation'] as Map))
+          : null,
+    );
+  }
+
+  final LeaveTypeBalance? sick;
+  final LeaveTypeBalance? casual;
+  final LeaveTypeBalance? vacation;
+}
+
+class LeaveTypeBalance {
+  LeaveTypeBalance({
+    required this.total,
+    required this.used,
+    required this.remaining,
+  });
+
+  factory LeaveTypeBalance.fromJson(Map<String, dynamic> json) {
+    return LeaveTypeBalance(
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      used: (json['used'] as num?)?.toInt() ?? 0,
+      remaining: (json['remaining'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  final int total;
+  final int used;
+  final int remaining;
 }
 
 class LeaveFailure implements Exception {

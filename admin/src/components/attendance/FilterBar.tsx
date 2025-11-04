@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
+import {
   Search,
   Calendar,
   Filter,
@@ -225,48 +232,60 @@ export function FilterBar({
 
           {/* Status Filter */}
           <div>
-            <select
+            <Select
               value={filters.status}
-              onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
-              className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+              onValueChange={(value) => onFiltersChange({ ...filters, status: value })}
             >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Employee Filter */}
           <div>
-            <select
+            <Select
               value={filters.employee}
-              onChange={(e) => onFiltersChange({ ...filters, employee: e.target.value })}
-              className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+              onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
             >
-              <option value="">All Employees</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="All Employees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {employees.map((emp) => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    {emp.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Source Filter */}
           <div>
-            <select
+            <Select
               value={filters.source}
-              onChange={(e) => onFiltersChange({ ...filters, source: e.target.value })}
-              className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+              onValueChange={(value) => onFiltersChange({ ...filters, source: value })}
             >
-              {sourceOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.icon} {option.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="All Sources" />
+              </SelectTrigger>
+              <SelectContent>
+                {sourceOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.icon} {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Date Range */}
@@ -307,7 +326,7 @@ export function FilterBar({
                 quickFilter: "today",
                 dateRange: { start: new Date(), end: new Date() },
                 status: "all",
-                employee: "",
+                employee: "all",
                 source: "all",
                 search: ""
               })}

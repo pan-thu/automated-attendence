@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/services/leave_repository.dart';
 import '../controllers/leave_list_controller.dart';
 import '../controllers/leave_request_controller.dart';
+import '../widgets/leave_balance_header.dart';
 import '../widgets/leave_filters.dart';
 import '../widgets/leave_list.dart';
 import '../widgets/leave_request_form.dart';
@@ -33,8 +34,48 @@ class LeaveScreen extends StatelessWidget {
   }
 }
 
-class _LeaveView extends StatelessWidget {
+class _LeaveView extends StatefulWidget {
   const _LeaveView();
+
+  @override
+  State<_LeaveView> createState() => _LeaveViewState();
+}
+
+class _LeaveViewState extends State<_LeaveView> {
+  LeaveBalance? _balance;
+  bool _isLoadingBalance = false;
+  String? _balanceError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBalance();
+  }
+
+  Future<void> _loadBalance() async {
+    setState(() {
+      _isLoadingBalance = true;
+      _balanceError = null;
+    });
+
+    try {
+      final repository = context.read<LeaveRepositoryBase>();
+      final balance = await repository.getLeaveBalance();
+      if (mounted) {
+        setState(() {
+          _balance = balance;
+          _isLoadingBalance = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _balanceError = e.toString();
+          _isLoadingBalance = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +93,14 @@ class _LeaveView extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
-            onPressed: listController.isLoading ? null : listController.refresh,
+            onPressed: listController.isLoading
+                ? null
+                : () async {
+                    await Future.wait([
+                      listController.refresh(),
+                      _loadBalance(),
+                    ]);
+                  },
           ),
           IconButton(
             icon: const Icon(Icons.add),
@@ -63,11 +111,29 @@ class _LeaveView extends StatelessWidget {
       ),
       body: Column(
         children: [
+          // Balance header
+          if (_isLoadingBalance && _balance == null)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_balance != null)
+            LeaveBalanceHeader(balance: _balance!)
+          else if (_balanceError != null)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Could not load balance: $_balanceError',
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          // Filters
           LeaveFilters(
             status: listController.statusFilter,
             isLoading: listController.isLoading,
             onFilterChanged: listController.changeFilter,
           ),
+          // Leave list
           Expanded(
             child: LeaveList(
               controller: listController,
@@ -75,6 +141,13 @@ class _LeaveView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _openHelp(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => const _HelpSheet(),
     );
   }
 
@@ -98,13 +171,6 @@ class _LeaveView extends StatelessWidget {
         );
       }
     }
-  }
-
-  void _openHelp(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => const _HelpSheet(),
-    );
   }
 }
 

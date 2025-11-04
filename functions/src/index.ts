@@ -21,6 +21,7 @@ import {
   submitLeaveRequest as submitLeaveRequestService,
   cancelLeaveRequest as cancelLeaveRequestService,
   listEmployeeLeaves as listEmployeeLeavesService,
+  getLeaveBalance as getLeaveBalanceService,
 } from './services/leaves';
 import {
   generateLeaveAttachmentUploadUrl as generateLeaveAttachmentUploadUrlService,
@@ -32,6 +33,7 @@ import {
   calculateMonthlyViolations as calculateMonthlyViolationsService,
   listEmployeePenalties as listEmployeePenaltiesService,
   acknowledgePenalty as acknowledgePenaltyService,
+  getPenaltySummary as getPenaltySummaryService,
 } from './services/penalties';
 import {
   generateAttendanceReport as generateAttendanceReportService,
@@ -45,7 +47,12 @@ import {
   getEmployeesNeedingClockInReminder,
   listNotificationsForEmployee as listNotificationsForEmployeeService,
   markNotificationAsRead as markNotificationAsReadService,
+  markAllNotificationsAsRead as markAllNotificationsAsReadService,
 } from './services/notifications';
+import {
+  getHolidays as getHolidaysService,
+  createHoliday as createHolidayService,
+} from './services/holidays';
 import { registerDeviceToken as registerDeviceTokenService } from './services/deviceTokens';
 import { handleClockIn as handleClockInService } from './services/clockInUtils';
 import {
@@ -794,6 +801,54 @@ export const getAttendanceDayDetail = onCall(
   }, 'getAttendanceDayDetail')
 );
 
+export const getHolidays = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAuthenticatedV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
+
+    const year = payload.year as number | undefined;
+
+    const result = await getHolidaysService({
+      year,
+    });
+
+    return result;
+  }, 'getHolidays')
+);
+
+export const createHoliday = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAdminV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
+    const userId = requireAuthUidV2(request);
+
+    const name = assertString(payload.name, 'name', { min: 1, max: 200 });
+    const date = assertString(payload.date, 'date'); // ISO 8601 format
+    const type = payload.type ? assertString(payload.type, 'type') : undefined;
+    const description = payload.description ? assertString(payload.description, 'description', { max: 500 }) : undefined;
+    const companyId = payload.companyId as string | undefined;
+
+    const holidayId = await createHolidayService({
+      name,
+      date,
+      type,
+      description,
+      companyId,
+    });
+
+    await recordAuditLog({
+      action: 'create_holiday',
+      resource: 'HOLIDAYS',
+      resourceId: holidayId,
+      status: 'success',
+      performedBy: userId,
+      metadata: { name, date, type: type ?? null },
+    });
+
+    return { id: holidayId };
+  }, 'createHoliday', { rateLimit: RATE_LIMITS.WRITE })
+);
+
 export const submitLeaveRequest = onCall(
   wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
     assertEmployeeV2(request);
@@ -855,6 +910,23 @@ export const listEmployeeLeaves = onCall(
 
     return result;
   }, 'listEmployeeLeaves')
+);
+
+export const getLeaveBalance = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertEmployeeV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
+    const userId = requireAuthUidV2(request);
+
+    const year = payload.year as number | undefined;
+
+    const result = await getLeaveBalanceService({
+      userId,
+      year,
+    });
+
+    return result;
+  }, 'getLeaveBalance')
 );
 
 export const generateLeaveAttachmentUploadUrl = onCall(
@@ -972,6 +1044,30 @@ export const markNotificationRead = onCall(
   }, 'markNotificationRead')
 );
 
+export const markAllNotificationsAsRead = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertEmployeeV2(request);
+    const userId = requireAuthUidV2(request);
+
+    const result = await markAllNotificationsAsReadService({
+      userId,
+    });
+
+    await recordAuditLog({
+      action: 'mark_all_notifications_read',
+      resource: 'NOTIFICATIONS',
+      resourceId: userId,
+      status: 'success',
+      performedBy: userId,
+      metadata: {
+        markedCount: result.markedCount,
+      },
+    });
+
+    return result;
+  }, 'markAllNotificationsAsRead')
+);
+
 export const listEmployeePenalties = onCall(
   wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
     assertEmployeeV2(request);
@@ -1027,6 +1123,19 @@ export const acknowledgePenalty = onCall(
 
     return result;
   }, 'acknowledgePenalty')
+);
+
+export const getPenaltySummary = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertEmployeeV2(request);
+    const userId = requireAuthUidV2(request);
+
+    const result = await getPenaltySummaryService({
+      userId,
+    });
+
+    return result;
+  }, 'getPenaltySummary')
 );
 
 export const registerDeviceToken = onCall(

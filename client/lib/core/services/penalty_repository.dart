@@ -11,6 +11,8 @@ abstract class PenaltyRepositoryBase {
   });
 
   Future<void> acknowledgePenalty({required String penaltyId, String? note});
+
+  Future<PenaltySummary> getPenaltySummary();
 }
 
 class PenaltyRepository implements PenaltyRepositoryBase {
@@ -87,6 +89,21 @@ class PenaltyRepository implements PenaltyRepositoryBase {
       throw PenaltyFailure(message);
     } catch (error) {
       throw PenaltyFailure('Failed to acknowledge penalty: $error');
+    }
+  }
+
+  @override
+  Future<PenaltySummary> getPenaltySummary() async {
+    try {
+      final callable = _functions.httpsCallable('getPenaltySummary');
+      final response = await callable.call(<String, dynamic>{});
+      final data = Map<String, dynamic>.from(response.data as Map);
+      return PenaltySummary.fromJson(data);
+    } on FirebaseFunctionsException catch (error) {
+      final message = error.message?.isNotEmpty == true ? error.message! : 'Failed to fetch penalty summary (${error.code}).';
+      throw PenaltyFailure(message);
+    } catch (error) {
+      throw PenaltyFailure('Failed to fetch penalty summary: $error');
     }
   }
 }
@@ -210,6 +227,68 @@ extension on PenaltyStatusFilter {
         return 'disputed';
     }
   }
+}
+
+class PenaltySummary {
+  PenaltySummary({
+    required this.activeCount,
+    required this.totalAmount,
+    required this.byStatus,
+  });
+
+  factory PenaltySummary.fromJson(Map<String, dynamic> json) {
+    final byStatusData = Map<String, dynamic>.from(json['byStatus'] as Map? ?? {});
+
+    return PenaltySummary(
+      activeCount: (json['activeCount'] as num?)?.toInt() ?? 0,
+      totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0.0,
+      byStatus: PenaltyStatusBreakdown(
+        active: _parseStatusCount(byStatusData['active']),
+        waived: _parseStatusCount(byStatusData['waived']),
+        resolved: _parseStatusCount(byStatusData['resolved']),
+        disputed: _parseStatusCount(byStatusData['disputed']),
+      ),
+    );
+  }
+
+  final int activeCount;
+  final double totalAmount;
+  final PenaltyStatusBreakdown byStatus;
+
+  static PenaltyStatusCount _parseStatusCount(dynamic data) {
+    if (data is Map) {
+      final map = Map<String, dynamic>.from(data);
+      return PenaltyStatusCount(
+        count: (map['count'] as num?)?.toInt() ?? 0,
+        amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      );
+    }
+    return PenaltyStatusCount(count: 0, amount: 0.0);
+  }
+}
+
+class PenaltyStatusBreakdown {
+  PenaltyStatusBreakdown({
+    required this.active,
+    required this.waived,
+    required this.resolved,
+    required this.disputed,
+  });
+
+  final PenaltyStatusCount active;
+  final PenaltyStatusCount waived;
+  final PenaltyStatusCount resolved;
+  final PenaltyStatusCount disputed;
+}
+
+class PenaltyStatusCount {
+  PenaltyStatusCount({
+    required this.count,
+    required this.amount,
+  });
+
+  final int count;
+  final double amount;
 }
 
 class PenaltyFailure implements Exception {

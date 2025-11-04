@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/hooks/useAuth";
+import { SidebarProvider } from "@/contexts/SidebarContext";
 
 interface ProtectedLayoutProps {
   children: ReactNode;
@@ -40,5 +41,5 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
     );
   }
 
-  return <>{children}</>;
+  return <SidebarProvider>{children}</SidebarProvider>;
 }

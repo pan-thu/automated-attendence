@@ -69,13 +69,30 @@ export function useEmployees() {
 
     const loadData = async () => {
       setLoading(true);
+      const startTime = Date.now();
+      const MIN_LOADING_TIME = 500; // Show skeleton for at least 500ms
+
       try {
         await fetchEmployees();
+
+        // Ensure minimum loading time for skeleton visibility
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+
         if (isMounted) { // Only update if still mounted
           setError(null);
         }
       } catch (err) {
         console.error("Failed to load employees", err);
+
+        // Ensure minimum loading time even on error
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+
         if (isMounted) {
           setError("Unable to load employee records. Please try again later.");
         }

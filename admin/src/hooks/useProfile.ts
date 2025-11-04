@@ -54,7 +54,61 @@ export function useProfile() {
   };
 
   useEffect(() => {
-    fetchProfile();
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      setLoading(true);
+      setError(null);
+      const startTime = Date.now();
+      const MIN_LOADING_TIME = 500; // Show skeleton for at least 500ms
+
+      try {
+        const functions = getFunctions();
+        const getOwnProfile = httpsCallable<Record<string, never>, ProfileData>(
+          functions,
+          "getOwnProfile"
+        );
+
+        const result = await getOwnProfile({});
+
+        // Convert timestamp strings to Date objects
+        const profileData = {
+          ...result.data,
+          createdAt: result.data.createdAt ? new Date(result.data.createdAt) : null,
+          updatedAt: result.data.updatedAt ? new Date(result.data.updatedAt) : null,
+        };
+
+        // Ensure minimum loading time for skeleton visibility
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+
+        if (isMounted) {
+          setProfile(profileData);
+          setError(null);
+        }
+      } catch (err: unknown) {
+        // Ensure minimum loading time even on error
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+
+        if (isMounted) {
+          const message = err instanceof Error ? err.message : "Failed to fetch profile";
+          setError(message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return { profile, loading, error, refetch: fetchProfile };

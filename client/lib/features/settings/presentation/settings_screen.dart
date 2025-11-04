@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/controllers/preferences_controller.dart';
+import '../../../core/navigation/app_router.dart';
+import '../../../core/services/auth_repository.dart';
 import '../../../core/services/company_settings_repository.dart';
 import '../../../core/services/telemetry_service.dart';
+import '../../../design_system/colors.dart';
+import '../../../design_system/spacing.dart';
+import '../../../design_system/styles.dart';
+import '../../../design_system/typography.dart' as app_typography;
 import '../../widgets/async_error_view.dart';
 import '../../widgets/offline_notice.dart';
 import '../models/company_settings.dart';
@@ -44,8 +51,14 @@ class _SettingsView extends StatelessWidget {
     final controller = context.watch<SettingsController>();
 
     return Scaffold(
+      backgroundColor: backgroundPrimary,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(
+          'Profile',
+          style: app_typography.headingMedium,
+        ),
+        backgroundColor: backgroundPrimary,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -82,7 +95,10 @@ class _SettingsView extends StatelessWidget {
                       if (controller.settings == null)
                         const _MissingSettingsSupport(),
                       if (controller.settings != null)
-                      _HelpAndSupportSection(onOpenHelp: () => controller.openHelp(context)),
+                        _HelpAndSupportSection(onOpenHelp: () => controller.openHelp(context)),
+                      const SizedBox(height: 24),
+                      _LogoutSection(onLogout: () => controller.logout(context)),
+                      const SizedBox(height: 48),
                     ],
                   ),
                 ),
@@ -273,6 +289,64 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+class _LogoutSection extends StatelessWidget {
+  const _LogoutSection({required this.onLogout});
+
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(paddingMedium),
+      decoration: BoxDecoration(
+        color: backgroundSecondary,
+        borderRadius: BorderRadius.circular(radiusMedium),
+        border: Border.all(color: borderColor, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Account',
+            style: app_typography.labelLarge.copyWith(
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+          ),
+          const SizedBox(height: space4),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              Icons.logout_rounded,
+              color: errorBackground,
+              size: iconSizeMedium,
+            ),
+            title: Text(
+              'Logout',
+              style: app_typography.bodyMedium.copyWith(
+                color: errorBackground,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            subtitle: Text(
+              'Sign out of your account',
+              style: app_typography.bodySmall.copyWith(
+                color: textSecondary,
+              ),
+            ),
+            onTap: onLogout,
+            trailing: Icon(
+              Icons.chevron_right,
+              color: errorBackground,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class SettingsController extends ChangeNotifier {
   SettingsController({
     required this.repository,
@@ -358,6 +432,72 @@ class SettingsController extends ChangeNotifier {
       context: context,
       builder: (context) => const _HelpSheet(),
     );
+  }
+
+  Future<void> logout(BuildContext context) async {
+    _telemetry.recordEvent('settings_logout_initiated');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Logout',
+          style: app_typography.headingSmall,
+        ),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: app_typography.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: app_typography.labelMedium.copyWith(
+                color: textSecondary,
+              ),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ButtonStyle(
+              backgroundColor: WidgetStatePropertyAll(errorBackground),
+            ),
+            child: Text(
+              'Logout',
+              style: app_typography.labelMedium.copyWith(
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        // Get auth repository from context
+        final authRepo = Provider.of<AuthRepository>(context, listen: false);
+        await authRepo.signOut();
+
+        _telemetry.recordEvent('settings_logout_completed');
+
+        if (context.mounted) {
+          context.go(AppRoutePaths.login);
+        }
+      } catch (error) {
+        _telemetry.recordEvent('settings_logout_failed', metadata: {'error': error.toString()});
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Logout failed: $error'),
+              backgroundColor: errorBackground,
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _setLoading(bool value) {

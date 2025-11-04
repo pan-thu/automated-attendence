@@ -11,8 +11,12 @@ import {
   FileText,
   BarChart3,
   Settings,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/contexts/SidebarContext";
+import { Button } from "@/components/ui/button";
 
 interface NavLink {
   label: string;
@@ -53,6 +57,7 @@ const navSections: NavSection[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isCollapsed, toggleSidebar } = useSidebar();
 
   const isActive = (href: string) => {
     if (href === "/") {
@@ -62,13 +67,23 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-zinc-800 bg-black text-zinc-300">
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-zinc-800 bg-black text-zinc-300 transition-all duration-300",
+        isCollapsed ? "w-16" : "w-64"
+      )}
+    >
       {/* Logo */}
-      <div className="flex items-center gap-2 border-b border-zinc-800 px-6 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+      <div className={cn(
+        "flex items-center border-b border-zinc-800 py-5 transition-all duration-300",
+        isCollapsed ? "justify-center px-4" : "gap-2 px-6"
+      )}>
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 shrink-0">
           <ClipboardCheck className="h-5 w-5 text-white" />
         </div>
-        <span className="text-lg font-semibold text-white">AttendDesk</span>
+        {!isCollapsed && (
+          <span className="text-lg font-semibold text-white whitespace-nowrap">AttendDesk</span>
+        )}
       </div>
 
       {/* Navigation */}
@@ -76,9 +91,11 @@ export function Sidebar() {
         {navSections.map((section, sectionIdx) => (
           <div key={section.title} className={cn(sectionIdx > 0 && "mt-8")}>
             {/* Section Header */}
-            <div className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              {section.title}
-            </div>
+            {!isCollapsed && (
+              <div className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                {section.title}
+              </div>
+            )}
 
             {/* Section Links */}
             <ul className="space-y-1">
@@ -94,15 +111,17 @@ export function Sidebar() {
                         "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         active
                           ? "bg-zinc-900 text-white"
-                          : "text-zinc-400 hover:bg-zinc-900/70 hover:text-white"
+                          : "text-zinc-400 hover:bg-zinc-900/70 hover:text-white",
+                        isCollapsed && "justify-center"
                       )}
+                      title={isCollapsed ? link.label : undefined}
                     >
-                      {active && (
+                      {active && !isCollapsed && (
                         <div className="absolute left-0 h-8 w-1 rounded-r-full bg-blue-600" />
                       )}
                       <Icon className="h-4 w-4 shrink-0" />
-                      <span>{link.label}</span>
-                      {active && (
+                      {!isCollapsed && <span>{link.label}</span>}
+                      {active && !isCollapsed && (
                         <div className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-600" />
                       )}
                     </Link>
@@ -113,6 +132,29 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
+
+      {/* Toggle Button */}
+      <div className="border-t border-zinc-800 p-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleSidebar}
+          className={cn(
+            "w-full text-zinc-400 hover:bg-zinc-900/70 hover:text-white",
+            isCollapsed && "justify-center px-0"
+          )}
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <>
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              <span className="text-xs">Collapse</span>
+            </>
+          )}
+        </Button>
+      </div>
     </aside>
   );
 }

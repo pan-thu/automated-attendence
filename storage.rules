@@ -21,11 +21,11 @@ service firebase.storage {
     }
 
     // ======================================================================
-    //  PROFILE IMAGES
+    //  PROFILE IMAGES (Legacy path - kept for backward compatibility)
     //  Path: /profile_images/{userId}/{fileName}
     // ======================================================================
     match /profile_images/{userId}/{fileName} {
-    
+
       // --- WHO CAN READ ---
       // Any authenticated user can view anyone else's profile picture.
       // This is common for a company directory app.
@@ -35,6 +35,27 @@ service firebase.storage {
       // Only the user who owns this folder can upload/change their own profile picture.
       // Admins are also given write access for management purposes.
       allow write: if (request.auth.uid == userId || isAdmin())
+        // --- VALIDATION ---
+        // We must validate the uploaded file to ensure it's a reasonable image.
+        && request.resource.size < 5 * 1024 * 1024 // File must be less than 5 MB
+        && request.resource.contentType.matches('image/.*'); // File must be an image type (e.g., image/jpeg, image/png)
+    }
+
+    // ======================================================================
+    //  PROFILE PHOTOS (Current path used by Cloud Functions)
+    //  Path: /profile-photos/{userId}/{photoId}_{fileName}
+    // ======================================================================
+    match /profile-photos/{userId}/{allPaths=**} {
+
+      // --- WHO CAN READ ---
+      // Any authenticated user can view anyone else's profile picture.
+      // This is common for a company directory app.
+      allow read: if request.auth != null;
+
+      // --- WHO CAN WRITE (Create, Update, Delete) ---
+      // Only the user who owns this folder can upload/change their own profile picture.
+      // Admins are also given write access for management purposes.
+      allow write: if (request.auth != null && (request.auth.uid == userId || isAdmin()))
         // --- VALIDATION ---
         // We must validate the uploaded file to ensure it's a reasonable image.
         && request.resource.size < 5 * 1024 * 1024 // File must be less than 5 MB

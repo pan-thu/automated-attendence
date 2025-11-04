@@ -254,23 +254,37 @@ export const generateProfilePhotoUploadUrl = async (
 
   const uploadUrlExpiry = Date.now() + SIGNED_URL_TTL_SECONDS * 1000;
 
-  let uploadUrl: string;
-  try {
-    const [signedUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'write',
-      expires: uploadUrlExpiry,
-      contentType: normalizedMime,
-    });
-    uploadUrl = signedUrl;
-  } catch (error) {
-    // In emulator or when service account is not available, use public upload URL
-    authLogger.warn('Failed to generate signed URL, using public upload approach', error);
+  // Check if we're running in emulator mode
+  const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 
-    // For emulator: construct a direct upload URL
-    // This won't work in production but is fine for local development
+  let uploadUrl: string;
+
+  if (isEmulator) {
+    // Use emulator upload URL
     const bucketName = bucket.name || 'default-bucket';
-    uploadUrl = `http://localhost:9199/v0/b/${bucketName}/o?name=${encodeURIComponent(storagePath)}`;
+    // Use the EMULATOR_HOST from .env if available, otherwise default to localhost
+    const emulatorHost = process.env.EMULATOR_HOST || 'localhost';
+    const emulatorPort = '9199';
+
+    // Construct emulator upload URL with proper format
+    uploadUrl = `http://${emulatorHost}:${emulatorPort}/v0/b/${bucketName}/o?uploadType=media&name=${encodeURIComponent(storagePath)}`;
+
+    authLogger.info(`[Emulator] Using Storage emulator upload URL: http://${emulatorHost}:${emulatorPort}`);
+  } else {
+    // Production: Generate signed URL
+    try {
+      const [signedUrl] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'write',
+        expires: uploadUrlExpiry,
+        contentType: normalizedMime,
+      });
+      uploadUrl = signedUrl;
+    } catch (error) {
+      authLogger.warn('Failed to generate signed URL, using public upload approach', error);
+      const bucketName = bucket.name || 'default-bucket';
+      uploadUrl = `http://localhost:9199/v0/b/${bucketName}/o?uploadType=media&name=${encodeURIComponent(storagePath)}`;
+    }
   }
 
   const expiresAt = Timestamp.fromDate(

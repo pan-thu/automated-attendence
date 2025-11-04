@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 
 // Import new components
 import { AuditLogFilters } from "@/components/audit/AuditLogFilters";
+import { AuditLogTableSkeleton } from "@/components/audit/AuditLogTableSkeleton";
 import { Database, Shield, AlertCircle, Eye } from "lucide-react";
 import { format } from "date-fns";
 
@@ -30,7 +31,7 @@ export default function AuditLogsPage() {
     category: "all",
     severity: "all",
     action: "all",
-    user: "",
+    user: "all",
     dateRange: { start: null as Date | null, end: null as Date | null },
     timeRange: "today"
   });
@@ -81,7 +82,7 @@ export default function AuditLogsPage() {
           return false;
         }
 
-        if (filters.user && log.performedBy !== filters.user) {
+        if (filters.user && filters.user !== "all" && log.performedBy !== filters.user) {
           return false;
         }
 
@@ -229,29 +230,23 @@ export default function AuditLogsPage() {
           )}
 
           {/* Audit Logs Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Performed By</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Severity</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
+          {loading ? (
+            <AuditLogTableSkeleton rows={15} />
+          ) : transformedLogs.length === 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="h-64">
-                      <div className="flex items-center justify-center">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                      </div>
-                    </TableCell>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Performed By</TableHead>
+                    <TableHead>Target</TableHead>
+                    <TableHead>Severity</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ) : transformedLogs.length === 0 ? (
+                </TableHeader>
+                <TableBody>
                   <TableRow>
                     <TableCell colSpan={7} className="h-64">
                       <div className="flex flex-col items-center justify-center text-center">
@@ -263,8 +258,25 @@ export default function AuditLogsPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  transformedLogs.map((log) => {
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Performed By</TableHead>
+                    <TableHead>Target</TableHead>
+                    <TableHead>Severity</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transformedLogs.map((log) => {
                     const getSeverityColor = (severity: string) => {
                       switch (severity) {
                         case "critical":
@@ -356,10 +368,11 @@ export default function AuditLogsPage() {
                       </TableRow>
                     );
                   })
-                )}
+                }
               </TableBody>
             </Table>
           </div>
+          )}
 
           {/* Pagination Info */}
           {transformedLogs.length > 0 && (

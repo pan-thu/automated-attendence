@@ -265,4 +265,65 @@ const inferMonthlyViolationCounts = (statuses: ViolationStatus[]) => {
   return counts;
 };
 
+export interface GetPenaltySummaryInput {
+  userId: string;
+}
+
+export interface PenaltySummaryResult {
+  activeCount: number;
+  totalAmount: number;
+  byStatus: {
+    active: { count: number; amount: number };
+    waived: { count: number; amount: number };
+    resolved: { count: number; amount: number };
+    disputed: { count: number; amount: number };
+  };
+}
+
+export const getPenaltySummary = async (input: GetPenaltySummaryInput): Promise<PenaltySummaryResult> => {
+  const { userId } = input;
+
+  const penaltiesSnapshot = await firestore
+    .collection(PENALTIES_COLLECTION)
+    .where('userId', '==', userId)
+    .get();
+
+  const summary: PenaltySummaryResult = {
+    activeCount: 0,
+    totalAmount: 0,
+    byStatus: {
+      active: { count: 0, amount: 0 },
+      waived: { count: 0, amount: 0 },
+      resolved: { count: 0, amount: 0 },
+      disputed: { count: 0, amount: 0 },
+    },
+  };
+
+  penaltiesSnapshot.forEach((doc) => {
+    const penalty = doc.data();
+    const status = (penalty.status as string | undefined)?.toLowerCase() ?? 'active';
+    const amount = (penalty.amount as number) ?? 0;
+
+    // Map status to our summary categories
+    let statusKey: keyof typeof summary.byStatus = 'active';
+    if (status === 'waived') {
+      statusKey = 'waived';
+    } else if (status === 'resolved' || status === 'paid') {
+      statusKey = 'resolved';
+    } else if (status === 'disputed') {
+      statusKey = 'disputed';
+    }
+
+    summary.byStatus[statusKey].count++;
+    summary.byStatus[statusKey].amount += amount;
+
+    if (status === 'active') {
+      summary.activeCount++;
+      summary.totalAmount += amount;
+    }
+  });
+
+  return summary;
+};
+
 

@@ -98,10 +98,28 @@ export function useDashboardSummary() {
 
     async function load() {
       setLoading(true);
+      const startTime = Date.now();
+      const MIN_LOADING_TIME = 500; // Show skeleton for at least 500ms
+
       try {
         await fetchSummary();
+
+        // Ensure minimum loading time for skeleton visibility
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+
+        if (!cancelled) {
+          setError(null);
+        }
       } catch (err) {
         console.error("Failed to load dashboard summary", err);
+
+        // Ensure minimum loading time even on error
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+
         if (!cancelled) {
           setError("Unable to load dashboard data. Try again later.");
         }

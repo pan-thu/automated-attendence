@@ -12,6 +12,7 @@ import { callWaivePenalty } from "@/lib/firebase/functions";
 
 // Import new components
 import { PenaltyCard } from "@/components/penalties/PenaltyCard";
+import { PenaltyCardSkeleton } from "@/components/penalties/PenaltyCardSkeleton";
 import { PenaltyFilters } from "@/components/penalties/PenaltyFilters";
 import { DollarSign, AlertCircle, FileText, TrendingUp, Calendar } from "lucide-react";
 import { format } from "date-fns";
@@ -25,7 +26,7 @@ export default function PenaltiesPage() {
     status: "all",
     violationType: "all",
     dateRange: { start: null as Date | null, end: null as Date | null },
-    employee: "",
+    employee: "all",
     amountRange: { min: null as number | null, max: null as number | null }
   });
 
@@ -58,7 +59,7 @@ export default function PenaltiesPage() {
           return false;
         }
 
-        if (filters.employee && penalty.userId !== filters.employee) {
+        if (filters.employee && filters.employee !== "all" && penalty.userId !== filters.employee) {
           return false;
         }
 
@@ -223,8 +224,10 @@ export default function PenaltiesPage() {
 
             <TabsContent value={activeTab} className="mt-6">
               {loading ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <PenaltyCardSkeleton key={index} />
+                  ))}
                 </div>
               ) : getPenaltiesByTab().length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-center">

@@ -7,9 +7,7 @@ import {
   Clock,
   Calendar,
   Shield,
-  Bell,
   FileText,
-  Settings as SettingsIcon,
   Circle
 } from "lucide-react";
 
@@ -55,18 +53,6 @@ const sections = [
     label: "Penalty Configuration",
     icon: Shield,
     description: "Violation rules"
-  },
-  {
-    id: "notifications",
-    label: "Notifications",
-    icon: Bell,
-    description: "Alert preferences"
-  },
-  {
-    id: "advanced",
-    label: "Advanced Settings",
-    icon: SettingsIcon,
-    description: "System configuration"
   }
 ];
 

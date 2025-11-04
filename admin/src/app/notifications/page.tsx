@@ -14,6 +14,7 @@ import { callSendBulkNotification, callSendNotification } from "@/lib/firebase/f
 import { NotificationCard } from "@/components/notifications/NotificationCard";
 import { NotificationFilters } from "@/components/notifications/NotificationFilters";
 import { NotificationComposer } from "@/components/notifications/NotificationComposer";
+import { NotificationListSkeleton } from "@/components/notifications/NotificationListSkeleton";
 import { Bell, Send, Users, Clock } from "lucide-react";
 import { format } from "date-fns";
 
@@ -300,9 +301,7 @@ export default function NotificationsPage() {
 
             <TabsContent value={activeTab} className="mt-6">
               {loading ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                </div>
+                <NotificationListSkeleton count={8} />
               ) : getNotificationsByTab().length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-center">
                   <Bell className="h-12 w-12 text-gray-400 mb-3" />

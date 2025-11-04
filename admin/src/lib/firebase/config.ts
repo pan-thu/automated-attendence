@@ -2,7 +2,7 @@ import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, connectAuthEmulator, type Auth } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator, type Firestore } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
-import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { getStorage, connectStorageEmulator, type FirebaseStorage } from "firebase/storage";
 
 /**
  * Bug Fix #25: Lazy Firebase config initialization.
@@ -93,6 +93,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     const auth = getAuth(app);
     const db = getFirestore(app);
     const functions = getFunctions(app);
+    const storage = getStorage(app);
 
     // Determine emulator host - use environment variable or default to localhost
     const emulatorHost = process.env.NEXT_PUBLIC_EMULATOR_HOST || 'localhost';
@@ -102,6 +103,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
       connectFirestoreEmulator(db, emulatorHost, 8080);
       connectFunctionsEmulator(functions, emulatorHost, 5001);
+      connectStorageEmulator(storage, emulatorHost, 9199);
 
       console.log(`🔧 Connected to Firebase Emulators @ ${emulatorHost}`);
     } catch (error) {

@@ -6,10 +6,12 @@ import '../config/app_environment.dart';
 import '../controllers/preferences_controller.dart';
 import '../navigation/app_router.dart';
 import '../services/company_settings_repository.dart';
+import '../services/holiday_repository.dart';
 import '../services/leave_repository.dart';
 import '../services/notification_repository.dart';
 import '../services/penalty_repository.dart';
 import '../services/push_notification_service.dart';
+import '../../design_system/theme.dart' as app_theme;
 import '../../features/onboarding/controllers/onboarding_controller.dart';
 
 Future<void> configureAppProviders({required AppEnvironment environment}) async {
@@ -34,14 +36,16 @@ class ProviderScope extends StatelessWidget {
         ChangeNotifierProvider<OnboardingController>(
           create: (_) => OnboardingController(),
         ),
+        Provider<HolidayRepositoryBase>(create: (_) => HolidayRepository()),
         Provider<LeaveRepositoryBase>(create: (_) => LeaveRepository()),
         Provider<NotificationRepositoryBase>(create: (_) => NotificationRepository()),
         Provider<PenaltyRepositoryBase>(create: (_) => PenaltyRepository()),
         Provider<CompanySettingsRepository>(create: (_) => CompanySettingsRepository()),
         Provider<PushNotificationService>(create: (_) => PushNotificationService()),
-        ProxyProvider6<
+        ProxyProvider7<
             SessionController,
             OnboardingController,
+            HolidayRepositoryBase,
             LeaveRepositoryBase,
             NotificationRepositoryBase,
             PenaltyRepositoryBase,
@@ -51,6 +55,7 @@ class ProviderScope extends StatelessWidget {
             context,
             sessionController,
             onboardingController,
+            holidayRepository,
             leaveRepository,
             notificationRepository,
             penaltyRepository,
@@ -60,6 +65,7 @@ class ProviderScope extends StatelessWidget {
               AppRouter(
                 sessionController: sessionController,
                 onboardingController: onboardingController,
+                holidayRepository: holidayRepository,
                 leaveRepository: leaveRepository,
                 notificationRepository: notificationRepository,
                 penaltyRepository: penaltyRepository,
@@ -71,19 +77,13 @@ class ProviderScope extends StatelessWidget {
       ],
       child: Consumer2<AppRouter, PreferencesController>(
         builder: (context, appRouter, preferences, _) => MaterialApp.router(
-          title: 'Attendance App',
+          title: 'AttenDesk',
           routerDelegate: appRouter.router.routerDelegate,
           routeInformationParser: appRouter.router.routeInformationParser,
           routeInformationProvider: appRouter.router.routeInformationProvider,
           themeMode: preferences.themeMode,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
-            useMaterial3: true,
-          ),
+          theme: app_theme.lightTheme,
+          darkTheme: app_theme.lightTheme, // TODO: Implement dark theme in future
         ),
       ),
     );

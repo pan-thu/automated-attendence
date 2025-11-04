@@ -18,6 +18,7 @@ import { AttendanceChart } from "./AttendanceChart";
 import { LeaveRequests } from "./LeaveRequests";
 import { AttendanceTable } from "./AttendanceTable";
 import { AuditLogList } from "./AuditLogList";
+import { DashboardSkeleton } from "./DashboardSkeleton";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { useLeaves } from "@/hooks/useLeaves";
 import { useLeaveApproval } from "@/hooks/useLeaveApproval";
@@ -144,6 +145,14 @@ export function EnhancedDashboard() {
 
     return records;
   });
+
+  if (dashboardLoading) {
+    return (
+      <div className="flex flex-col gap-6 p-6 pt-4">
+        <DashboardSkeleton />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6 pt-4">

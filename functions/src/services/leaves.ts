@@ -630,3 +630,113 @@ export const listEmployeeLeaves = async (input: ListEmployeeLeavesInput): Promis
     nextCursor,
   };
 };
+
+export interface GetLeaveBalanceInput {
+  userId: string;
+  year?: number;
+}
+
+export interface LeaveBalanceResult {
+  total: number;
+  used: number;
+  remaining: number;
+  year: number;
+  breakdown?: {
+    sick?: { total: number; used: number; remaining: number };
+    casual?: { total: number; used: number; remaining: number };
+    vacation?: { total: number; used: number; remaining: number };
+  };
+}
+
+export const getLeaveBalance = async (input: GetLeaveBalanceInput): Promise<LeaveBalanceResult> => {
+  const { userId, year } = input;
+  const currentYear = year || new Date().getFullYear();
+
+  // Get company settings for total leave allocation
+  const settings = await getCompanySettings();
+  // leavePolicy contains leave type -> days mapping, sum them for total
+  const leavePolicy = settings.leavePolicy || {};
+  const totalFromPolicy = Object.values(leavePolicy).reduce((sum: number, days) => sum + (days as number), 0);
+  const totalLeaves = totalFromPolicy || 12; // Default to 12 if no policy defined
+
+  // Get user document for leave balances
+  const userRef = firestore.collection(USERS_COLLECTION).doc(userId);
+  const userSnap = await userRef.get();
+
+  if (!userSnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'User not found.');
+  }
+
+  const userData = userSnap.data();
+  const fullLeaveBalance = (userData?.fullLeaveBalance as number) ?? 0;
+  const medicalLeaveBalance = (userData?.medicalLeaveBalance as number) ?? 0;
+  const maternityLeaveBalance = (userData?.maternityLeaveBalance as number) ?? 0;
+
+  // Calculate total available from user balances
+  const totalAvailable = fullLeaveBalance + medicalLeaveBalance + maternityLeaveBalance;
+
+  // Query approved/pending leaves for the year to calculate used days
+  const yearStart = Timestamp.fromDate(new Date(currentYear, 0, 1));
+  const yearEnd = Timestamp.fromDate(new Date(currentYear, 11, 31, 23, 59, 59));
+
+  const leavesSnapshot = await firestore
+    .collection(LEAVE_COLLECTION)
+    .where('userId', '==', userId)
+    .where('status', 'in', ['approved', 'pending'])
+    .where('startDate', '>=', yearStart)
+    .where('startDate', '<=', yearEnd)
+    .get();
+
+  // Calculate used days
+  let usedDays = 0;
+  let sickUsed = 0;
+  let casualUsed = 0;
+  let vacationUsed = 0;
+
+  leavesSnapshot.forEach((doc) => {
+    const leave = doc.data();
+    const startTimestamp = leave.startDate as FirebaseFirestore.Timestamp;
+    const endTimestamp = leave.endDate as FirebaseFirestore.Timestamp;
+    const start = startTimestamp.toDate();
+    const end = endTimestamp.toDate();
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    usedDays += days;
+
+    // Track by type
+    const leaveType = (leave.leaveType as string)?.toLowerCase() ?? 'casual';
+    if (leaveType.includes('sick') || leaveType.includes('medical')) {
+      sickUsed += days;
+    } else if (leaveType.includes('vacation')) {
+      vacationUsed += days;
+    } else {
+      casualUsed += days;
+    }
+  });
+
+  const remaining = totalAvailable - usedDays;
+
+  return {
+    total: totalAvailable,
+    used: usedDays,
+    remaining: Math.max(0, remaining),
+    year: currentYear,
+    breakdown: {
+      sick: {
+        total: medicalLeaveBalance,
+        used: sickUsed,
+        remaining: Math.max(0, medicalLeaveBalance - sickUsed),
+      },
+      casual: {
+        total: fullLeaveBalance,
+        used: casualUsed,
+        remaining: Math.max(0, fullLeaveBalance - casualUsed),
+      },
+      vacation: {
+        total: maternityLeaveBalance,
+        used: vacationUsed,
+        remaining: Math.max(0, maternityLeaveBalance - vacationUsed),
+      },
+    },
+  };
+};

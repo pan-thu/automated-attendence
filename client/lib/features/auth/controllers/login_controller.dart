@@ -58,32 +58,18 @@ class LoginController extends ChangeNotifier {
     }
   }
 
-  Future<void> resetPassword(BuildContext context) async {
-    if (_email.isEmpty) {
-      _emailError = 'Enter your email to receive reset instructions.';
-      notifyListeners();
-      return;
+  /// Send password reset email for the given email address
+  ///
+  /// Used by ForgotPasswordDialog to send reset instructions
+  /// Throws AuthFailure on error
+  Future<void> sendPasswordReset(String email) async {
+    final trimmedEmail = email.trim();
+
+    if (!_emailPattern.hasMatch(trimmedEmail)) {
+      throw const AuthFailure('Please enter a valid email address.');
     }
 
-    if (!_emailPattern.hasMatch(_email)) {
-      _emailError = 'Enter a valid email address.';
-      notifyListeners();
-      return;
-    }
-
-    try {
-      await _authRepository.sendPasswordResetEmail(_email);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password reset email sent. Check your inbox.'),
-          ),
-        );
-      }
-    } on AuthFailure catch (failure) {
-      _errorMessage = failure.message;
-      notifyListeners();
-    }
+    await _authRepository.sendPasswordResetEmail(trimmedEmail);
   }
 
   bool _validateInputs() {

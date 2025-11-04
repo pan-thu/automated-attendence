@@ -4,13 +4,90 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/navigation/app_router.dart';
+import '../../../core/services/auth_repository.dart';
 import '../../../core/services/dashboard_repository.dart';
+import '../../../design_system/colors.dart';
+import '../../../design_system/spacing.dart';
+import '../../../design_system/styles.dart';
+import '../../../design_system/typography.dart' as app_typography;
+import '../../widgets/feedback_dialog.dart';
 import '../../widgets/offline_notice.dart';
 import '../controllers/clock_in_controller.dart';
 import '../controllers/dashboard_controller.dart';
+import 'check_status_tracker.dart';
+import 'location_proximity_indicator.dart';
+import 'time_display.dart';
 
-class DashboardView extends StatelessWidget {
+/// Dashboard view for home screen
+///
+/// Features:
+/// - Live time display
+/// - Location proximity indicator
+/// - Check-in/out status tracker
+/// - Clock-in action button
+/// - Quick action cards
+/// - Summary statistics
+/// Based on spec in docs/client-overhaul/02-home-dashboard.md
+class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
+
+  @override
+  State<DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<DashboardView> {
+  @override
+  void initState() {
+    super.initState();
+    // Start location updates when dashboard is shown
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<DashboardController>().startLocationUpdates();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Stop location updates when dashboard is hidden
+    context.read<DashboardController>().stopLocationUpdates();
+    super.dispose();
+  }
+
+  Future<void> _handleClockIn(BuildContext context) async {
+    final clockIn = context.read<ClockInController>();
+
+    try {
+      final didComplete = await clockIn.attemptClockIn();
+
+      if (!context.mounted) return;
+
+      if (didComplete) {
+        FeedbackDialog.showSuccess(
+          context,
+          'Clock-In Successful',
+          message: clockIn.statusMessage ?? 'Your attendance has been recorded.',
+        );
+
+        // Refresh dashboard after successful clock-in
+        await context.read<DashboardController>().refreshDashboard();
+      } else {
+        FeedbackDialog.showError(
+          context,
+          'Clock-In Failed',
+          message: clockIn.errorMessage ?? 'Unable to record attendance. Please try again.',
+        );
+      }
+    } on AuthFailure catch (e) {
+      if (context.mounted) {
+        FeedbackDialog.showError(
+          context,
+          'Clock-In Failed',
+          message: e.message,
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,89 +95,52 @@ class DashboardView extends StatelessWidget {
     final clockIn = context.watch<ClockInController>();
 
     return Scaffold(
+      backgroundColor: backgroundPrimary,
       appBar: AppBar(
-        title: const Text('Attendance Dashboard'),
+        title: Text(
+          'Home',
+          style: app_typography.headingMedium,
+        ),
+        backgroundColor: backgroundPrimary,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Settings',
-            onPressed: () => context.push(AppRoutePaths.settings),
-          ),
-          IconButton(
-            onPressed:
-                dashboard.isLoading ? null : () => dashboard.refreshDashboard(),
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            icon: Badge(
+              isLabelVisible: dashboard.summary != null &&
+                  dashboard.summary!.unreadNotifications > 0,
+              label: Text(
+                dashboard.summary?.unreadNotifications.toString() ?? '',
+              ),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            onPressed: () => context.push(AppRoutePaths.notifications),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: dashboard.refreshDashboard,
-        child:
-            dashboard.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : dashboard.summary == null
+        child: dashboard.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : dashboard.summary == null
                 ? _EmptyState(errorMessage: dashboard.errorMessage)
                 : Column(
-                  children: [
-                    if (dashboard.isOffline)
-                      OfflineNotice(
-                        message:
-                            'You are viewing cached attendance data. Pull down to refresh once you are back online.',
-                        lastUpdated: dashboard.summaryUpdatedAt,
-                        onRetry: dashboard.refreshDashboard,
-                      ),
-                    Expanded(
-                      child: _DashboardContent(
-                        summary: dashboard.summary!,
-                        clockIn: clockIn,
-                      ),
-                    ),
-                  ],
-                ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed:
-            clockIn.isLoading
-                ? null
-                : () async {
-                  final didComplete =
-                      await context.read<ClockInController>().attemptClockIn();
-                  if (!context.mounted) return;
-
-                  final messenger = ScaffoldMessenger.of(context);
-                  if (didComplete) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          clockIn.statusMessage ?? 'Clock-in recorded.',
+                    children: [
+                      if (dashboard.isOffline)
+                        OfflineNotice(
+                          message:
+                              'You are viewing cached data. Pull down to refresh.',
+                          lastUpdated: dashboard.summaryUpdatedAt,
+                          onRetry: dashboard.refreshDashboard,
                         ),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                    await context
-                        .read<DashboardController>()
-                        .refreshDashboard();
-                  } else {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          clockIn.errorMessage ?? 'Clock-in failed.',
+                      Expanded(
+                        child: _DashboardContent(
+                          summary: dashboard.summary!,
+                          clockIn: clockIn,
+                          onClockIn: () => _handleClockIn(context),
                         ),
-                        behavior: SnackBarBehavior.floating,
                       ),
-                    );
-                  }
-                },
-        icon:
-            clockIn.isLoading
-                ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-                : const Icon(Icons.fingerprint),
-        label: const Text('Clock In'),
+                    ],
+                  ),
       ),
     );
   }
@@ -126,128 +166,339 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _DashboardContent extends StatelessWidget {
-  const _DashboardContent({required this.summary, required this.clockIn});
+  const _DashboardContent({
+    required this.summary,
+    required this.clockIn,
+    required this.onClockIn,
+  });
 
   final DashboardSummary summary;
   final ClockInController clockIn;
+  final VoidCallback onClockIn;
 
   @override
   Widget build(BuildContext context) {
-    final dateLabel = DateFormat.MMMMEEEEd().format(summary.date);
+    // Convert attendance checks to CheckSummary objects
+    final checkSummaries = summary.attendance.checks
+        .map((check) {
+          DateTime? timestamp;
+          if (check.timestamp != null && check.timestamp!.isNotEmpty) {
+            try {
+              timestamp = DateTime.parse(check.timestamp!);
+            } catch (_) {
+              timestamp = null;
+            }
+          }
+
+          return CheckSummary(
+            slot: check.slot,
+            status: check.status,
+            timestamp: timestamp,
+          );
+        })
+        .toList();
+
+    // Determine current check slot
+    final currentCheckSlot = checkSummaries.isEmpty
+        ? 1
+        : checkSummaries.length < 3
+            ? checkSummaries.length + 1
+            : null;
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(paddingLarge),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dateLabel,
-                  style: Theme.of(context).textTheme.headlineSmall,
+        // Current check indicator at top
+        if (currentCheckSlot != null) ...[
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: paddingMedium,
+                vertical: paddingSmall,
+              ),
+              decoration: BoxDecoration(
+                color: primaryGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(radiusLarge),
+                border: Border.all(color: primaryGreen, width: 1),
+              ),
+              child: Text(
+                'Check $currentCheckSlot',
+                style: app_typography.labelMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: primaryGreen,
                 ),
-                const SizedBox(height: 4),
-                Text('${summary.unreadNotifications} unread notifications'),
+              ),
+            ),
+          ),
+          const SizedBox(height: space6),
+        ],
+
+        // Time display
+        const TimeDisplay(),
+        const SizedBox(height: space10),
+
+        // Circular clock-in button
+        Center(
+          child: Material(
+            elevation: elevationHigh,
+            shape: const CircleBorder(),
+            color: clockIn.isLoading ? borderColor : primaryGreen,
+            child: InkWell(
+              onTap: clockIn.isLoading ? null : onClockIn,
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 140,
+                height: 140,
+                child: clockIn.isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.touch_app_rounded,
+                            size: 56,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(height: space2),
+                          Text(
+                            'Clock In',
+                            style: app_typography.labelLarge.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: space10),
+
+        // Location proximity indicator
+        LocationProximityIndicator(
+          isInRange: dashboard.isWithinGeofence,
+          distanceInMeters: dashboard.distanceToOffice,
+          isLoading: dashboard.isLoadingLocation,
+        ),
+        const SizedBox(height: space6),
+
+        // Location error message (if any)
+        if (dashboard.locationError != null) ...[
+          Container(
+            padding: const EdgeInsets.all(paddingMedium),
+            decoration: BoxDecoration(
+              color: warningBackground.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(radiusMedium),
+              border: Border.all(color: warningBackground, width: 1),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: warningBackground,
+                  size: iconSizeSmall,
+                ),
+                const SizedBox(width: gapSmall),
+                Expanded(
+                  child: Text(
+                    dashboard.locationError!,
+                    style: app_typography.bodySmall.copyWith(
+                      color: warningBackground,
+                    ),
+                  ),
+                ),
               ],
             ),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  tooltip: 'Settings',
-                  onPressed: () => context.push(AppRoutePaths.settings),
-                ),
-                Chip(
-                  label: Text(summary.isActive ? 'Active' : 'Inactive'),
-                  backgroundColor:
-                      summary.isActive
-                          ? Colors.green.shade100
-                          : Colors.red.shade100,
-                ),
-              ],
+          ),
+          const SizedBox(height: space6),
+        ],
+
+        // Check status tracker
+        CheckStatusTracker(
+          checks: checkSummaries,
+        ),
+        const SizedBox(height: space10),
+
+        // Quick action cards section
+        Text(
+          'Quick Actions',
+          style: app_typography.headingSmall.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: space4),
+
+        // Action cards grid
+        Row(
+          children: [
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.beach_access_outlined,
+                label: 'Leave',
+                subtitle: _getLeaveBalanceText(summary.leaveBalances),
+                onTap: () => context.push(AppRoutePaths.leaves),
+              ),
+            ),
+            const SizedBox(width: gapMedium),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.warning_amber_outlined,
+                label: 'Penalties',
+                subtitle: summary.activePenalties.isEmpty
+                    ? 'No penalties'
+                    : '${summary.activePenalties.length} active',
+                onTap: () => context.push(AppRoutePaths.penalties),
+              ),
             ),
           ],
         ),
-        if (clockIn.statusMessage != null || clockIn.errorMessage != null) ...[
-          const SizedBox(height: 16),
-          _FeedbackAlert(
-            isError: clockIn.errorMessage != null,
-            message: clockIn.errorMessage ?? clockIn.statusMessage!,
+        const SizedBox(height: space8),
+
+        // Statistics section
+        Text(
+          'Today\'s Summary',
+          style: app_typography.headingSmall.copyWith(
+            fontWeight: FontWeight.w600,
           ),
-        ],
-        const SizedBox(height: 16),
-        _AttendanceCard(summary: summary.attendance),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-          onPressed: () => context.push(AppRoutePaths.attendanceHistory),
-          icon: const Icon(Icons.calendar_month),
-          label: const Text('View Attendance History'),
         ),
-        const SizedBox(height: 16),
-        _LeaveBalancesCard(leaveBalances: summary.leaveBalances),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-          onPressed: () => context.push(AppRoutePaths.leaves),
-          icon: const Icon(Icons.beach_access),
-          label: const Text('Manage Leave'),
+        const SizedBox(height: space4),
+
+        _StatisticsCard(
+          items: [
+            _StatItem(
+              icon: Icons.check_circle,
+              label: 'Status',
+              value: _formatAttendanceStatus(summary.attendance.status),
+              color: _getAttendanceStatusColor(summary.attendance.status),
+            ),
+            _StatItem(
+              icon: Icons.done_all,
+              label: 'Completed',
+              value: '${summary.attendance.checks.where((c) => c.status != null && c.status != 'missed').length}',
+              color: statusPresent,
+            ),
+            _StatItem(
+              icon: Icons.schedule,
+              label: 'Late Checks',
+              value: '${summary.attendance.checks.where((c) => c.status == 'late').length}',
+              color: statusLate,
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-          onPressed: () => context.push(AppRoutePaths.notifications),
-          icon: const Icon(Icons.notifications),
-          label: const Text('Notifications'),
-        ),
-        if (summary.remainingChecks.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _RemainingChecksCard(remaining: summary.remainingChecks),
-        ],
+
+        // Upcoming leave (if any)
         if (summary.upcomingLeave.isNotEmpty) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: space8),
           _UpcomingLeaveCard(leaves: summary.upcomingLeave),
         ],
-        if (summary.activePenalties.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _PenaltiesCard(penalties: summary.activePenalties),
-        ],
-        const SizedBox(height: 16),
-        _CompanyInfoCard(settings: summary.companySettings),
+
+        const SizedBox(height: space16),
       ],
     );
   }
+
+  String _getLeaveBalanceText(Map<String, num> balances) {
+    if (balances.isEmpty) return 'No balance';
+    final total = balances.values.fold<num>(0, (a, b) => a + b);
+    return '$total days left';
+  }
+
+  String _formatAttendanceStatus(String? status) {
+    if (status == null || status.isEmpty) return 'Unknown';
+
+    switch (status.toLowerCase()) {
+      case 'present':
+        return 'Present';
+      case 'absent':
+        return 'Absent';
+      case 'late':
+        return 'Late';
+      case 'half_day_absent':
+        return 'Half Day';
+      case 'on_leave':
+        return 'On Leave';
+      case 'holiday':
+        return 'Holiday';
+      default:
+        return status.split('_').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ');
+    }
+  }
+
+  Color _getAttendanceStatusColor(String? status) {
+    if (status == null || status.isEmpty) return textSecondary;
+
+    switch (status.toLowerCase()) {
+      case 'present':
+        return statusPresent;
+      case 'absent':
+        return statusAbsent;
+      case 'late':
+        return statusLate;
+      case 'half_day_absent':
+        return statusHalfDay;
+      case 'on_leave':
+        return statusLeave;
+      case 'holiday':
+        return statusHoliday;
+      default:
+        return textSecondary;
+    }
+  }
 }
 
-class _FeedbackAlert extends StatelessWidget {
-  const _FeedbackAlert({required this.isError, required this.message});
+/// Quick action card widget for navigation
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
 
-  final bool isError;
-  final String message;
+  const _QuickActionCard({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      color:
-          isError ? colorScheme.errorContainer : colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(radiusMedium),
+      child: Container(
+        padding: const EdgeInsets.all(paddingMedium),
+        decoration: BoxDecoration(
+          color: backgroundSecondary,
+          borderRadius: BorderRadius.circular(radiusMedium),
+          border: Border.all(color: borderColor, width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isError ? Icons.error_outline : Icons.check_circle_outline,
-              color: isError ? colorScheme.error : colorScheme.primary,
+              icon,
+              color: primaryGreen,
+              size: iconSizeLarge,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color:
-                      isError
-                          ? colorScheme.onErrorContainer
-                          : colorScheme.onPrimaryContainer,
-                ),
+            const SizedBox(height: space3),
+            Text(
+              label,
+              style: app_typography.labelLarge.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: space1),
+            Text(
+              subtitle,
+              style: app_typography.bodySmall.copyWith(
+                color: textSecondary,
               ),
             ),
           ],
@@ -257,237 +508,179 @@ class _FeedbackAlert extends StatelessWidget {
   }
 }
 
-class _AttendanceCard extends StatelessWidget {
-  const _AttendanceCard({required this.summary});
+/// Statistics card widget for displaying metrics
+class _StatisticsCard extends StatelessWidget {
+  final List<_StatItem> items;
 
-  final AttendanceSummary summary;
+  const _StatisticsCard({required this.items});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Attendance Status',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              summary.status ?? 'Unknown',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children:
-                  summary.checks
-                      .map(
-                        (check) => Chip(
-                          label: Text(
-                            '${check.slot.toUpperCase()}: ${check.status ?? 'pending'}',
-                          ),
-                        ),
-                      )
-                      .toList(),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(paddingMedium),
+      decoration: BoxDecoration(
+        color: backgroundSecondary,
+        borderRadius: BorderRadius.circular(radiusMedium),
+        border: Border.all(color: borderColor, width: 1),
       ),
-    );
-  }
-}
-
-class _LeaveBalancesCard extends StatelessWidget {
-  const _LeaveBalancesCard({required this.leaveBalances});
-
-  final Map<String, num> leaveBalances;
-
-  @override
-  Widget build(BuildContext context) {
-    if (leaveBalances.isEmpty) {
-      return Card(
-        child: ListTile(
-          title: const Text('Leave Balances'),
-          subtitle: const Text('No leave balances available.'),
-        ),
-      );
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Leave Balances',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            ...leaveBalances.entries.map(
-              (entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [Text(entry.key), Text(entry.value.toString())],
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: items
+            .map(
+              (item) => Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      item.icon,
+                      color: item.color,
+                      size: iconSizeMedium,
+                    ),
+                    const SizedBox(height: space2),
+                    Text(
+                      item.value,
+                      style: app_typography.headingMedium.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: item.color,
+                      ),
+                    ),
+                    const SizedBox(height: space1),
+                    Text(
+                      item.label,
+                      style: app_typography.bodySmall.copyWith(
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
-        ),
+            )
+            .toList(),
       ),
     );
   }
 }
 
-class _RemainingChecksCard extends StatelessWidget {
-  const _RemainingChecksCard({required this.remaining});
+/// Stat item data class
+class _StatItem {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
 
-  final List<String> remaining;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.schedule),
-        title: const Text('Remaining Checks'),
-        subtitle: Text(remaining.map((slot) => slot.toUpperCase()).join(', ')),
-      ),
-    );
-  }
+  const _StatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 }
 
+/// Upcoming leave card widget
 class _UpcomingLeaveCard extends StatelessWidget {
-  const _UpcomingLeaveCard({required this.leaves});
-
   final List<LeaveSummary> leaves;
 
+  const _UpcomingLeaveCard({required this.leaves});
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Upcoming Leave',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            ...leaves.map(
-              (leave) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.beach_access),
-                title: Text((leave.status ?? 'unknown').toUpperCase()),
-                subtitle: Text(
-                  '${_formatDate(leave.startDate)} → ${_formatDate(leave.endDate)}',
+    return Container(
+      padding: const EdgeInsets.all(paddingMedium),
+      decoration: BoxDecoration(
+        color: backgroundSecondary,
+        borderRadius: BorderRadius.circular(radiusMedium),
+        border: Border.all(color: borderColor, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.beach_access_outlined,
+                color: primaryGreen,
+                size: iconSizeMedium,
+              ),
+              const SizedBox(width: gapSmall),
+              Text(
+                'Upcoming Leave',
+                style: app_typography.labelLarge.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: space4),
+          ...leaves.take(2).map(
+            (leave) => Padding(
+              padding: const EdgeInsets.only(bottom: space3),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _getLeaveStatusColor(leave.status),
+                      borderRadius: BorderRadius.circular(radiusSmall),
+                    ),
+                  ),
+                  const SizedBox(width: gapSmall),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          (leave.status ?? 'pending').toUpperCase(),
+                          style: app_typography.labelSmall.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: _getLeaveStatusColor(leave.status),
+                          ),
+                        ),
+                        const SizedBox(height: space1),
+                        Text(
+                          '${_formatDate(leave.startDate)} → ${_formatDate(leave.endDate)}',
+                          style: app_typography.bodySmall.copyWith(
+                            color: textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (leaves.length > 2) ...[
+            const SizedBox(height: space2),
+            Text(
+              '+${leaves.length - 2} more',
+              style: app_typography.bodySmall.copyWith(
+                color: textSecondary,
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
+  }
+
+  Color _getLeaveStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        return successBackground;
+      case 'pending':
+        return warningBackground;
+      case 'rejected':
+        return errorBackground;
+      default:
+        return textSecondary;
+    }
   }
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'TBD';
     return DateFormat.MMMd().format(date);
-  }
-}
-
-class _PenaltiesCard extends StatelessWidget {
-  const _PenaltiesCard({required this.penalties});
-
-  final List<PenaltySummary> penalties;
-
-  @override
-  Widget build(BuildContext context) {
-    if (penalties.isEmpty) {
-      return Card(
-        child: ListTile(
-          leading: const Icon(Icons.warning_amber_rounded),
-          title: const Text('Penalties'),
-          subtitle: const Text('No penalties recorded.'),
-        ),
-      );
-    }
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Penalties', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            ...penalties.map((penalty) {
-              final amount = penalty.amount ?? 0;
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.warning_amber_rounded),
-                title: Text(penalty.violationType ?? 'Violation'),
-                subtitle: Text(_formatDate(penalty.dateIncurred)),
-                trailing: Text('Rs ${amount.toStringAsFixed(2)}'),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'Unknown';
-    return DateFormat.MMMd().format(date);
-  }
-}
-
-class _CompanyInfoCard extends StatelessWidget {
-  const _CompanyInfoCard({required this.settings});
-
-  final CompanySettingsSummary settings;
-
-  @override
-  Widget build(BuildContext context) {
-    final timeWindows =
-        settings.timeWindows.entries
-            .map(
-              (entry) =>
-                  '${entry.value.label} (${entry.value.start} – ${entry.value.end})',
-            )
-            .toList();
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              settings.companyName ?? 'Company Settings',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text('Timezone: ${settings.timezone ?? 'Unknown'}'),
-            Text(
-              'Geofence radius: ${settings.geofenceRadiusMeters != null ? '${settings.geofenceRadiusMeters?.toStringAsFixed(0)} m' : 'n/a'}',
-            ),
-            Text(
-              'Geofence enforcement: ${settings.geoFencingEnabled ? 'Enabled' : 'Disabled'}',
-            ),
-            if (timeWindows.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              const Text('Clock-in windows:'),
-              ...timeWindows.map(Text.new),
-            ],
-          ],
-        ),
-      ),
-    );
   }
 }

@@ -26,6 +26,8 @@ class PenaltyController extends ChangeNotifier {
   final List<PenaltyItem> _items = <PenaltyItem>[];
   DateTime? _lastUpdated;
   bool _isOffline = false;
+  PenaltySummary? _summary;
+  bool _isLoadingSummary = false;
 
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
@@ -36,12 +38,17 @@ class PenaltyController extends ChangeNotifier {
   List<PenaltyItem> get items => List.unmodifiable(_items);
   DateTime? get lastUpdated => _lastUpdated;
   bool get isOffline => _isOffline;
+  PenaltySummary? get summary => _summary;
+  bool get isLoadingSummary => _isLoadingSummary;
 
   Future<void> initialise() async {
     if (_hasInitialised) {
       return;
     }
-    await refresh();
+    await Future.wait([
+      refresh(),
+      _fetchSummary(),
+    ]);
     _hasInitialised = true;
   }
 
@@ -63,7 +70,12 @@ class PenaltyController extends ChangeNotifier {
         notifyListeners();
       }
 
-      final page = await _repository.fetchPenalties(filter: _statusFilter, forceRefresh: true);
+      final results = await Future.wait([
+        _repository.fetchPenalties(filter: _statusFilter, forceRefresh: true),
+        _fetchSummary(),
+      ]);
+
+      final page = results[0] as PenaltyPage;
       _items
         ..clear()
         ..addAll(page.items);
@@ -96,6 +108,24 @@ class PenaltyController extends ChangeNotifier {
       }
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<void> _fetchSummary() async {
+    _isLoadingSummary = true;
+    notifyListeners();
+
+    try {
+      _summary = await _repository.getPenaltySummary();
+    } on PenaltyFailure catch (error) {
+      // Silent fail for summary - not critical
+      _telemetry.recordError('penalty_summary_fetch_failed', error: error);
+    } catch (error) {
+      // Silent fail for summary - not critical
+      _telemetry.recordError('penalty_summary_fetch_failed', error: error);
+    } finally {
+      _isLoadingSummary = false;
+      notifyListeners();
     }
   }
 

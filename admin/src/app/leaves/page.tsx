@@ -12,6 +12,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 
 // Import new components
 import { LeaveRequestCard } from "@/components/leaves/LeaveRequestCard";
+import { LeaveRequestCardSkeleton } from "@/components/leaves/LeaveRequestCardSkeleton";
 import { LeaveFilters } from "@/components/leaves/LeaveFilters";
 import { Calendar, FileText, Users, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
@@ -25,7 +26,7 @@ export default function LeavesPage() {
     status: "all",
     leaveType: "all",
     dateRange: { start: null as Date | null, end: null as Date | null },
-    employee: ""
+    employee: "all"
   });
 
   const { records, loading, error, refresh } = useLeaves();
@@ -55,7 +56,7 @@ export default function LeavesPage() {
           return false;
         }
 
-        if (filters.employee && record.userId !== filters.employee) {
+        if (filters.employee && filters.employee !== "all" && record.userId !== filters.employee) {
           return false;
         }
 
@@ -196,8 +197,10 @@ export default function LeavesPage() {
 
             <TabsContent value={activeTab} className="mt-6">
               {loading ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <LeaveRequestCardSkeleton key={index} />
+                  ))}
                 </div>
               ) : getRecordsByTab().length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-center">

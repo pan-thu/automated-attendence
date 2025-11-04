@@ -10,6 +10,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { ProfilePhotoUpload } from "@/components/profile/ProfilePhotoUpload";
 import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
 import { PasswordChangeForm } from "@/components/profile/PasswordChangeForm";
+import { ProfilePageSkeleton } from "@/components/profile/ProfilePageSkeleton";
 import { User, Lock, Calendar } from "lucide-react";
 
 export default function ProfilePage() {
@@ -37,9 +38,7 @@ export default function ProfilePage() {
     return (
       <ProtectedLayout>
         <DashboardLayout>
-          <div className="flex min-h-[60vh] items-center justify-center">
-            <p className="text-muted-foreground">Loading profile...</p>
-          </div>
+          <ProfilePageSkeleton />
         </DashboardLayout>
       </ProtectedLayout>
     );

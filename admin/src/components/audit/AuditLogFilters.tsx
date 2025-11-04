@@ -218,7 +218,7 @@ export function AuditLogFilters({
       {/* Filter Bar */}
       <div className="flex flex-col md:flex-row gap-3">
         {/* Search */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 md:min-w-[300px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search by action, user, description..."
@@ -233,7 +233,7 @@ export function AuditLogFilters({
           value={filters.timeRange}
           onValueChange={handleTimeRangeChange}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Select time range" />
           </SelectTrigger>
           <SelectContent>
@@ -250,7 +250,7 @@ export function AuditLogFilters({
           value={filters.category}
           onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
@@ -267,7 +267,7 @@ export function AuditLogFilters({
           value={filters.severity}
           onValueChange={(value) => onFiltersChange({ ...filters, severity: value })}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Select severity" />
           </SelectTrigger>
           <SelectContent>
@@ -311,7 +311,7 @@ export function AuditLogFilters({
                 category: "all",
                 severity: "all",
                 action: "all",
-                user: "",
+                user: "all",
                 dateRange: { start: null, end: null },
                 timeRange: "all"
               })}
@@ -335,7 +335,7 @@ export function AuditLogFilters({
             value={filters.action}
             onValueChange={(value) => onFiltersChange({ ...filters, action: value })}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="All Actions" />
             </SelectTrigger>
             <SelectContent>
@@ -357,11 +357,11 @@ export function AuditLogFilters({
               value={filters.user}
               onValueChange={(value) => onFiltersChange({ ...filters, user: value })}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All Users" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Users</SelectItem>
+                <SelectItem value="all">All Users</SelectItem>
                 {users.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.name} ({user.role})

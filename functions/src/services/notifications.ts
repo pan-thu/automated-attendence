@@ -256,5 +256,44 @@ export const getEmployeesNeedingClockInReminder = async (
   return Array.from(pending);
 };
 
+export interface MarkAllNotificationsAsReadInput {
+  userId: string;
+}
+
+export interface MarkAllNotificationsAsReadResult {
+  success: boolean;
+  markedCount: number;
+}
+
+export const markAllNotificationsAsRead = async (
+  input: MarkAllNotificationsAsReadInput
+): Promise<MarkAllNotificationsAsReadResult> => {
+  const { userId } = input;
+
+  const unreadNotifications = await firestore
+    .collection(NOTIFICATIONS_COLLECTION)
+    .where('userId', '==', userId)
+    .where('isRead', '==', false)
+    .get();
+
+  if (unreadNotifications.empty) {
+    return { success: true, markedCount: 0 };
+  }
+
+  const batch = firestore.batch();
+
+  unreadNotifications.forEach((doc) => {
+    batch.update(doc.ref, {
+      isRead: true,
+      readAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  await batch.commit();
+
+  return { success: true, markedCount: unreadNotifications.size };
+};
+
 
 
