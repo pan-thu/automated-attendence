@@ -243,6 +243,15 @@ async function seedTestEmployees() {
 
   const employees = [
     {
+      uid: 'default-employee',
+      email: 'panthu252004@gmail.com',
+      password: 'Password123!',
+      name: 'Pan Thu',
+      department: 'Finance',
+      position: 'Manager',
+      phoneNumber: '+66223334444',
+    },
+    {
       uid: 'test-employee-1',
       email: 'john.doe@company.com',
       password: 'Password123!',
@@ -354,6 +363,7 @@ async function seedAttendanceRecords() {
   console.log('\n📅 Seeding Attendance Records...');
 
   const employeeIds = [
+    'default-employee',
     'test-employee-1',
     'test-employee-2',
     'test-employee-3',
@@ -492,6 +502,19 @@ async function seedLeaveRequests() {
 
   const leaveRequests = [
     {
+      userId: 'default-employee',
+      type: 'full',
+      leaveType: 'full',
+      startDate: '2025-11-10',
+      endDate: '2025-11-12',
+      reason: 'Personal trip',
+      status: 'approved',
+      totalDays: 3,
+      reviewedBy: process.env.SEED_ADMIN_UID || 'admin-uid',
+      reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+      reviewNotes: 'Approved',
+    },
+    {
       userId: 'test-employee-1',
       type: 'full',
       leaveType: 'full',
@@ -626,6 +649,14 @@ async function seedNotifications() {
 
   const notifications = [
     {
+      userId: 'default-employee',
+      title: 'Welcome to AttenDesk',
+      message: 'Your account has been created successfully. Start tracking your attendance today!',
+      category: 'system',
+      type: 'success',
+      isRead: false,
+    },
+    {
       userId: 'test-employee-1',
       title: 'Penalty Issued',
       message: 'You have been issued a penalty for late arrival.',
@@ -699,11 +730,11 @@ async function seed() {
     console.log('\n' + '=' .repeat(50));
     console.log('✅ Seeding completed successfully!\n');
     console.log('📊 Summary:');
-    console.log('   - 5 test employees created');
-    console.log('   - ~35 attendance records (7 days × 5 employees)');
-    console.log('   - 5 leave requests (pending, approved, rejected)');
+    console.log('   - 6 test employees created (including default employee)');
+    console.log('   - ~42 attendance records (7 days × 6 employees)');
+    console.log('   - 6 leave requests (pending, approved, rejected)');
     console.log('   - 3 penalties (active and waived)');
-    console.log('   - 5 notifications (various categories)');
+    console.log('   - 6 notifications (various categories)');
     console.log('\n');
 
     process.exit(0);

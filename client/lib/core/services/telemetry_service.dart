@@ -35,5 +35,35 @@ class TelemetryService {
       }
     }
   }
+
+  /// Record an error for monitoring and debugging
+  Future<void> recordError(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, Object?>? metadata,
+  }) async {
+    // In debug mode, print the error for local debugging
+    if (kDebugMode) {
+      debugPrint('TelemetryService: Error - $message');
+      if (error != null) {
+        debugPrint('  Error: $error');
+      }
+      if (stackTrace != null) {
+        debugPrint('  StackTrace: $stackTrace');
+      }
+    }
+
+    // Record as telemetry event with error context
+    await recordEvent(
+      'error',
+      metadata: {
+        'message': message,
+        if (error != null) 'error': error.toString(),
+        if (stackTrace != null) 'stackTrace': stackTrace.toString(),
+        ...?metadata,
+      },
+    );
+  }
 }
 

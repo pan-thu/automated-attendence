@@ -31,10 +31,24 @@ class OnboardingController extends ChangeNotifier {
 
   Future<void> loadStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    _locationGranted = prefs.getBool(_locationGrantedKey) ?? false;
-    _notificationsGranted = prefs.getBool(_notificationsGrantedKey) ?? false;
-    _isCompleted = prefs.getBool(_completedKey) ?? false;
-    notifyListeners();
+    final locationGranted = prefs.getBool(_locationGrantedKey) ?? false;
+    final notificationsGranted = prefs.getBool(_notificationsGrantedKey) ?? false;
+    final isCompleted = prefs.getBool(_completedKey) ?? false;
+
+    // Only notify if values actually changed to prevent rebuild loops
+    if (_locationGranted != locationGranted ||
+        _notificationsGranted != notificationsGranted ||
+        _isCompleted != isCompleted) {
+      _locationGranted = locationGranted;
+      _notificationsGranted = notificationsGranted;
+      _isCompleted = isCompleted;
+      notifyListeners();
+    } else {
+      // Still update internal state without triggering listeners
+      _locationGranted = locationGranted;
+      _notificationsGranted = notificationsGranted;
+      _isCompleted = isCompleted;
+    }
   }
 
   Future<void> requestLocationPermission() async {
@@ -106,7 +120,7 @@ class OnboardingController extends ChangeNotifier {
 
       if (Platform.isAndroid) {
         final info = await deviceInfo.androidInfo;
-        deviceId = info.id ?? info.model ?? 'android-device';
+        deviceId = info.id.isNotEmpty ? info.id : info.model;
         platform = 'android';
       } else if (Platform.isIOS) {
         final info = await deviceInfo.iosInfo;

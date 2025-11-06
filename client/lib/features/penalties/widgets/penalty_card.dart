@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/services/penalty_repository.dart';
 import '../../../design_system/colors.dart';
 import '../../../design_system/spacing.dart';
 import '../../../design_system/typography.dart' as app_typography;
-import '../../../types/penalty.dart';
 
 /// Penalty card widget for displaying penalty details
 ///
 /// Shows violation type, date, amount, and status
 /// Based on spec in docs/client-overhaul/07-penalties.md
 class PenaltyCard extends StatelessWidget {
-  final Penalty penalty;
+  final PenaltyItem penalty;
   final VoidCallback? onTap;
 
   const PenaltyCard({
@@ -45,7 +45,7 @@ class PenaltyCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(paddingSmall),
                   decoration: BoxDecoration(
-                    color: errorBackground.withOpacity(0.1),
+                    color: errorBackground.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(radiusSmall),
                   ),
                   child: Icon(
@@ -71,7 +71,9 @@ class PenaltyCard extends StatelessWidget {
                       ),
                       const SizedBox(height: space1),
                       Text(
-                        dateFormat.format(penalty.dateIncurred),
+                        penalty.dateIncurred != null
+                            ? dateFormat.format(penalty.dateIncurred!)
+                            : 'N/A',
                         style: app_typography.bodySmall.copyWith(
                           color: textSecondary,
                         ),
@@ -87,7 +89,7 @@ class PenaltyCard extends StatelessWidget {
                     vertical: space1,
                   ),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(penalty.status).withOpacity(0.1),
+                    color: _getStatusColor(penalty.status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(radiusSmall),
                     border: Border.all(
                       color: _getStatusColor(penalty.status),
@@ -106,10 +108,10 @@ class PenaltyCard extends StatelessWidget {
             ),
 
             // Reason (if available)
-            if (penalty.reason != null && penalty.reason!.isNotEmpty) ...[
+            if (penalty.reason.isNotEmpty) ...[
               const SizedBox(height: space4),
               Text(
-                penalty.reason!,
+                penalty.reason,
                 style: app_typography.bodySmall.copyWith(
                   color: textSecondary,
                 ),
@@ -143,28 +145,6 @@ class PenaltyCard extends StatelessWidget {
                 ),
               ],
             ),
-
-            // Applied by (if available)
-            if (penalty.appliedBy != null) ...[
-              const SizedBox(height: space2),
-              Row(
-                children: [
-                  Icon(
-                    Icons.person_outline,
-                    size: iconSizeSmall,
-                    color: textSecondary,
-                  ),
-                  const SizedBox(width: gapSmall),
-                  Text(
-                    'Applied by ${penalty.appliedBy}',
-                    style: app_typography.bodySmall.copyWith(
-                      color: textSecondary,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ],
         ),
       ),

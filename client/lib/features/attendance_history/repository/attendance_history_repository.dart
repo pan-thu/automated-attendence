@@ -21,11 +21,16 @@ class AttendanceHistoryRepository {
         'violationTypes': filters.violationTypes,
       });
 
+      // Backend returns { items: [...], nextCursor: ... }
+      final data = Map<String, dynamic>.from(response.data);
+      final items = data['items'] as List?;
+
+      if (items == null) {
+        throw AttendanceHistoryFailure('Missing items in response');
+      }
+
       final raw = List<Map<String, dynamic>>.from(
-        (response.data as List?)?.map(
-              (entry) => Map<String, dynamic>.from(entry as Map),
-            ) ??
-            const <Map<String, dynamic>>[],
+        items.map((entry) => Map<String, dynamic>.from(entry)),
       );
 
       final summaries = raw.map(AttendanceDaySummary.fromJson).toList()
@@ -49,7 +54,7 @@ class AttendanceHistoryRepository {
         'date': DateFormat('yyyy-MM-dd').format(date),
       });
 
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       return AttendanceDayDetail.fromJson(data);
     } on FirebaseFunctionsException catch (error) {
       throw AttendanceHistoryFailure(
@@ -85,12 +90,12 @@ class AttendanceDaySummary {
 
   factory AttendanceDaySummary.fromJson(Map<String, dynamic> json) {
     return AttendanceDaySummary(
-      date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
+      date: DateTime.tryParse(json['attendanceDate'] as String? ?? '') ?? DateTime.now(),
       status: json['status'] as String?,
       violationTypes: List<String>.from(
         json['violationTypes'] as List? ?? const <String>[],
       ),
-      hasManualOverride: json['hasManualOverride'] as bool? ?? false,
+      hasManualOverride: json['isManualEntry'] as bool? ?? false,
     );
   }
 }
@@ -167,7 +172,7 @@ class AttendanceDayDetail {
   factory AttendanceDayDetail.fromJson(Map<String, dynamic> json) {
     final checksJson = List<Map<String, dynamic>>.from(
       (json['checks'] as List? ?? []).map(
-        (entry) => Map<String, dynamic>.from(entry as Map),
+        (entry) => Map<String, dynamic>.from(entry),
       ),
     );
 
@@ -178,7 +183,7 @@ class AttendanceDayDetail {
           json['manualOverride'] == null
               ? null
               : ManualOverrideSummary.fromJson(
-                Map<String, dynamic>.from(json['manualOverride'] as Map),
+                Map<String, dynamic>.from(json['manualOverride']),
               ),
       checks: checksJson.map(AttendanceCheckDetail.fromJson).toList(),
       violations: List<String>.from(

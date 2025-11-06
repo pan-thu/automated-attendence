@@ -21,8 +21,8 @@ class DashboardRepository {
       settingsCallable.call(),
     ]);
 
-    final dashboardData = Map<String, dynamic>.from(results[0].data as Map);
-    final settingsData = Map<String, dynamic>.from(results[1].data as Map);
+    final dashboardData = Map<String, dynamic>.from(results[0].data);
+    final settingsData = Map<String, dynamic>.from(results[1].data);
 
     return DashboardSummary.fromJson(
       dashboardData,
@@ -60,22 +60,22 @@ class DashboardSummary {
     Map<String, dynamic> json,
     CompanySettingsSummary companySettings,
   ) {
-    final attendanceJson = Map<String, dynamic>.from(json['attendance'] as Map? ?? {});
+    final attendanceJson = Map<String, dynamic>.from(json['attendance'] ?? {});
     final checksJson = List<Map<String, dynamic>>.from(
       (attendanceJson['checksCompleted'] as List? ?? []).map(
-        (entry) => Map<String, dynamic>.from(entry as Map),
+        (entry) => Map<String, dynamic>.from(entry),
       ),
     );
 
     final upcomingLeaveJson = List<Map<String, dynamic>>.from(
       (json['upcomingLeave'] as List? ?? []).map(
-        (entry) => Map<String, dynamic>.from(entry as Map),
+        (entry) => Map<String, dynamic>.from(entry),
       ),
     );
 
     final penaltiesJson = List<Map<String, dynamic>>.from(
       (json['activePenalties'] as List? ?? []).map(
-        (entry) => Map<String, dynamic>.from(entry as Map),
+        (entry) => Map<String, dynamic>.from(entry),
       ),
     );
 
@@ -86,7 +86,7 @@ class DashboardSummary {
       upcomingLeave: upcomingLeaveJson.map(LeaveSummary.fromJson).toList(),
       activePenalties: penaltiesJson.map(PenaltySummary.fromJson).toList(),
       unreadNotifications: (json['unreadNotifications'] as num?)?.toInt() ?? 0,
-      leaveBalances: Map<String, num>.from(json['leaveBalances'] as Map? ?? {}),
+      leaveBalances: Map<String, num>.from(json['leaveBalances'] ?? {}),
       isActive: json['isActive'] as bool? ?? true,
       companySettings: companySettings,
     );
@@ -186,6 +186,7 @@ class CompanySettingsSummary {
   CompanySettingsSummary({
     required this.companyName,
     required this.geofenceRadiusMeters,
+    required this.geofence,
     required this.timeWindows,
     required this.geoFencingEnabled,
     required this.timezone,
@@ -193,20 +194,37 @@ class CompanySettingsSummary {
 
   final String? companyName;
   final double? geofenceRadiusMeters;
+  final Map<String, dynamic>? geofence;
   final Map<String, TimeWindowSummary> timeWindows;
   final bool geoFencingEnabled;
   final String? timezone;
 
   factory CompanySettingsSummary.fromJson(Map<String, dynamic> json) {
-    final rawTimeWindows = Map<String, dynamic>.from(json['timeWindows'] as Map? ?? {});
+    final rawTimeWindows = Map<String, dynamic>.from(json['timeWindows'] ?? {});
     final timeWindows = <String, TimeWindowSummary>{};
     rawTimeWindows.forEach((key, value) {
-      timeWindows[key] = TimeWindowSummary.fromJson(Map<String, dynamic>.from(value as Map));
+      timeWindows[key] = TimeWindowSummary.fromJson(Map<String, dynamic>.from(value));
     });
+
+    // Build geofence map from workplaceCenter and workplaceRadius
+    Map<String, dynamic>? geofence;
+    final workplaceCenter = json['workplaceCenter'] != null
+        ? Map<String, dynamic>.from(json['workplaceCenter'])
+        : null;
+    final workplaceRadius = (json['workplaceRadius'] as num?)?.toDouble();
+
+    if (workplaceCenter != null && workplaceRadius != null) {
+      geofence = {
+        'lat': (workplaceCenter['_latitude'] ?? workplaceCenter['latitude']) as num?,
+        'lng': (workplaceCenter['_longitude'] ?? workplaceCenter['longitude']) as num?,
+        'radius': workplaceRadius,
+      };
+    }
 
     return CompanySettingsSummary(
       companyName: json['companyName'] as String?,
-      geofenceRadiusMeters: (json['workplaceRadius'] as num?)?.toDouble(),
+      geofenceRadiusMeters: workplaceRadius,
+      geofence: geofence,
       timeWindows: timeWindows,
       geoFencingEnabled: json['geoFencingEnabled'] as bool? ?? true,
       timezone: json['timezone'] as String?,

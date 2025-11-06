@@ -163,7 +163,7 @@ class _LeaveViewState extends State<_LeaveView> {
       ),
     );
 
-    if (requestController.lastSubmission != null) {
+    if (requestController.lastSubmission != null && context.mounted) {
       await context.read<LeaveListController>().refresh();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

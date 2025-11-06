@@ -45,7 +45,7 @@ class AttendanceStatsSummary extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: gapSmall,
             crossAxisSpacing: gapSmall,
-            childAspectRatio: 1.2,
+            childAspectRatio: 0.85,
             children: [
               _StatCard(
                 icon: Icons.check_circle,
@@ -110,9 +110,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(paddingSmall),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(radiusSmall),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

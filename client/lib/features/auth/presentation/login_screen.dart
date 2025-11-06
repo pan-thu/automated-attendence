@@ -218,7 +218,7 @@ class _LoginViewState extends State<_LoginView> {
                 Container(
                   padding: const EdgeInsets.all(paddingMedium),
                   decoration: BoxDecoration(
-                    color: errorBackground.withOpacity(0.1),
+                    color: errorBackground.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(radiusMedium),
                     border: Border.all(color: errorBackground, width: 1),
                   ),

@@ -28,7 +28,7 @@ class PenaltySummaryCard extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             errorBackground,
-            errorBackground.withOpacity(0.8),
+            errorBackground.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -85,7 +85,7 @@ class PenaltySummaryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(paddingMedium),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(radiusMedium),
             ),
             child: Row(
@@ -94,7 +94,7 @@ class PenaltySummaryCard extends StatelessWidget {
                 Text(
                   'Total Amount',
                   style: app_typography.labelMedium.copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
                 Text(
@@ -130,7 +130,7 @@ class _SummaryItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(paddingMedium),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(radiusMedium),
       ),
       child: Column(
@@ -139,7 +139,7 @@ class _SummaryItem extends StatelessWidget {
         children: [
           Icon(
             icon,
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             size: iconSizeMedium,
           ),
           const SizedBox(height: space2),
@@ -154,7 +154,7 @@ class _SummaryItem extends StatelessWidget {
           Text(
             label,
             style: app_typography.bodySmall.copyWith(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
         ],

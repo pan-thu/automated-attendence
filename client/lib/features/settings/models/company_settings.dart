@@ -19,13 +19,13 @@ class CompanySettings {
     final rawTimeWindows = Map<String, dynamic>.from(json['timeWindows'] as Map? ?? {});
     final timeWindows = <String, TimeWindowSetting>{};
     rawTimeWindows.forEach((key, value) {
-      timeWindows[key] = TimeWindowSetting.fromJson(Map<String, dynamic>.from(value as Map));
+      timeWindows[key] = TimeWindowSetting.fromJson(Map<String, dynamic>.from(value));
     });
 
     final rawPenaltyRules = Map<String, dynamic>.from(json['penaltyRules'] as Map? ?? {});
     final penaltyRules = <String, PenaltyRule>{};
     rawPenaltyRules.forEach((key, value) {
-      penaltyRules[key] = PenaltyRule.fromJson(Map<String, dynamic>.from(value as Map));
+      penaltyRules[key] = PenaltyRule.fromJson(Map<String, dynamic>.from(value));
     });
 
     return CompanySettings(

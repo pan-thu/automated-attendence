@@ -11,7 +11,6 @@ import '../repository/attendance_history_repository.dart';
 import '../widgets/attendance_calendar.dart';
 import '../widgets/attendance_stats_summary.dart';
 import '../widgets/day_detail_sheet.dart';
-import '../widgets/history_filters_sheet.dart';
 import '../widgets/month_selector.dart';
 
 class AttendanceHistoryScreen extends StatefulWidget {
@@ -206,12 +205,15 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   }
 
   Future<void> _openDayDetail(BuildContext context, DateTime day) async {
+    final controller = context.read<DayDetailController>();
+    controller.loadDetail(day);
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
         return ChangeNotifierProvider.value(
-          value: context.read<DayDetailController>()..loadDetail(day),
+          value: controller,
           child: DayDetailSheet(date: day),
         );
       },
@@ -252,6 +254,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
       );
     }
 
+    // ignore: deprecated_member_use
     Share.share(exportBuffer.toString(), subject: payload.title);
   }
 }

@@ -56,7 +56,7 @@ class NotificationRepository implements NotificationRepositoryBase {
       }
 
       final response = await callable.call(payload);
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       final items = (data['items'] as List<dynamic>? ?? const <dynamic>[])
           .map((raw) => NotificationItem.fromJson(Map<String, dynamic>.from(raw as Map)))
           .toList();
@@ -99,7 +99,7 @@ class NotificationRepository implements NotificationRepositoryBase {
     try {
       final callable = _functions.httpsCallable('markAllNotificationsAsRead');
       final response = await callable.call(<String, dynamic>{});
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
 
       // Invalidate all caches since all unread notifications are now read
       _cacheManager.invalidate(_cacheKey(NotificationStatusFilter.all));

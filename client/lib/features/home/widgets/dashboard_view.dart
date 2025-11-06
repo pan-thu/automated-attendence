@@ -5,16 +5,15 @@ import 'package:provider/provider.dart';
 
 import '../../../core/navigation/app_router.dart';
 import '../../../core/services/auth_repository.dart';
-import '../../../core/services/dashboard_repository.dart';
+import '../../../core/services/dashboard_repository.dart' as repo;
 import '../../../design_system/colors.dart';
 import '../../../design_system/spacing.dart';
-import '../../../design_system/styles.dart';
 import '../../../design_system/typography.dart' as app_typography;
 import '../../widgets/feedback_dialog.dart';
 import '../../widgets/offline_notice.dart';
 import '../controllers/clock_in_controller.dart';
 import '../controllers/dashboard_controller.dart';
-import 'check_status_tracker.dart';
+import 'check_status_tracker.dart' as tracker;
 import 'location_proximity_indicator.dart';
 import 'time_display.dart';
 
@@ -36,13 +35,22 @@ class DashboardView extends StatefulWidget {
 }
 
 class _DashboardViewState extends State<DashboardView> {
+  late DashboardController _dashboardController;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Save reference to controller for use in dispose()
+    _dashboardController = context.read<DashboardController>();
+  }
+
   @override
   void initState() {
     super.initState();
     // Start location updates when dashboard is shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<DashboardController>().startLocationUpdates();
+        _dashboardController.startLocationUpdates();
       }
     });
   }
@@ -50,7 +58,7 @@ class _DashboardViewState extends State<DashboardView> {
   @override
   void dispose() {
     // Stop location updates when dashboard is hidden
-    context.read<DashboardController>().stopLocationUpdates();
+    _dashboardController.stopLocationUpdates();
     super.dispose();
   }
 
@@ -135,6 +143,7 @@ class _DashboardViewState extends State<DashboardView> {
                       Expanded(
                         child: _DashboardContent(
                           summary: dashboard.summary!,
+                          dashboard: dashboard,
                           clockIn: clockIn,
                           onClockIn: () => _handleClockIn(context),
                         ),
@@ -168,32 +177,33 @@ class _EmptyState extends StatelessWidget {
 class _DashboardContent extends StatelessWidget {
   const _DashboardContent({
     required this.summary,
+    required this.dashboard,
     required this.clockIn,
     required this.onClockIn,
   });
 
-  final DashboardSummary summary;
+  final repo.DashboardSummary summary;
+  final DashboardController dashboard;
   final ClockInController clockIn;
   final VoidCallback onClockIn;
 
   @override
   Widget build(BuildContext context) {
-    // Convert attendance checks to CheckSummary objects
+    // Convert attendance checks from repo.CheckSummary to tracker.CheckSummary
     final checkSummaries = summary.attendance.checks
         .map((check) {
-          DateTime? timestamp;
-          if (check.timestamp != null && check.timestamp!.isNotEmpty) {
-            try {
-              timestamp = DateTime.parse(check.timestamp!);
-            } catch (_) {
-              timestamp = null;
-            }
+          // Parse slot string to int (e.g., "check1" -> 1, "1" -> 1)
+          int slot;
+          try {
+            slot = int.parse(check.slot.replaceAll(RegExp(r'[^0-9]'), ''));
+          } catch (_) {
+            slot = 1; // Default to 1 if parsing fails
           }
 
-          return CheckSummary(
-            slot: check.slot,
+          return tracker.CheckSummary(
+            slot: slot,
             status: check.status,
-            timestamp: timestamp,
+            timestamp: check.timestamp, // Already DateTime?
           );
         })
         .toList();
@@ -217,7 +227,7 @@ class _DashboardContent extends StatelessWidget {
                 vertical: paddingSmall,
               ),
               decoration: BoxDecoration(
-                color: primaryGreen.withOpacity(0.1),
+                color: primaryGreen.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(radiusLarge),
                 border: Border.all(color: primaryGreen, width: 1),
               ),
@@ -246,7 +256,7 @@ class _DashboardContent extends StatelessWidget {
             child: InkWell(
               onTap: clockIn.isLoading ? null : onClockIn,
               customBorder: const CircleBorder(),
-              child: Container(
+              child: SizedBox(
                 width: 140,
                 height: 140,
                 child: clockIn.isLoading
@@ -293,7 +303,7 @@ class _DashboardContent extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(paddingMedium),
             decoration: BoxDecoration(
-              color: warningBackground.withOpacity(0.1),
+              color: warningBackground.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(radiusMedium),
               border: Border.all(color: warningBackground, width: 1),
             ),
@@ -320,7 +330,7 @@ class _DashboardContent extends StatelessWidget {
         ],
 
         // Check status tracker
-        CheckStatusTracker(
+        tracker.CheckStatusTracker(
           checks: checkSummaries,
         ),
         const SizedBox(height: space10),
@@ -578,7 +588,7 @@ class _StatItem {
 
 /// Upcoming leave card widget
 class _UpcomingLeaveCard extends StatelessWidget {
-  final List<LeaveSummary> leaves;
+  final List<repo.LeaveSummary> leaves;
 
   const _UpcomingLeaveCard({required this.leaves});
 
@@ -632,7 +642,7 @@ class _UpcomingLeaveCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          (leave.status ?? 'pending').toUpperCase(),
+                          leave.status.toUpperCase(),
                           style: app_typography.labelSmall.copyWith(
                             fontWeight: FontWeight.w600,
                             color: _getLeaveStatusColor(leave.status),
@@ -640,7 +650,7 @@ class _UpcomingLeaveCard extends StatelessWidget {
                         ),
                         const SizedBox(height: space1),
                         Text(
-                          '${_formatDate(leave.startDate)} → ${_formatDate(leave.endDate)}',
+                          '${_formatDate(leave.startDate ?? DateTime.now())} → ${_formatDate(leave.endDate ?? DateTime.now())}',
                           style: app_typography.bodySmall.copyWith(
                             color: textSecondary,
                           ),

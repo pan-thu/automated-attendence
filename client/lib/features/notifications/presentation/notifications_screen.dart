@@ -12,8 +12,6 @@ import '../../widgets/filter_tabs.dart';
 import '../../widgets/offline_notice.dart';
 import '../controllers/notification_controller.dart';
 import '../widgets/notification_card.dart';
-import '../widgets/notification_filters.dart';
-import '../widgets/notification_list.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({required this.repository, super.key});
@@ -105,8 +103,14 @@ class _NotificationsView extends StatelessWidget {
                               FilterTab(id: 'unread', label: 'Unread'),
                               FilterTab(id: 'read', label: 'Read'),
                             ],
-                            selectedTab: controller.statusFilter ?? 'all',
-                            onTabSelected: controller.changeFilter,
+                            selectedTab: controller.statusFilter.name,
+                            onTabSelected: (value) {
+                              final filter = NotificationStatusFilter.values.firstWhere(
+                                (f) => f.name == value,
+                                orElse: () => NotificationStatusFilter.all,
+                              );
+                              controller.changeFilter(filter);
+                            },
                             style: FilterTabStyle.chips,
                           ),
                         ),

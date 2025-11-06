@@ -31,8 +31,8 @@ class LocationProximityIndicator extends StatelessWidget {
       padding: const EdgeInsets.all(paddingMedium),
       decoration: BoxDecoration(
         color: isInRange
-            ? successBackground.withOpacity(0.1)
-            : warningBackground.withOpacity(0.1),
+            ? successBackground.withValues(alpha: 0.1)
+            : warningBackground.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(radiusMedium),
         border: Border.all(
           color: isInRange ? successBackground : warningBackground,

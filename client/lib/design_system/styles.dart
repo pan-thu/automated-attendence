@@ -93,7 +93,7 @@ InputDecoration get inputDecoration => InputDecoration(
 // Card Theme
 
 /// Card theme data
-CardTheme get cardTheme => CardTheme(
+CardThemeData get cardTheme => CardThemeData(
       color: backgroundCard,
       elevation: elevationCard,
       shape: RoundedRectangleBorder(
@@ -120,21 +120,21 @@ BottomNavigationBarThemeData get bottomNavTheme =>
 
 /// Small shadow for cards
 BoxShadow get shadowSmall => BoxShadow(
-      color: Colors.black.withOpacity(0.08),
+      color: Colors.black.withValues(alpha: 0.08),
       blurRadius: 4,
       offset: const Offset(0, 2),
     );
 
 /// Medium shadow
 BoxShadow get shadowMedium => BoxShadow(
-      color: Colors.black.withOpacity(0.12),
+      color: Colors.black.withValues(alpha: 0.12),
       blurRadius: 8,
       offset: const Offset(0, 4),
     );
 
 /// Large shadow
 BoxShadow get shadowLarge => BoxShadow(
-      color: Colors.black.withOpacity(0.16),
+      color: Colors.black.withValues(alpha: 0.16),
       blurRadius: 16,
       offset: const Offset(0, 8),
     );

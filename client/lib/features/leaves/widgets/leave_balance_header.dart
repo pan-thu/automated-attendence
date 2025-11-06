@@ -28,7 +28,7 @@ class LeaveBalanceHeader extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             primaryGreen,
-            primaryGreen.withOpacity(0.8),
+            primaryGreen.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -36,7 +36,7 @@ class LeaveBalanceHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(radiusLarge),
         boxShadow: [
           BoxShadow(
-            color: primaryGreen.withOpacity(0.3),
+            color: primaryGreen.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -69,7 +69,7 @@ class LeaveBalanceHeader extends StatelessWidget {
                   vertical: paddingTiny,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(radiusSmall),
                 ),
                 child: Text(
@@ -101,7 +101,7 @@ class LeaveBalanceHeader extends StatelessWidget {
                 Text(
                   'REMAINING',
                   style: app_typography.headingSmall.copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontWeight: FontWeight.w600,
                     letterSpacing: 2,
                   ),
@@ -115,7 +115,7 @@ class LeaveBalanceHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(paddingMedium),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(radiusMedium),
             ),
             child: Row(
@@ -129,7 +129,7 @@ class LeaveBalanceHeader extends StatelessWidget {
                 Container(
                   height: 40,
                   width: 1,
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                 ),
                 _BalanceItem(
                   label: 'Used',
@@ -164,7 +164,7 @@ class _BalanceItem extends StatelessWidget {
       children: [
         Icon(
           icon,
-          color: Colors.white.withOpacity(0.8),
+          color: Colors.white.withValues(alpha: 0.8),
           size: iconSizeMedium,
         ),
         const SizedBox(height: space2),
@@ -179,7 +179,7 @@ class _BalanceItem extends StatelessWidget {
         Text(
           label,
           style: app_typography.bodySmall.copyWith(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
           ),
         ),
       ],

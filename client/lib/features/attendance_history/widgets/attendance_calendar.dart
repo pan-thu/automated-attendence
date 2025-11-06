@@ -54,7 +54,7 @@ class AttendanceCalendar extends StatelessWidget {
         calendarStyle: CalendarStyle(
           // Today
           todayDecoration: BoxDecoration(
-            color: primaryGreen.withOpacity(0.2),
+            color: primaryGreen.withValues(alpha: 0.2),
             shape: BoxShape.circle,
             border: Border.all(color: primaryGreen, width: 2),
           ),
@@ -94,7 +94,7 @@ class AttendanceCalendar extends StatelessWidget {
             shape: BoxShape.circle,
           ),
           outsideTextStyle: app_typography.bodyMedium.copyWith(
-            color: textSecondary.withOpacity(0.5),
+            color: textSecondary.withValues(alpha: 0.5),
           ),
 
           // Markers
@@ -154,8 +154,8 @@ class AttendanceCalendar extends StatelessWidget {
         color: isSelected
             ? primaryGreen
             : isToday
-                ? primaryGreen.withOpacity(0.1)
-                : statusColor?.withOpacity(0.1),
+                ? primaryGreen.withValues(alpha: 0.1)
+                : statusColor?.withValues(alpha: 0.1),
         shape: BoxShape.circle,
         border: isToday && !isSelected
             ? Border.all(color: primaryGreen, width: 2)
@@ -170,7 +170,7 @@ class AttendanceCalendar extends StatelessWidget {
             color: isSelected
                 ? Colors.white
                 : isOutside
-                    ? textSecondary.withOpacity(0.5)
+                    ? textSecondary.withValues(alpha: 0.5)
                     : isToday
                         ? primaryGreen
                         : statusColor ?? textPrimary,

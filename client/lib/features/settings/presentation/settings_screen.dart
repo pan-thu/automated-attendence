@@ -10,7 +10,6 @@ import '../../../core/services/company_settings_repository.dart';
 import '../../../core/services/telemetry_service.dart';
 import '../../../design_system/colors.dart';
 import '../../../design_system/spacing.dart';
-import '../../../design_system/styles.dart';
 import '../../../design_system/typography.dart' as app_typography;
 import '../../widgets/async_error_view.dart';
 import '../../widgets/offline_notice.dart';

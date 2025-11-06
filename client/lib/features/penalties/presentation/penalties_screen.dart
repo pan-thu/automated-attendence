@@ -12,8 +12,6 @@ import '../../widgets/filter_tabs.dart';
 import '../../widgets/offline_notice.dart';
 import '../controllers/penalty_controller.dart';
 import '../widgets/penalty_card.dart';
-import '../widgets/penalty_filters.dart';
-import '../widgets/penalty_list.dart';
 import '../widgets/penalty_summary_card.dart';
 
 class PenaltiesScreen extends StatelessWidget {
@@ -127,8 +125,14 @@ class _PenaltiesView extends StatelessWidget {
                               FilterTab(id: 'resolved', label: 'Resolved'),
                               FilterTab(id: 'waived', label: 'Waived'),
                             ],
-                            selectedTab: controller.statusFilter ?? 'all',
-                            onTabSelected: controller.changeFilter,
+                            selectedTab: controller.statusFilter.name,
+                            onTabSelected: (value) {
+                              final filter = PenaltyStatusFilter.values.firstWhere(
+                                (f) => f.name == value,
+                                orElse: () => PenaltyStatusFilter.all,
+                              );
+                              controller.changeFilter(filter);
+                            },
                             style: FilterTabStyle.chips,
                           ),
                         ),
@@ -201,21 +205,6 @@ class _PenaltiesView extends StatelessWidget {
     );
   }
 
-  void _openPolicy(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Penalty Policy'),
-        content: const Text('Refer to the company handbook or contact HR for detailed penalty policies.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showHelp(BuildContext context) {
     showModalBottomSheet<void>(
@@ -357,7 +346,7 @@ class PenaltyDetailSheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(paddingSmall),
                 decoration: BoxDecoration(
-                  color: errorBackground.withOpacity(0.1),
+                  color: errorBackground.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(radiusMedium),
                 ),
                 child: Icon(

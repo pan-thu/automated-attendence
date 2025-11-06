@@ -41,10 +41,10 @@ class NotificationCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: isRead
               ? backgroundSecondary
-              : primaryGreen.withOpacity(0.05),
+              : primaryGreen.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(radiusMedium),
           border: Border.all(
-            color: isRead ? borderColor : primaryGreen.withOpacity(0.2),
+            color: isRead ? borderColor : primaryGreen.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -55,7 +55,7 @@ class NotificationCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(paddingSmall),
               decoration: BoxDecoration(
-                color: _getTypeColor().withOpacity(0.1),
+                color: _getTypeColor().withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(radiusSmall),
               ),
               child: Icon(

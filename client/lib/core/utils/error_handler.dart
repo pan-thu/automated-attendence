@@ -1,6 +1,32 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+/// Error types for categorizing exceptions
+enum ErrorType {
+  auth,
+  network,
+  validation,
+  permission,
+  notFound,
+  unknown,
+}
+
+/// Custom application exception with categorization
+class AppException implements Exception {
+  final String message;
+  final ErrorType type;
+  final dynamic details;
+
+  AppException(
+    this.message, {
+    this.type = ErrorType.unknown,
+    this.details,
+  });
+
+  @override
+  String toString() => message;
+}
+
 /// Bug Fix #28: User-friendly error message handler
 ///
 /// Converts Firebase exceptions and generic errors into user-friendly messages

@@ -1,5 +1,5 @@
-import * as functions from 'firebase-functions';
-import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { HttpsError } from 'firebase-functions/v2/https';
+import { Timestamp, FieldValue, GeoPoint } from 'firebase-admin/firestore';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 
@@ -50,12 +50,12 @@ const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const validateDateInput = (value: string, field: string): void => {
   if (!DATE_ONLY_REGEX.test(value)) {
-    throw new functions.https.HttpsError('invalid-argument', `${field} must be in YYYY-MM-DD format.`);
+    throw new HttpsError('invalid-argument', `${field} must be in YYYY-MM-DD format.`);
   }
 
   const parsed = Date.parse(`${value}T00:00:00Z`);
   if (Number.isNaN(parsed)) {
-    throw new functions.https.HttpsError('invalid-argument', `${field} is not a valid date.`);
+    throw new HttpsError('invalid-argument', `${field} is not a valid date.`);
   }
 };
 
@@ -89,7 +89,7 @@ const mapAttendanceDocument = (doc: FirebaseFirestore.QueryDocumentSnapshot): At
     const timestamp = parseTimestamp(data[`${slot}_timestamp`]);
     const locationValue = data[`${slot}_location`];
     const location =
-      locationValue instanceof admin.firestore.GeoPoint
+      locationValue instanceof GeoPoint
         ? { latitude: locationValue.latitude, longitude: locationValue.longitude }
         : null;
 
@@ -131,7 +131,7 @@ export const listEmployeeAttendance = async (
   const { userId, limit = 20, cursor, startDate, endDate } = input;
 
   if (limit <= 0 || limit > 100) {
-    throw new functions.https.HttpsError('invalid-argument', 'limit must be between 1 and 100.');
+    throw new HttpsError('invalid-argument', 'limit must be between 1 and 100.');
   }
 
   if (startDate) {
@@ -144,7 +144,7 @@ export const listEmployeeAttendance = async (
 
   if (startDate && endDate) {
     if (Date.parse(`${startDate}T00:00:00Z`) > Date.parse(`${endDate}T00:00:00Z`)) {
-      throw new functions.https.HttpsError('invalid-argument', 'startDate must be before or equal to endDate.');
+      throw new HttpsError('invalid-argument', 'startDate must be before or equal to endDate.');
     }
   }
 
@@ -165,11 +165,11 @@ export const listEmployeeAttendance = async (
   if (cursor) {
     const cursorDoc = await firestore.collection(ATTENDANCE_COLLECTION).doc(cursor).get();
     if (!cursorDoc.exists) {
-      throw new functions.https.HttpsError('not-found', 'Cursor document not found.');
+      throw new HttpsError('not-found', 'Cursor document not found.');
     }
 
     if ((cursorDoc.get('userId') as string | undefined) !== userId) {
-      throw new functions.https.HttpsError('permission-denied', 'Cursor does not belong to the requesting user.');
+      throw new HttpsError('permission-denied', 'Cursor does not belong to the requesting user.');
     }
 
     query = query.startAfter(cursorDoc);
@@ -205,7 +205,7 @@ export const getAttendanceDayDetail = async (
   const doc = await firestore.collection(ATTENDANCE_COLLECTION).doc(docId).get();
 
   if (!doc.exists) {
-    throw new functions.https.HttpsError('not-found', 'Attendance record not found for the specified date.');
+    throw new HttpsError('not-found', 'Attendance record not found for the specified date.');
   }
 
   const record = mapAttendanceDocument(doc as FirebaseFirestore.QueryDocumentSnapshot);

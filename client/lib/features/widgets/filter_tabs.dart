@@ -84,8 +84,8 @@ class FilterTabs extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? Colors.white.withOpacity(0.2)
-                      : primaryGreen.withOpacity(0.1),
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : primaryGreen.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(radiusSmall),
                 ),
                 child: Text(

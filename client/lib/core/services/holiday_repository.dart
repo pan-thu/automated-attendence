@@ -1,11 +1,6 @@
-import 'dart:convert';
-
-import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../types/holiday.dart';
-import '../config/app_environment.dart';
-import '../utils/error_handler.dart';
-import 'package:firebase_auth/firebase_auth.dart' as auth;
 
 /// Base interface for holiday repository
 abstract class HolidayRepositoryBase {
@@ -14,71 +9,45 @@ abstract class HolidayRepositoryBase {
 
 /// Holiday repository implementation
 ///
-/// Fetches holidays from the backend API
+/// Fetches holidays from Firebase Functions
 class HolidayRepository implements HolidayRepositoryBase {
-  final http.Client _client;
-  final auth.FirebaseAuth _firebaseAuth;
-  final AppEnvironment _environment;
+  final FirebaseFunctions _functions;
 
-  HolidayRepository({
-    http.Client? client,
-    auth.FirebaseAuth? firebaseAuth,
-    AppEnvironment? environment,
-  })  : _client = client ?? http.Client(),
-        _firebaseAuth = firebaseAuth ?? auth.FirebaseAuth.instance,
-        _environment = environment ?? AppEnvironment();
+  HolidayRepository({FirebaseFunctions? functions})
+      : _functions = functions ?? FirebaseFunctions.instance;
 
   @override
   Future<List<Holiday>> getHolidays({int? year}) async {
     try {
-      final user = _firebaseAuth.currentUser;
-      if (user == null) {
-        throw AppException('User not authenticated', type: ErrorType.auth);
-      }
-
-      final token = await user.getIdToken();
+      final callable = _functions.httpsCallable('getHolidays');
       final yearParam = year ?? DateTime.now().year;
-      final url = Uri.parse('${_environment.apiUrl}/holidays?year=$yearParam');
 
-      final response = await _client.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response = await callable.call({'year': yearParam});
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final holidaysJson = data['holidays'] as List<dynamic>;
-        return holidaysJson
-            .map((json) => Holiday.fromJson(json as Map<String, dynamic>))
-            .toList();
-      } else if (response.statusCode == 401) {
-        throw AppException('Unauthorized', type: ErrorType.auth);
-      } else {
-        throw AppException(
-          'Failed to fetch holidays: ${response.statusCode}',
-          type: ErrorType.network,
-        );
-      }
-    } on auth.FirebaseAuthException catch (e) {
-      throw AppException(
-        'Authentication error: ${e.message}',
-        type: ErrorType.auth,
+      final data = Map<String, dynamic>.from(response.data);
+      final holidaysJson = data['holidays'] as List<dynamic>;
+
+      return holidaysJson
+          .map((json) => Holiday.fromJson(Map<String, dynamic>.from(json as Map)))
+          .toList();
+    } on FirebaseFunctionsException catch (e) {
+      throw HolidayRepositoryException(
+        e.message ?? 'Failed to fetch holidays (${e.code})',
       );
     } catch (e) {
-      if (e is AppException) rethrow;
-      throw AppException(
-        'Failed to fetch holidays: $e',
-        type: ErrorType.unknown,
-      );
+      throw HolidayRepositoryException('Failed to fetch holidays: $e');
     }
   }
+}
 
-  void dispose() {
-    _client.close();
-  }
+/// Exception thrown when holiday repository operations fail
+class HolidayRepositoryException implements Exception {
+  final String message;
+
+  HolidayRepositoryException(this.message);
+
+  @override
+  String toString() => message;
 }
 
 /// Mock holiday repository for testing/development

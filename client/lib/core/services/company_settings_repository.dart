@@ -25,7 +25,7 @@ class CompanySettingsRepository {
 
     final callable = _functions.httpsCallable('getCompanySettingsPublic');
     final response = await callable.call();
-    final data = Map<String, dynamic>.from(response.data as Map);
+    final data = Map<String, dynamic>.from(response.data);
     final settings = CompanySettings.fromJson(data);
     _cacheManager.write(_cacheKey, settings);
     return settings;

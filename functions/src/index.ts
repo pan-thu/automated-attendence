@@ -1268,3 +1268,28 @@ export const triggerMonthlyAnalyticsAggregation = onCall(
     return result;
   }, 'triggerMonthlyAnalyticsAggregation')
 );
+
+/**
+ * Record telemetry event from client app
+ * This is a stub function for development - in production, integrate with monitoring service
+ */
+export const recordTelemetryEvent = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAuthenticatedV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
+
+    const eventName = assertString(payload.name, 'name');
+    const metadata = payload.metadata as Record<string, unknown> | undefined;
+
+    // In development, just log it
+    // In production, this would integrate with your monitoring service (e.g., Sentry, DataDog)
+    functions.logger.debug('Telemetry event recorded', {
+      userId: requireAuthUidV2(request),
+      eventName,
+      metadata,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { success: true };
+  }, 'recordTelemetryEvent')
+);

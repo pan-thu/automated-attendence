@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design_system/colors.dart';
 import '../../design_system/spacing.dart';
-import '../../design_system/styles.dart';
 
 /// Feedback dialog component for displaying success/error/warning/info messages
 ///

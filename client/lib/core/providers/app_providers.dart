@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 
 import '../auth/session_controller.dart';
 import '../config/app_environment.dart';
@@ -18,63 +19,15 @@ Future<void> configureAppProviders({required AppEnvironment environment}) async 
   // Placeholder for async service initialization.
 }
 
-class ProviderScope extends StatelessWidget {
-  const ProviderScope({required this.environment, super.key});
+class AppProviders extends StatelessWidget {
+  const AppProviders({required this.environment, super.key});
 
   final AppEnvironment environment;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<SessionController>(
-          create: (_) => SessionController()..hydrate(),
-        ),
-        ChangeNotifierProvider<PreferencesController>(
-          create: (_) => PreferencesController()..hydrate(),
-        ),
-        ChangeNotifierProvider<OnboardingController>(
-          create: (_) => OnboardingController(),
-        ),
-        Provider<HolidayRepositoryBase>(create: (_) => HolidayRepository()),
-        Provider<LeaveRepositoryBase>(create: (_) => LeaveRepository()),
-        Provider<NotificationRepositoryBase>(create: (_) => NotificationRepository()),
-        Provider<PenaltyRepositoryBase>(create: (_) => PenaltyRepository()),
-        Provider<CompanySettingsRepository>(create: (_) => CompanySettingsRepository()),
-        Provider<PushNotificationService>(create: (_) => PushNotificationService()),
-        ProxyProvider7<
-            SessionController,
-            OnboardingController,
-            HolidayRepositoryBase,
-            LeaveRepositoryBase,
-            NotificationRepositoryBase,
-            PenaltyRepositoryBase,
-            PushNotificationService,
-            AppRouter>(
-          update: (
-            context,
-            sessionController,
-            onboardingController,
-            holidayRepository,
-            leaveRepository,
-            notificationRepository,
-            penaltyRepository,
-            pushService,
-            previous,
-          ) =>
-              AppRouter(
-                sessionController: sessionController,
-                onboardingController: onboardingController,
-                holidayRepository: holidayRepository,
-                leaveRepository: leaveRepository,
-                notificationRepository: notificationRepository,
-                penaltyRepository: penaltyRepository,
-                pushNotificationService: pushService,
-                settingsRepository: context.read<CompanySettingsRepository>(),
-                preferencesController: context.read<PreferencesController>(),
-              ),
-        ),
-      ],
+      providers: _buildProviders(),
       child: Consumer2<AppRouter, PreferencesController>(
         builder: (context, appRouter, preferences, _) => MaterialApp.router(
           title: 'AttenDesk',
@@ -87,6 +40,56 @@ class ProviderScope extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<SingleChildWidget> _buildProviders() {
+    return <SingleChildWidget>[
+      ChangeNotifierProvider<SessionController>(
+        create: (_) => SessionController()..hydrate(),
+      ),
+      ChangeNotifierProvider<PreferencesController>(
+        create: (_) => PreferencesController()..hydrate(),
+      ),
+      ChangeNotifierProvider<OnboardingController>(
+        create: (_) => OnboardingController(),
+      ),
+      Provider<HolidayRepositoryBase>(create: (_) => HolidayRepository()),
+      Provider<LeaveRepositoryBase>(create: (_) => LeaveRepository()),
+      Provider<NotificationRepositoryBase>(create: (_) => NotificationRepository()),
+      Provider<PenaltyRepositoryBase>(create: (_) => PenaltyRepository()),
+      Provider<CompanySettingsRepository>(create: (_) => CompanySettingsRepository()),
+      Provider<PushNotificationService>(create: (_) => PushNotificationService()),
+      ProxyProvider6<
+          SessionController,
+          OnboardingController,
+          HolidayRepositoryBase,
+          LeaveRepositoryBase,
+          NotificationRepositoryBase,
+          PenaltyRepositoryBase,
+          AppRouter>(
+        update: (
+          context,
+          sessionController,
+          onboardingController,
+          holidayRepository,
+          leaveRepository,
+          notificationRepository,
+          penaltyRepository,
+          previous,
+        ) =>
+            AppRouter(
+              sessionController: sessionController,
+              onboardingController: onboardingController,
+              holidayRepository: holidayRepository,
+              leaveRepository: leaveRepository,
+              notificationRepository: notificationRepository,
+              penaltyRepository: penaltyRepository,
+              pushNotificationService: context.read<PushNotificationService>(),
+              settingsRepository: context.read<CompanySettingsRepository>(),
+              preferencesController: context.read<PreferencesController>(),
+            ),
+      ),
+    ];
   }
 }
 

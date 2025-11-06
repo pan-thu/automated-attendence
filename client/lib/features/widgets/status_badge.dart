@@ -24,22 +24,22 @@ class StatusBadge extends StatelessWidget {
       case StatusType.approved:
       case StatusType.waived:
       case StatusType.present:
-        return leaveApproved.withOpacity(0.1);
+        return leaveApproved.withValues(alpha: 0.1);
       case StatusType.pending:
       case StatusType.late:
-        return leavePending.withOpacity(0.1);
+        return leavePending.withValues(alpha: 0.1);
       case StatusType.rejected:
       case StatusType.absent:
       case StatusType.active:
-        return leaveRejected.withOpacity(0.1);
+        return leaveRejected.withValues(alpha: 0.1);
       case StatusType.cancelled:
       case StatusType.leave:
-        return statusLeave.withOpacity(0.1);
+        return statusLeave.withValues(alpha: 0.1);
       case StatusType.paid:
-        return penaltyPaid.withOpacity(0.1);
+        return penaltyPaid.withValues(alpha: 0.1);
       case StatusType.disputed:
       case StatusType.halfDay:
-        return penaltyDisputed.withOpacity(0.1);
+        return penaltyDisputed.withValues(alpha: 0.1);
     }
   }
 

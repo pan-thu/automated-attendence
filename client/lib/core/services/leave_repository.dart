@@ -51,7 +51,7 @@ class LeaveRepository implements LeaveRepositoryBase {
         'limit': limit,
       });
 
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       return LeaveListPage.fromJson(data);
     } on FirebaseFunctionsException catch (error) {
       throw LeaveFailure(
@@ -81,7 +81,7 @@ class LeaveRepository implements LeaveRepositoryBase {
       };
 
       final response = await callable.call(payload);
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       return LeaveRequestSummary.fromJson(data);
     } on FirebaseFunctionsException catch (error) {
       throw LeaveFailure(
@@ -120,7 +120,7 @@ class LeaveRepository implements LeaveRepositoryBase {
         'sizeBytes': sizeBytes,
       });
 
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       return AttachmentUploadInfo.fromJson(data);
     } on FirebaseFunctionsException catch (error) {
       throw LeaveFailure(
@@ -157,7 +157,7 @@ class LeaveRepository implements LeaveRepositoryBase {
     try {
       final callable = _functions.httpsCallable('registerLeaveAttachment');
       final response = await callable.call({'attachmentId': attachmentId});
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       return AttachmentMetadata.fromJson(data);
     } on FirebaseFunctionsException catch (error) {
       throw LeaveFailure(
@@ -199,7 +199,7 @@ class LeaveRepository implements LeaveRepositoryBase {
         if (year != null) 'year': year,
       });
 
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       return LeaveBalance.fromJson(data);
     } on FirebaseFunctionsException catch (error) {
       throw LeaveFailure(
@@ -250,7 +250,9 @@ class LeaveBalance {
   });
 
   factory LeaveBalance.fromJson(Map<String, dynamic> json) {
-    final breakdownData = json['breakdown'] as Map<String, dynamic>?;
+    final breakdownData = json['breakdown'] != null
+        ? Map<String, dynamic>.from(json['breakdown'])
+        : null;
 
     return LeaveBalance(
       total: (json['total'] as num?)?.toInt() ?? 0,

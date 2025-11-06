@@ -27,62 +27,96 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Welcome')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text(
-            'Let’s get your device ready.',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 16),
-          _PermissionCard(
-            title: 'Location Access',
-            description: 'Needed to verify you are within the company geofence when clocking in/out.',
-            granted: onboarding.locationGranted,
-            actionLabel: onboarding.locationGranted ? 'Granted' : 'Grant Access',
-            onPressed: onboarding.locationGranted ? null : onboarding.requestLocationPermission,
-          ),
-          const SizedBox(height: 16),
-          _PermissionCard(
-            title: 'Notifications',
-            description: 'Stay informed about attendance reminders, leave approvals, and penalties.',
-            granted: onboarding.notificationsGranted,
-            actionLabel: onboarding.notificationsGranted ? 'Granted' : 'Enable Notifications',
-            onPressed: onboarding.notificationsGranted ? null : onboarding.requestNotificationPermission,
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: onboarding.isRegisteringToken
-                ? null
-                : () => onboarding.registerDeviceToken(
-                      userId: session.user?.uid,
-                      onSuccess: session.markOnboardingComplete,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                "Let's get your device ready.",
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 24),
+              Expanded(
+                child: ListView(
+                  physics: const ClampingScrollPhysics(),
+                  children: [
+                    _PermissionCard(
+                      title: 'Location Access',
+                      description: 'Required to verify you are within company premises.',
+                      granted: onboarding.locationGranted,
+                      actionLabel: 'Grant Access',
+                      onPressed: onboarding.locationGranted
+                          ? null
+                          : () async {
+                              await onboarding.requestLocationPermission();
+                            },
                     ),
-            icon: onboarding.isRegisteringToken
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check_circle),
-            label: const Text('Finish Setup'),
+                    const SizedBox(height: 16),
+                    _PermissionCard(
+                      title: 'Notifications',
+                      description: 'Stay updated on attendance and leave status.',
+                      granted: onboarding.notificationsGranted,
+                      actionLabel: 'Enable Notifications',
+                      onPressed: onboarding.notificationsGranted
+                          ? null
+                          : () async {
+                              await onboarding.requestNotificationPermission();
+                            },
+                    ),
+                    const SizedBox(height: 24),
+                    if (onboarding.errorMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          onboarding.errorMessage!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: onboarding.isRegisteringToken
+                    ? null
+                    : () async {
+                        await onboarding.registerDeviceToken(
+                          userId: session.user?.uid,
+                          onSuccess: session.markOnboardingComplete,
+                        );
+                      },
+                icon: onboarding.isRegisteringToken
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_circle),
+                label: const Text('Finish Setup'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  session.markOnboardingComplete();
+                },
+                child: const Text('Skip for now'),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
-          if (onboarding.errorMessage != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              onboarding.errorMessage!,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
-          if (onboarding.isCompleted)
-            const Padding(
-              padding: EdgeInsets.only(top: 16),
-              child: Text('You’re all set! You’ll be redirected shortly.'),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -105,38 +139,68 @@ class _PermissionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: granted
+              ? colorScheme.primary.withOpacity(0.3)
+              : colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(description, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Chip(
-                  avatar: Icon(
-                    granted ? Icons.check_circle : Icons.error_outline,
-                    color: granted ? colorScheme.primary : colorScheme.error,
-                  ),
-                  label: Text(granted ? 'Granted' : 'Required'),
-                  backgroundColor: granted
-                      ? colorScheme.primaryContainer.withOpacity(0.3)
-                      : colorScheme.errorContainer.withOpacity(0.3),
+                Icon(
+                  granted ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: granted ? colorScheme.primary : colorScheme.outline,
+                  size: 24,
                 ),
-                TextButton(onPressed: onPressed, child: Text(actionLabel)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ],
             ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 36),
+              child: Text(
+                description,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+            ),
+            if (!granted) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.only(left: 36),
+                child: ElevatedButton(
+                  onPressed: onPressed,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 40),
+                  ),
+                  child: Text(actionLabel),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 }
-

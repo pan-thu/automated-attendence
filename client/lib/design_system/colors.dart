@@ -17,6 +17,7 @@ const Color statusAbsent = Color(0xFFF44336);
 const Color statusLate = Color(0xFFFFC107);
 const Color statusLeave = Color(0xFF9E9E9E);
 const Color statusHalfDay = Color(0xFFFF9800);
+const Color statusHoliday = Color(0xFF9C27B0); // Purple for holidays
 
 // Status Colors - Leave
 const Color leaveApproved = Color(0xFF4CAF50);

@@ -157,9 +157,9 @@ class _DateRangePickerState extends State<DateRangePicker> {
               vertical: paddingSmall,
             ),
             decoration: BoxDecoration(
-              color: infoBackground.withOpacity(0.1),
+              color: infoBackground.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(radiusSmall),
-              border: Border.all(color: infoBackground.withOpacity(0.3)),
+              border: Border.all(color: infoBackground.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -243,7 +243,7 @@ class _DateRangePickerState extends State<DateRangePicker> {
                 ),
                 // Today style
                 todayDecoration: BoxDecoration(
-                  color: primaryGreen.withOpacity(0.1),
+                  color: primaryGreen.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                   border: Border.all(color: primaryGreen, width: 2),
                 ),
@@ -278,7 +278,7 @@ class _DateRangePickerState extends State<DateRangePicker> {
                   fontWeight: FontWeight.w600,
                 ),
                 // Range middle days style
-                rangeHighlightColor: primaryGreen.withOpacity(0.1),
+                rangeHighlightColor: primaryGreen.withValues(alpha: 0.1),
                 withinRangeTextStyle: app_typography.bodyMedium.copyWith(
                   color: textPrimary,
                 ),

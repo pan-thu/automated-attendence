@@ -8,7 +8,6 @@ import '../../../core/services/holiday_repository.dart';
 import '../../../types/holiday.dart';
 import '../../widgets/async_error_view.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/offline_notice.dart';
 
 class HolidaysScreen extends StatefulWidget {
   final HolidayRepositoryBase repository;
@@ -248,7 +247,7 @@ class _HolidayCard extends StatelessWidget {
       padding: const EdgeInsets.all(paddingMedium),
       decoration: BoxDecoration(
         color: isToday
-            ? primaryGreen.withOpacity(0.1)
+            ? primaryGreen.withValues(alpha: 0.1)
             : backgroundSecondary,
         borderRadius: BorderRadius.circular(radiusMedium),
         border: Border.all(
@@ -271,7 +270,7 @@ class _HolidayCard extends StatelessWidget {
                   ? primaryGreen
                   : isUpcoming
                       ? infoBackground
-                      : textSecondary.withOpacity(0.1),
+                      : textSecondary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(radiusSmall),
             ),
             child: Column(
@@ -394,7 +393,7 @@ class _HolidayCard extends StatelessWidget {
               vertical: space1,
             ),
             decoration: BoxDecoration(
-              color: _getTypeColor(holiday.type).withOpacity(0.1),
+              color: _getTypeColor(holiday.type).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(radiusSmall),
               border: Border.all(
                 color: _getTypeColor(holiday.type),

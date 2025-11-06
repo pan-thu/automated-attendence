@@ -29,9 +29,13 @@ Future<void> main() async {
 
   if (useEmulators) {
     try {
-      // Use 10.0.2.2 for Android emulator, localhost for iOS/others
-      // final host = Platform.isAndroid ? '10.73.26.176' : 'localhost';
-      final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
+      // Allow overriding emulator host via dart-define for flexibility
+      // Use 10.0.2.2 for Android emulator (maps to host's localhost)
+      // Use localhost for iOS simulator/web
+      const customHost = String.fromEnvironment('EMULATOR_HOST', defaultValue: '');
+      final host = customHost.isNotEmpty
+          ? customHost
+          : (Platform.isAndroid ? '10.0.2.2' : 'localhost');
 
       // Connect to Auth emulator
       await FirebaseAuth.instance.useAuthEmulator(host, 9099);
@@ -92,7 +96,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
           return const MaterialApp(home: SplashScreen());
         }
 
-        return ProviderScope(environment: widget.environment);
+        return AppProviders(environment: widget.environment);
       },
     );
   }

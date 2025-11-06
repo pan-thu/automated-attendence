@@ -18,16 +18,25 @@ class DayDetailController extends ChangeNotifier {
 
   Future<void> loadDetail(DateTime date) async {
     _setLoading(true);
+    _errorMessage = null;
+    _detail = null;
+
     try {
+      debugPrint('[DayDetailController] Loading detail for $date');
       _detail = await _repository.fetchDayDetail(date);
+      debugPrint('[DayDetailController] Successfully loaded detail');
       _errorMessage = null;
     } on AttendanceHistoryFailure catch (error) {
+      debugPrint('[DayDetailController] AttendanceHistoryFailure: ${error.message}');
       _detail = null;
       _errorMessage = error.message;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      debugPrint('[DayDetailController] Unexpected error: $error');
+      debugPrint('[DayDetailController] Stack trace: $stackTrace');
       _detail = null;
-      _errorMessage = error.toString();
+      _errorMessage = 'Failed to load day detail: $error';
     } finally {
+      debugPrint('[DayDetailController] Setting loading to false');
       _setLoading(false);
     }
   }

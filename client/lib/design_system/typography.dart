@@ -16,6 +16,13 @@ const TextStyle displayLarge = TextStyle(
   fontFamily: fontFamily,
 );
 
+const TextStyle displayMedium = TextStyle(
+  fontSize: 36,
+  fontWeight: FontWeight.bold,
+  color: textPrimary,
+  fontFamily: fontFamily,
+);
+
 // Headings
 const TextStyle headingLarge = TextStyle(
   fontSize: 24,

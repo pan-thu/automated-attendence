@@ -17,7 +17,7 @@ class ClockInRepository {
         'longitude': longitude,
       });
 
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       return ClockInResult.fromJson(data);
     } on FirebaseFunctionsException catch (error) {
       final message = error.message?.isNotEmpty == true

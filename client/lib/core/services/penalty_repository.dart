@@ -53,7 +53,7 @@ class PenaltyRepository implements PenaltyRepositoryBase {
       }
 
       final response = await callable.call(payload);
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       final items = (data['items'] as List<dynamic>? ?? const <dynamic>[])
           .map((raw) => PenaltyItem.fromJson(Map<String, dynamic>.from(raw as Map)))
           .toList();
@@ -97,7 +97,7 @@ class PenaltyRepository implements PenaltyRepositoryBase {
     try {
       final callable = _functions.httpsCallable('getPenaltySummary');
       final response = await callable.call(<String, dynamic>{});
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final data = Map<String, dynamic>.from(response.data);
       return PenaltySummary.fromJson(data);
     } on FirebaseFunctionsException catch (error) {
       final message = error.message?.isNotEmpty == true ? error.message! : 'Failed to fetch penalty summary (${error.code}).';

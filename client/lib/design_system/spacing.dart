@@ -1,6 +1,7 @@
 /// Design system spacing constants for AttenDesk app
 ///
 /// Based on design specifications in docs/client-overhaul/00-design-system.md
+library;
 
 // Base Unit
 const double spaceUnit = 4.0;
@@ -19,6 +20,7 @@ const double space12 = 48.0; // spaceUnit * 12
 const double space16 = 64.0; // spaceUnit * 16
 
 // Semantic Spacing - Padding
+const double paddingTiny = space1; // 4.0
 const double paddingXSmall = space2; // 8.0
 const double paddingSmall = space3; // 12.0
 const double paddingMedium = space4; // 16.0
@@ -51,6 +53,7 @@ const double elevationCard = 2.0;
 const double elevationCardHover = 4.0;
 const double elevationModal = 8.0;
 const double elevationBottomSheet = 16.0;
+const double elevationHigh = 12.0;
 
 // Icon Sizes
 const double iconSizeSmall = 16.0;

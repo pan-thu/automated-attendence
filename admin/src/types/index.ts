@@ -121,12 +121,14 @@ export interface LeaveRequestSummary {
   userName?: string | null;
   userEmail?: string | null;
   leaveType: string;
+  type?: string; // Alternative property name for leaveType
   status: LeaveStatus;
   startDate: Date | null;
   endDate: Date | null;
   totalDays: number;
   appliedAt: Date | null;
   notes?: string | null;
+  reason?: string | null; // Alternative property name for notes
   reviewerNotes?: string | null;
 }
 
