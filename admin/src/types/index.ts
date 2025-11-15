@@ -2,6 +2,7 @@ export interface UserSummary {
   uid: string;
   email: string | null;
   displayName: string | null;
+  photoURL?: string | null;
 }
 
 export type AttendanceSummary = {
@@ -39,6 +40,7 @@ export interface EmployeeSummary {
   department?: string | null;
   position?: string | null;
   status: EmployeeStatus;
+  photoURL?: string | null;
   createdAt?: Date | null;
 }
 
@@ -113,7 +115,7 @@ export interface ManualAttendancePayload {
   notes?: string;
 }
 
-export type LeaveStatus = "pending" | "approved" | "rejected";
+export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
 
 export interface LeaveRequestSummary {
   id: string;
@@ -121,14 +123,12 @@ export interface LeaveRequestSummary {
   userName?: string | null;
   userEmail?: string | null;
   leaveType: string;
-  type?: string; // Alternative property name for leaveType
   status: LeaveStatus;
   startDate: Date | null;
   endDate: Date | null;
   totalDays: number;
   appliedAt: Date | null;
-  notes?: string | null;
-  reason?: string | null; // Alternative property name for notes
+  notes?: string | null; // Maps to 'reason' field in Firestore
   reviewerNotes?: string | null;
 }
 
@@ -150,6 +150,7 @@ export interface CompanySettings {
   timezone?: string;
   workplace_center?: { latitude: number; longitude: number } | null;
   workplace_radius?: number | null;
+  workplaceAddress?: string | null;
   timeWindows?: Record<string, { label: string; start: string; end: string }>;
   gracePeriods?: Record<string, number>; // Per-check grace periods (check1, check2, check3)
   penaltyRules?: {

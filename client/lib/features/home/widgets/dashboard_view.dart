@@ -50,7 +50,8 @@ class _DashboardViewState extends State<DashboardView> {
     // Start location updates when dashboard is shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _dashboardController.startLocationUpdates();
+        // Access controller from context here instead of using the field
+        context.read<DashboardController>().startLocationUpdates();
       }
     });
   }
@@ -104,26 +105,11 @@ class _DashboardViewState extends State<DashboardView> {
 
     return Scaffold(
       backgroundColor: backgroundPrimary,
+      // Transparent AppBar to maintain status bar color
       appBar: AppBar(
-        title: Text(
-          'Home',
-          style: app_typography.headingMedium,
-        ),
+        toolbarHeight: 0,
         backgroundColor: backgroundPrimary,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: Badge(
-              isLabelVisible: dashboard.summary != null &&
-                  dashboard.summary!.unreadNotifications > 0,
-              label: Text(
-                dashboard.summary?.unreadNotifications.toString() ?? '',
-              ),
-              child: const Icon(Icons.notifications_outlined),
-            ),
-            onPressed: () => context.push(AppRoutePaths.notifications),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: dashboard.refreshDashboard,
@@ -247,7 +233,7 @@ class _DashboardContent extends StatelessWidget {
         const TimeDisplay(),
         const SizedBox(height: space10),
 
-        // Circular clock-in button
+        // Circular clock-in button (increased size to match design)
         Center(
           child: Material(
             elevation: elevationHigh,
@@ -257,8 +243,8 @@ class _DashboardContent extends StatelessWidget {
               onTap: clockIn.isLoading ? null : onClockIn,
               customBorder: const CircleBorder(),
               child: SizedBox(
-                width: 140,
-                height: 140,
+                width: 220,
+                height: 220,
                 child: clockIn.isLoading
                     ? const Center(
                         child: CircularProgressIndicator(
@@ -271,13 +257,13 @@ class _DashboardContent extends StatelessWidget {
                         children: [
                           Icon(
                             Icons.touch_app_rounded,
-                            size: 56,
+                            size: 80,
                             color: Colors.white,
                           ),
-                          const SizedBox(height: space2),
+                          const SizedBox(height: space3),
                           Text(
                             'Clock In',
-                            style: app_typography.labelLarge.copyWith(
+                            style: app_typography.headingMedium.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
@@ -294,6 +280,7 @@ class _DashboardContent extends StatelessWidget {
         LocationProximityIndicator(
           isInRange: dashboard.isWithinGeofence,
           distanceInMeters: dashboard.distanceToOffice,
+          workplaceAddress: summary.companySettings.workplaceAddress,
           isLoading: dashboard.isLoadingLocation,
         ),
         const SizedBox(height: space6),
@@ -333,82 +320,85 @@ class _DashboardContent extends StatelessWidget {
         tracker.CheckStatusTracker(
           checks: checkSummaries,
         ),
-        const SizedBox(height: space10),
-
-        // Quick action cards section
-        Text(
-          'Quick Actions',
-          style: app_typography.headingSmall.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: space4),
-
-        // Action cards grid
-        Row(
-          children: [
-            Expanded(
-              child: _QuickActionCard(
-                icon: Icons.beach_access_outlined,
-                label: 'Leave',
-                subtitle: _getLeaveBalanceText(summary.leaveBalances),
-                onTap: () => context.push(AppRoutePaths.leaves),
-              ),
-            ),
-            const SizedBox(width: gapMedium),
-            Expanded(
-              child: _QuickActionCard(
-                icon: Icons.warning_amber_outlined,
-                label: 'Penalties',
-                subtitle: summary.activePenalties.isEmpty
-                    ? 'No penalties'
-                    : '${summary.activePenalties.length} active',
-                onTap: () => context.push(AppRoutePaths.penalties),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: space8),
-
-        // Statistics section
-        Text(
-          'Today\'s Summary',
-          style: app_typography.headingSmall.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: space4),
-
-        _StatisticsCard(
-          items: [
-            _StatItem(
-              icon: Icons.check_circle,
-              label: 'Status',
-              value: _formatAttendanceStatus(summary.attendance.status),
-              color: _getAttendanceStatusColor(summary.attendance.status),
-            ),
-            _StatItem(
-              icon: Icons.done_all,
-              label: 'Completed',
-              value: '${summary.attendance.checks.where((c) => c.status != null && c.status != 'missed').length}',
-              color: statusPresent,
-            ),
-            _StatItem(
-              icon: Icons.schedule,
-              label: 'Late Checks',
-              value: '${summary.attendance.checks.where((c) => c.status == 'late').length}',
-              color: statusLate,
-            ),
-          ],
-        ),
-
-        // Upcoming leave (if any)
-        if (summary.upcomingLeave.isNotEmpty) ...[
-          const SizedBox(height: space8),
-          _UpcomingLeaveCard(leaves: summary.upcomingLeave),
-        ],
-
         const SizedBox(height: space16),
+
+        // Hide Quick Actions and Today's Summary to match minimal design
+        // Uncomment below to restore full dashboard view
+
+        // // Quick action cards section
+        // Text(
+        //   'Quick Actions',
+        //   style: app_typography.headingSmall.copyWith(
+        //     fontWeight: FontWeight.w600,
+        //   ),
+        // ),
+        // const SizedBox(height: space4),
+
+        // // Action cards grid
+        // Row(
+        //   children: [
+        //     Expanded(
+        //       child: _QuickActionCard(
+        //         icon: Icons.beach_access_outlined,
+        //         label: 'Leave',
+        //         subtitle: _getLeaveBalanceText(summary.leaveBalances),
+        //         onTap: () => context.push(AppRoutePaths.leaves),
+        //       ),
+        //     ),
+        //     const SizedBox(width: gapMedium),
+        //     Expanded(
+        //       child: _QuickActionCard(
+        //         icon: Icons.warning_amber_outlined,
+        //         label: 'Penalties',
+        //         subtitle: summary.activePenalties.isEmpty
+        //             ? 'No penalties'
+        //             : '${summary.activePenalties.length} active',
+        //         onTap: () => context.push(AppRoutePaths.penalties),
+        //       ),
+        //     ),
+        //   ],
+        // ),
+        // const SizedBox(height: space8),
+
+        // // Statistics section
+        // Text(
+        //   'Today\'s Summary',
+        //   style: app_typography.headingSmall.copyWith(
+        //     fontWeight: FontWeight.w600,
+        //   ),
+        // ),
+        // const SizedBox(height: space4),
+
+        // _StatisticsCard(
+        //   items: [
+        //     _StatItem(
+        //       icon: Icons.check_circle,
+        //       label: 'Status',
+        //       value: _formatAttendanceStatus(summary.attendance.status),
+        //       color: _getAttendanceStatusColor(summary.attendance.status),
+        //     ),
+        //     _StatItem(
+        //       icon: Icons.done_all,
+        //       label: 'Completed',
+        //       value: '${summary.attendance.checks.where((c) => c.status != null && c.status != 'missed').length}',
+        //       color: statusPresent,
+        //     ),
+        //     _StatItem(
+        //       icon: Icons.schedule,
+        //       label: 'Late Checks',
+        //       value: '${summary.attendance.checks.where((c) => c.status == 'late').length}',
+        //       color: statusLate,
+        //     ),
+        //   ],
+        // ),
+
+        // // Upcoming leave (if any)
+        // if (summary.upcomingLeave.isNotEmpty) ...[
+        //   const SizedBox(height: space8),
+        //   _UpcomingLeaveCard(leaves: summary.upcomingLeave),
+        // ],
+
+        // const SizedBox(height: space16),
       ],
     );
   }

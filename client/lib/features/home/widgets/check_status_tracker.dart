@@ -24,9 +24,8 @@ class CheckSummary {
 /// - Check 1, Check 2, Check 3 labels
 /// - Times for completed checks (e.g., "09:30")
 /// - Placeholder "--:--" for pending checks
-/// - Current check highlighted
-/// - Warning icon for late checks
-/// Based on spec in docs/client-overhaul/02-home-dashboard.md
+/// - Entry icon for completed checks
+/// Redesigned to match home.png mockup - cleaner, more rounded
 class CheckStatusTracker extends StatelessWidget {
   final List<CheckSummary> checks;
   final int maxChecks;
@@ -46,11 +45,13 @@ class CheckStatusTracker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(paddingLarge),
+      padding: const EdgeInsets.symmetric(
+        horizontal: paddingLarge,
+        vertical: paddingMedium,
+      ),
       decoration: BoxDecoration(
         color: backgroundSecondary,
-        borderRadius: BorderRadius.circular(radiusMedium),
-        border: Border.all(color: borderColor, width: 1),
+        borderRadius: BorderRadius.circular(radiusLarge * 1.5),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -88,53 +89,54 @@ class _CheckItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final timeFormat = DateFormat('HH:mm');
     final timeStr = check?.timestamp != null ? timeFormat.format(check!.timestamp!) : '--:--';
-    final isLate = check?.status == 'late';
     final isCompleted = check != null;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Check label
-        Text(
-          'Check $slot',
-          style: app_typography.labelMedium.copyWith(
-            fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
-            color: isCurrent
-                ? primaryGreen
-                : isCompleted
-                    ? textPrimary
-                    : textSecondary,
-          ),
-        ),
-        const SizedBox(height: space2),
-
-        // Time display with optional warning icon
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              timeStr,
-              style: app_typography.headingSmall.copyWith(
-                fontWeight: FontWeight.bold,
-                color: isLate
-                    ? warningBackground
-                    : isCompleted
-                        ? textPrimary
-                        : textSecondary,
-                fontFeatures: [const FontFeature.tabularFigures()], // Monospaced digits
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Icon or dash
+          if (isCompleted)
+            Icon(
+              Icons.login_rounded,
+              size: iconSizeLarge,
+              color: primaryGreen,
+            )
+          else
+            Container(
+              height: iconSizeLarge,
+              alignment: Alignment.center,
+              child: Text(
+                '─',
+                style: TextStyle(
+                  fontSize: 24,
+                  color: borderColor,
+                  height: 1.0,
+                ),
               ),
             ),
-            if (isLate) ...[
-              const SizedBox(width: space1),
-              Icon(
-                Icons.warning_rounded,
-                size: iconSizeSmall,
-                color: warningBackground,
-              ),
-            ],
-          ],
-        ),
-      ],
+          const SizedBox(height: space2),
+
+          // Time display
+          Text(
+            timeStr,
+            style: app_typography.headingSmall.copyWith(
+              fontWeight: FontWeight.bold,
+              color: isCompleted ? textPrimary : textSecondary,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: space1),
+
+          // Check label
+          Text(
+            'Check $slot',
+            style: app_typography.labelSmall.copyWith(
+              color: isCompleted ? textSecondary : textTertiary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

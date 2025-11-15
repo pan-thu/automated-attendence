@@ -45,6 +45,7 @@ export interface NotificationPayload {
   category?: string;
   type?: string;
   relatedId?: string;
+  relatedType?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -80,7 +81,7 @@ export interface MarkNotificationInput {
 export const queueNotification = async (
   payload: NotificationPayload
 ): Promise<FirebaseFirestore.DocumentReference> => {
-  const { userId, title, message, category = 'system', type = 'info', relatedId, metadata } = payload;
+  const { userId, title, message, category = 'system', type = 'info', relatedId, relatedType, metadata } = payload;
 
   return firestore.collection(NOTIFICATIONS_COLLECTION).add({
     userId,
@@ -89,6 +90,7 @@ export const queueNotification = async (
     category,
     type,
     relatedId: relatedId ?? null,
+    relatedType: relatedType ?? null,
     metadata: metadata ?? null,
     isRead: false,
     sentAt: FieldValue.serverTimestamp(),
@@ -111,6 +113,7 @@ export const queueBulkNotifications = async (payload: BulkNotificationPayload) =
       ...rest,
       userId: id,
       relatedId: rest.relatedId ?? null,
+      relatedType: rest.relatedType ?? null,
       metadata: rest.metadata ?? null,
       isRead: false,
       sentAt: FieldValue.serverTimestamp(),

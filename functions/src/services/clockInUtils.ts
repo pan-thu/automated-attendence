@@ -228,6 +228,18 @@ export const handleClockIn = async ({ userId, payload }: ClockInServiceInput): P
     throw new functions.https.HttpsError('failed-precondition', 'Clock-in rejected. Mock location detected.');
   }
 
+  // Validate timestamp is within ±5 minutes of server time
+  const now = Date.now();
+  const timeDiff = Math.abs(payload.timestamp - now);
+  const MAX_TIME_DIFF = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+  if (timeDiff > MAX_TIME_DIFF) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Invalid timestamp. Clock-in must be done in real-time.'
+    );
+  }
+
   // Bug Fix #19: Validate against weekends and company holidays
   const clockInDate = new Date(payload.timestamp);
 

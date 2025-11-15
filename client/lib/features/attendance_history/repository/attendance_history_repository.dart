@@ -81,14 +81,25 @@ class AttendanceDaySummary {
     required this.status,
     required this.violationTypes,
     required this.hasManualOverride,
+    required this.checks,
   });
 
   final DateTime date;
   final String? status;
   final List<String> violationTypes;
   final bool hasManualOverride;
+  final List<AttendanceCheckSummary> checks;
 
   factory AttendanceDaySummary.fromJson(Map<String, dynamic> json) {
+    // Parse checks if available
+    final checksJson = json['checks'] as List?;
+    final checks = checksJson != null
+        ? List<Map<String, dynamic>>.from(
+            checksJson.map((e) => Map<String, dynamic>.from(e)))
+            .map(AttendanceCheckSummary.fromJson)
+            .toList()
+        : <AttendanceCheckSummary>[];
+
     return AttendanceDaySummary(
       date: DateTime.tryParse(json['attendanceDate'] as String? ?? '') ?? DateTime.now(),
       status: json['status'] as String?,
@@ -96,6 +107,27 @@ class AttendanceDaySummary {
         json['violationTypes'] as List? ?? const <String>[],
       ),
       hasManualOverride: json['isManualEntry'] as bool? ?? false,
+      checks: checks,
+    );
+  }
+}
+
+class AttendanceCheckSummary {
+  const AttendanceCheckSummary({
+    required this.slot,
+    required this.status,
+    required this.timestamp,
+  });
+
+  final String slot;
+  final String? status;
+  final DateTime? timestamp;
+
+  factory AttendanceCheckSummary.fromJson(Map<String, dynamic> json) {
+    return AttendanceCheckSummary(
+      slot: json['slot'] as String? ?? '',
+      status: json['status'] as String?,
+      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? ''),
     );
   }
 }

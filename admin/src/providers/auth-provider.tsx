@@ -73,7 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setError(null);
       setCheckingClaims(true);
-      await authModule.signInWithEmailAndPassword(firebaseAuth, email, password);
+      try {
+        await authModule.signInWithEmailAndPassword(firebaseAuth, email, password);
+      } catch (err) {
+        setCheckingClaims(false);
+        throw err;
+      }
     },
     [authModule, firebaseAuth]
   );
@@ -107,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             uid: currentUser.uid,
             email: currentUser.email,
             displayName: currentUser.displayName ?? null,
+            photoURL: currentUser.photoURL ?? null,
           });
         } else {
           await authModule.signOut(firebaseAuth);

@@ -12,6 +12,7 @@ import '../services/leave_repository.dart';
 import '../services/notification_repository.dart';
 import '../services/penalty_repository.dart';
 import '../services/push_notification_service.dart';
+import '../services/telemetry_service.dart';
 import '../../design_system/theme.dart' as app_theme;
 import '../../features/onboarding/controllers/onboarding_controller.dart';
 
@@ -44,6 +45,7 @@ class AppProviders extends StatelessWidget {
 
   List<SingleChildWidget> _buildProviders() {
     return <SingleChildWidget>[
+      Provider<TelemetryService>(create: (_) => TelemetryService()),
       ChangeNotifierProvider<SessionController>(
         create: (_) => SessionController()..hydrate(),
       ),

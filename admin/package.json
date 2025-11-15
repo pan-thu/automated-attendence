@@ -4,9 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:emulator": "next dev --turbopack",
+    "dev:prod": "cp .env.production .env.local && next dev --turbopack",
     "build": "next build",
+    "build:prod": "cp .env.production .env.local && next build",
     "start": "next start",
-    "lint": "next lint"
+    "start:prod": "cp .env.production .env.local && next start",
+    "lint": "next lint",
+    "env:dev": "cp .env.local.backup .env.local 2>/dev/null || echo 'Using existing .env.local for development'",
+    "env:prod": "cp .env.production .env.local && echo 'Switched to production environment'",
+    "env:backup": "cp .env.local .env.local.backup && echo 'Backed up .env.local'"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",

@@ -322,21 +322,23 @@ export const registerProfilePhoto = async (
 ): Promise<RegisterProfilePhotoResult> => {
   const { userId, photoId } = input;
 
-  const photoDoc = await profilePhotosCollection.doc(photoId).get();
+  // Use a transaction to prevent race conditions
+  return await firestore.runTransaction(async (transaction) => {
+    const photoDoc = await transaction.get(profilePhotosCollection.doc(photoId));
 
-  if (!photoDoc.exists) {
-    throw new functions.https.HttpsError('not-found', 'Photo record not found.');
-  }
+    if (!photoDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Photo record not found.');
+    }
 
-  const photo = photoDoc.data() ?? {};
+    const photo = photoDoc.data() ?? {};
 
-  if (photo.userId !== userId) {
-    throw new functions.https.HttpsError('permission-denied', 'Photo does not belong to this user.');
-  }
+    if (photo.userId !== userId) {
+      throw new functions.https.HttpsError('permission-denied', 'Photo does not belong to this user.');
+    }
 
-  if (photo.status !== 'pending') {
-    throw new functions.https.HttpsError('failed-precondition', 'Photo is already finalized.');
-  }
+    if (photo.status !== 'pending') {
+      throw new functions.https.HttpsError('failed-precondition', 'Photo is already finalized.');
+    }
 
   if (photo.uploadUrlExpiresAt && photo.uploadUrlExpiresAt.toMillis() < Date.now()) {
     await profilePhotosCollection.doc(photoId).update({
@@ -442,6 +444,12 @@ export const registerProfilePhoto = async (
   batch.update(profilePhotosCollection.doc(photoId), {
     status: 'active',
     activatedAt: FieldValue.serverTimestamp(),
+  });
+
+  // Update user's photoURL in Firestore USERS collection
+  batch.update(firestore.collection(USERS_COLLECTION).doc(userId), {
+    photoURL: publicUrl,
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   await batch.commit();

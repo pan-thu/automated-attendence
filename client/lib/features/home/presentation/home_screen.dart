@@ -11,7 +11,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final telemetry = TelemetryService();
+    final telemetry = context.read<TelemetryService>();
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<DashboardController>(

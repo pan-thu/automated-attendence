@@ -8,10 +8,12 @@ import '../../../design_system/typography.dart' as app_typography;
 import '../../../core/services/notification_repository.dart';
 import '../../widgets/async_error_view.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/filter_tabs.dart';
 import '../../widgets/offline_notice.dart';
 import '../controllers/notification_controller.dart';
+import '../widgets/category_filter_chips.dart';
 import '../widgets/notification_card.dart';
+import '../widgets/notification_search_bar.dart';
+import '../widgets/read_status_toggle.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({required this.repository, super.key});
@@ -30,13 +32,22 @@ class NotificationsScreen extends StatelessWidget {
 /// Notifications screen with filtering and grouping
 ///
 /// Features:
-/// - Filter tabs for read/unread
-/// - Mark all as read action
-/// - Notification cards with type indicators
-/// - Empty state
-/// Based on spec in docs/client-overhaul/06-notifications.md
-class _NotificationsView extends StatelessWidget {
+/// - All/Unread toggle
+/// - Category filter chips
+/// - Search bar
+/// - Date-grouped notifications (TODAY, YESTERDAY, EARLIER)
+/// - "Mark all read" action
+/// Redesigned to match notification.png mockup
+class _NotificationsView extends StatefulWidget {
   const _NotificationsView();
+
+  @override
+  State<_NotificationsView> createState() => _NotificationsViewState();
+}
+
+class _NotificationsViewState extends State<_NotificationsView> {
+  String _selectedCategory = 'All';
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -45,23 +56,31 @@ class _NotificationsView extends StatelessWidget {
     return Scaffold(
       backgroundColor: backgroundPrimary,
       appBar: AppBar(
-        title: Text(
-          'Notifications',
-          style: app_typography.headingMedium,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Updates',
+                style: app_typography.headingLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            // Mark all as read button
+            if (controller.items.any((item) => !item.isRead))
+              TextButton(
+                onPressed: controller.isLoading
+                    ? null
+                    : () => _markAllAsRead(context, controller),
+                child: Text(
+                  'Mark all read',
+                  style: app_typography.bodyMedium,
+                ),
+              ),
+          ],
         ),
         backgroundColor: backgroundPrimary,
         elevation: 0,
-        actions: [
-          // Mark all as read button
-          if (controller.items.any((item) => !item.isRead))
-            TextButton.icon(
-              icon: const Icon(Icons.done_all, size: iconSizeSmall),
-              label: const Text('Mark all read'),
-              onPressed: controller.isLoading
-                  ? null
-                  : () => _markAllAsRead(context, controller),
-            ),
-        ],
       ),
       body: controller.isLoading && controller.items.isEmpty
           ? const Center(child: CircularProgressIndicator())
@@ -69,113 +88,64 @@ class _NotificationsView extends StatelessWidget {
               ? AsyncErrorView(
                   message: controller.errorMessage!,
                   onRetry: controller.refresh,
-                  onHelp: () => _showHelp(context),
                 )
               : RefreshIndicator(
                   onRefresh: controller.refresh,
-                  child: CustomScrollView(
-                    slivers: [
-                      // Offline notice (if offline)
-                      if (controller.isOffline)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.all(paddingLarge),
-                            child: OfflineNotice(
-                              message: 'Showing cached notifications.',
-                              lastUpdated: controller.lastUpdated,
-                              onRetry: controller.refresh,
-                            ),
-                          ),
-                        ),
-
-                      // Filter tabs
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            paddingLarge,
-                            paddingLarge,
-                            paddingLarge,
-                            space4,
-                          ),
-                          child: FilterTabs(
-                            tabs: [
-                              FilterTab(id: 'all', label: 'All'),
-                              FilterTab(id: 'unread', label: 'Unread'),
-                              FilterTab(id: 'read', label: 'Read'),
-                            ],
-                            selectedTab: controller.statusFilter.name,
-                            onTabSelected: (value) {
-                              final filter = NotificationStatusFilter.values.firstWhere(
-                                (f) => f.name == value,
-                                orElse: () => NotificationStatusFilter.all,
-                              );
-                              controller.changeFilter(filter);
-                            },
-                            style: FilterTabStyle.chips,
-                          ),
+                  child: ListView(
+                    padding: const EdgeInsets.all(paddingLarge),
+                    children: [
+                      // All/Unread toggle
+                      Center(
+                        child: ReadStatusToggle(
+                          showUnreadOnly: controller.statusFilter == NotificationStatusFilter.unread,
+                          onChanged: (showUnread) {
+                            final filter = showUnread
+                                ? NotificationStatusFilter.unread
+                                : NotificationStatusFilter.all;
+                            controller.changeFilter(filter);
+                          },
                         ),
                       ),
+                      const SizedBox(height: space6),
+
+                      // Category filter chips
+                      CategoryFilterChips(
+                        selectedCategory: _selectedCategory,
+                        onCategoryChanged: (category) {
+                          setState(() {
+                            _selectedCategory = category;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: space6),
+
+                      // Search bar
+                      NotificationSearchBar(
+                        searchQuery: _searchQuery,
+                        onSearchChanged: (query) {
+                          setState(() {
+                            _searchQuery = query;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: space6),
 
                       // Loading indicator
                       if (controller.isLoading)
-                        const SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: paddingLarge,
-                            ),
-                            child: LinearProgressIndicator(),
-                          ),
-                        ),
+                        const LinearProgressIndicator(),
+                      if (controller.isLoading)
+                        const SizedBox(height: space6),
 
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: space4),
-                      ),
-
-                      // Notification list
+                      // Notification list with date grouping
                       controller.items.isEmpty
-                          ? SliverFillRemaining(
-                              child: EmptyState(
-                                icon: Icons.notifications_none,
-                                title: 'No Notifications',
-                                message: 'You\'re all caught up!',
-                              ),
+                          ? const EmptyState(
+                              icon: Icons.notifications_none,
+                              title: 'No Notifications',
+                              message: 'You\'re all caught up!',
                             )
-                          : SliverPadding(
-                              padding: const EdgeInsets.fromLTRB(
-                                paddingLarge,
-                                0,
-                                paddingLarge,
-                                paddingLarge,
-                              ),
-                              sliver: SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) {
-                                    final notification = controller.items[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: gapMedium,
-                                      ),
-                                      child: NotificationCard(
-                                        id: notification.id,
-                                        title: notification.title,
-                                        message: notification.message,
-                                        timestamp: notification.sentAt ?? DateTime.now(),
-                                        isRead: notification.isRead,
-                                        type: _mapNotificationType(notification.type),
-                                        onTap: () => _showNotificationDetail(
-                                          context,
-                                          notification,
-                                          controller,
-                                        ),
-                                        onMarkAsRead: !notification.isRead
-                                            ? () => controller.markAsRead(notification)
-                                            : null,
-                                      ),
-                                    );
-                                  },
-                                  childCount: controller.items.length,
-                                ),
-                              ),
+                          : _NotificationList(
+                              items: _filterNotifications(controller.items),
+                              controller: controller,
                             ),
                     ],
                   ),
@@ -183,37 +153,26 @@ class _NotificationsView extends StatelessWidget {
     );
   }
 
-  NotificationType _mapNotificationType(String? type) {
-    switch (type?.toLowerCase()) {
-      case 'info':
-        return NotificationType.info;
-      case 'success':
-        return NotificationType.success;
-      case 'warning':
-        return NotificationType.warning;
-      case 'error':
-        return NotificationType.error;
-      default:
-        return NotificationType.general;
-    }
-  }
+  List<NotificationItem> _filterNotifications(List<NotificationItem> items) {
+    var filtered = items;
 
-  void _showNotificationDetail(
-    BuildContext context,
-    NotificationItem notification,
-    NotificationController controller,
-  ) {
-    // Mark as read when opening detail
-    if (!notification.isRead) {
-      controller.markAsRead(notification);
+    // Filter by category
+    if (_selectedCategory != 'All') {
+      filtered = filtered.where((item) {
+        return item.category?.toLowerCase() == _selectedCategory.toLowerCase();
+      }).toList();
     }
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => NotificationDetailSheet(item: notification),
-    );
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((item) {
+        return item.title.toLowerCase().contains(query) ||
+            item.message.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    return filtered;
   }
 
   void _markAllAsRead(
@@ -262,12 +221,126 @@ class _NotificationsView extends StatelessWidget {
       ),
     );
   }
+}
 
-  void _showHelp(BuildContext context) {
+/// Notification list with date grouping
+class _NotificationList extends StatelessWidget {
+  final List<NotificationItem> items;
+  final NotificationController controller;
+
+  const _NotificationList({
+    required this.items,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final grouped = _groupByDate(items);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final group in grouped.entries) ...[
+          // Date section header
+          Text(
+            group.key,
+            style: app_typography.labelMedium.copyWith(
+              color: textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: space4),
+
+          // Notifications in this section
+          ...group.value.map((notification) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: gapMedium),
+              child: NotificationCard(
+                id: notification.id,
+                title: notification.title,
+                message: notification.message,
+                timestamp: notification.sentAt ?? DateTime.now(),
+                isRead: notification.isRead,
+                type: _mapNotificationType(notification.type),
+                category: notification.category,
+                onTap: () => _showNotificationDetail(
+                  context,
+                  notification,
+                  controller,
+                ),
+                onMarkAsRead: !notification.isRead
+                    ? () => controller.markAsRead(notification)
+                    : null,
+              ),
+            );
+          }),
+
+          const SizedBox(height: space6),
+        ],
+      ],
+    );
+  }
+
+  Map<String, List<NotificationItem>> _groupByDate(List<NotificationItem> items) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    final Map<String, List<NotificationItem>> grouped = {
+      'TODAY': [],
+      'YESTERDAY': [],
+      'EARLIER': [],
+    };
+
+    for (final item in items) {
+      final timestamp = item.sentAt ?? DateTime.now();
+      final date = DateTime(timestamp.year, timestamp.month, timestamp.day);
+
+      if (date == today) {
+        grouped['TODAY']!.add(item);
+      } else if (date == yesterday) {
+        grouped['YESTERDAY']!.add(item);
+      } else {
+        grouped['EARLIER']!.add(item);
+      }
+    }
+
+    // Remove empty sections
+    grouped.removeWhere((key, value) => value.isEmpty);
+
+    return grouped;
+  }
+
+  NotificationType _mapNotificationType(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'info':
+        return NotificationType.info;
+      case 'success':
+        return NotificationType.success;
+      case 'warning':
+        return NotificationType.warning;
+      case 'error':
+        return NotificationType.error;
+      default:
+        return NotificationType.general;
+    }
+  }
+
+  void _showNotificationDetail(
+    BuildContext context,
+    NotificationItem notification,
+    NotificationController controller,
+  ) {
+    // Mark as read when opening detail
+    if (!notification.isRead) {
+      controller.markAsRead(notification);
+    }
+
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _HelpSheet(),
+      builder: (context) => NotificationDetailSheet(item: notification),
     );
   }
 }
@@ -282,8 +355,12 @@ class NotificationDetailSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final formatter = DateFormat.yMMMd().add_jm();
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      padding: const EdgeInsets.all(paddingXLarge),
+      decoration: const BoxDecoration(
+        color: backgroundPrimary,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(radiusXLarge)),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,186 +374,29 @@ class NotificationDetailSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: space4),
           Text(item.message, style: theme.textTheme.bodyMedium),
-          const SizedBox(height: 16),
+          const SizedBox(height: space6),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: gapSmall,
+            runSpacing: gapSmall,
             children: [
-              if (item.category != null && item.category!.isNotEmpty) Chip(label: Text(item.category!)),
-              if (item.type != null && item.type!.isNotEmpty) Chip(label: Text(item.type!)),
+              if (item.category != null && item.category!.isNotEmpty)
+                Chip(label: Text(item.category!)),
+              if (item.type != null && item.type!.isNotEmpty)
+                Chip(label: Text(item.type!)),
               Chip(
                 label: Text(item.isRead ? 'Read' : 'Unread'),
                 backgroundColor: item.isRead ? Colors.green.shade50 : Colors.orange.shade50,
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: space6),
           Text('Sent: ${item.sentAt != null ? formatter.format(item.sentAt!) : 'Unknown'}'),
           if (item.readAt != null) Text('Read: ${formatter.format(item.readAt!)}'),
-          const SizedBox(height: 16),
-          if (item.metadata.isNotEmpty) _MetadataSection(metadata: item.metadata),
-        ],
-      ),
-    );
-  }
-}
-
-/// Help sheet widget
-class _HelpSheet extends StatelessWidget {
-  const _HelpSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        top: paddingLarge,
-        left: paddingLarge,
-        right: paddingLarge,
-        bottom: MediaQuery.of(context).viewInsets.bottom + paddingLarge,
-      ),
-      decoration: const BoxDecoration(
-        color: backgroundPrimary,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(radiusXLarge)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.help_outline,
-                color: primaryGreen,
-                size: iconSizeLarge,
-              ),
-              const SizedBox(width: gapMedium),
-              Text(
-                'Help & Support',
-                style: app_typography.headingMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: space6),
-          _HelpItem(
-            text: 'Notifications sync when you are online. Pull to refresh for latest updates.',
-          ),
-          _HelpItem(
-            text: 'Tap any notification to see details. It will be marked as read automatically.',
-          ),
-          _HelpItem(
-            text: 'Use filters to view all, unread, or read notifications.',
-          ),
-          _HelpItem(
-            text: 'Use "Mark all read" to clear all unread notifications at once.',
-          ),
-          const SizedBox(height: space6),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Got it'),
-            ),
-          ),
         ],
       ),
     );
   }
 }
-
-/// Help item widget
-class _HelpItem extends StatelessWidget {
-  final String text;
-
-  const _HelpItem({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: space3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: space1),
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: primaryGreen,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: gapMedium),
-          Expanded(
-            child: Text(
-              text,
-              style: app_typography.bodyMedium.copyWith(
-                color: textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Metadata section widget for displaying notification metadata
-class _MetadataSection extends StatelessWidget {
-  final Map<String, dynamic> metadata;
-
-  const _MetadataSection({required this.metadata});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Divider(),
-        const SizedBox(height: space4),
-        Text(
-          'Additional Information',
-          style: app_typography.labelMedium.copyWith(
-            fontWeight: FontWeight.w600,
-            color: textSecondary,
-          ),
-        ),
-        const SizedBox(height: space3),
-        ...metadata.entries.map(
-          (entry) => Padding(
-            padding: const EdgeInsets.only(bottom: space2),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 100,
-                  child: Text(
-                    entry.key,
-                    style: app_typography.bodySmall.copyWith(
-                      color: textSecondary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: gapMedium),
-                Expanded(
-                  child: Text(
-                    '${entry.value}',
-                    style: app_typography.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-

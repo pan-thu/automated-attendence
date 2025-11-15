@@ -9,9 +9,9 @@ import '../../../design_system/typography.dart' as app_typography;
 
 /// Time display widget showing current time and date
 ///
+/// Displays large, clean time (HH:mm format) and date
 /// Updates every second to show live time
-/// Used on home dashboard for clock-in context
-/// Based on spec in docs/client-overhaul/02-home-dashboard.md
+/// Redesigned to match home.png mockup - minimal, no container
 class TimeDisplay extends StatefulWidget {
   const TimeDisplay({super.key});
 
@@ -46,52 +46,37 @@ class _TimeDisplayState extends State<TimeDisplay> {
 
   @override
   Widget build(BuildContext context) {
-    final timeFormat = DateFormat('HH:mm:ss');
-    final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
+    // Format: 09:30 (without seconds)
+    final timeFormat = DateFormat('HH:mm');
+    // Format: Monday | October 25
+    final dayFormat = DateFormat('EEEE');
+    final dateFormat = DateFormat('MMMM d');
 
-    return Container(
-      padding: const EdgeInsets.all(paddingLarge),
-      decoration: BoxDecoration(
-        color: backgroundSecondary,
-        borderRadius: BorderRadius.circular(radiusLarge),
-        border: Border.all(color: borderColor, width: 1),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Current time (large)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.access_time,
-                size: iconSizeLarge,
-                color: primaryGreen,
-              ),
-              const SizedBox(width: gapMedium),
-              Text(
-                timeFormat.format(_currentTime),
-                style: app_typography.displayMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: textPrimary,
-                  fontFeatures: [const FontFeature.tabularFigures()], // Monospaced digits
-                ),
-              ),
-            ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Large time display (e.g., 09:30)
+        Text(
+          timeFormat.format(_currentTime),
+          style: TextStyle(
+            fontSize: 80,
+            fontWeight: FontWeight.bold,
+            color: textPrimary,
+            height: 1.0,
+            letterSpacing: -2,
+            fontFeatures: const [FontFeature.tabularFigures()], // Monospaced digits
           ),
-          const SizedBox(height: space2),
+        ),
+        const SizedBox(height: space2),
 
-          // Current date
-          Text(
-            dateFormat.format(_currentTime),
-            style: app_typography.bodyMedium.copyWith(
-              color: textSecondary,
-            ),
-            textAlign: TextAlign.center,
+        // Date display (e.g., Monday | October 25)
+        Text(
+          '${dayFormat.format(_currentTime)} | ${dateFormat.format(_currentTime)}',
+          style: app_typography.bodyLarge.copyWith(
+            color: textSecondary,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

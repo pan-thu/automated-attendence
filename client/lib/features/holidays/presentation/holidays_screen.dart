@@ -59,15 +59,21 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final upcomingHolidays = _holidays.where((h) => h.isUpcoming).toList();
+    final nextHoliday = upcomingHolidays.isNotEmpty ? upcomingHolidays.first : null;
+
     return Scaffold(
       backgroundColor: backgroundPrimary,
       appBar: AppBar(
         title: Text(
           'Holidays',
-          style: app_typography.headingMedium,
+          style: app_typography.headingLarge.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: backgroundPrimary,
         elevation: 0,
+        centerTitle: true,
       ),
       body: _isLoading && _holidays.isEmpty
           ? const Center(child: CircularProgressIndicator())
@@ -78,104 +84,296 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
                 )
               : RefreshIndicator(
                   onRefresh: _loadHolidays,
-                  child: CustomScrollView(
-                    slivers: [
+                  child: ListView(
+                    padding: const EdgeInsets.all(paddingLarge),
+                    children: [
                       // Year selector
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            paddingLarge,
-                            paddingLarge,
-                            paddingLarge,
-                            space6,
-                          ),
-                          child: _YearSelector(
-                            selectedYear: _selectedYear,
-                            onYearChanged: _changeYear,
-                          ),
-                        ),
+                      _YearSelector(
+                        selectedYear: _selectedYear,
+                        onYearChanged: _changeYear,
                       ),
+                      const SizedBox(height: space6),
 
-                      // Loading indicator
-                      if (_isLoading)
-                        const SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: paddingLarge,
-                            ),
-                            child: LinearProgressIndicator(),
-                          ),
-                        ),
-
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: space4),
-                      ),
-
-                      // Holiday list
-                      _holidays.isEmpty
-                          ? SliverFillRemaining(
-                              child: EmptyState(
-                                icon: Icons.event_busy,
-                                title: 'No Holidays',
-                                message:
-                                    'No holidays found for $_selectedYear.',
-                              ),
-                            )
-                          : SliverPadding(
-                              padding: const EdgeInsets.fromLTRB(
-                                paddingLarge,
-                                0,
-                                paddingLarge,
-                                paddingLarge,
-                              ),
-                              sliver: SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) {
-                                    final holiday = _holidays[index];
-                                    final isFirstInMonth = index == 0 ||
-                                        _holidays[index - 1].date.month !=
-                                            holiday.date.month;
-
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        if (isFirstInMonth) ...[
-                                          if (index > 0)
-                                            const SizedBox(height: space6),
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: paddingSmall,
-                                              bottom: space3,
-                                            ),
-                                            child: Text(
-                                              DateFormat('MMMM')
-                                                  .format(holiday.date),
-                                              style: app_typography.labelLarge
-                                                  .copyWith(
-                                                fontWeight: FontWeight.w600,
-                                                color: textSecondary,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: gapMedium,
-                                          ),
-                                          child: _HolidayCard(holiday: holiday),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                  childCount: _holidays.length,
+                      // Statistics summary
+                      if (_holidays.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _StatCard(
+                                label: 'Total',
+                                value: '${_holidays.length}',
+                                icon: Icons.celebration,
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
                               ),
                             ),
+                            const SizedBox(width: gapMedium),
+                            Expanded(
+                              child: _StatCard(
+                                label: 'Upcoming',
+                                value: '${upcomingHolidays.length}',
+                                icon: Icons.event,
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: space6),
+                      ],
+
+                      // Next holiday banner
+                      if (nextHoliday != null) ...[
+                        _NextHolidayBanner(holiday: nextHoliday),
+                        const SizedBox(height: space6),
+                      ],
+
+                      // Loading indicator
+                      if (_isLoading)
+                        const LinearProgressIndicator(),
+                      if (_isLoading)
+                        const SizedBox(height: space6),
+
+                      // Holiday list by month
+                      if (_holidays.isEmpty)
+                        EmptyState(
+                          icon: Icons.event_busy,
+                          title: 'No Holidays',
+                          message: 'No holidays found for $_selectedYear.',
+                        )
+                      else
+                        ..._buildHolidayList(),
                     ],
                   ),
                 ),
     );
+  }
+
+  List<Widget> _buildHolidayList() {
+    final widgets = <Widget>[];
+
+    for (var i = 0; i < _holidays.length; i++) {
+      final holiday = _holidays[i];
+      final isFirstInMonth = i == 0 ||
+          _holidays[i - 1].date.month != holiday.date.month;
+
+      if (isFirstInMonth) {
+        if (i > 0) {
+          widgets.add(const SizedBox(height: space8));
+        }
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: space4),
+            child: Text(
+              DateFormat('MMMM yyyy').format(holiday.date),
+              style: app_typography.headingSmall.copyWith(
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
+            ),
+          ),
+        );
+      }
+
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: gapMedium),
+          child: _HolidayCard(holiday: holiday),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+}
+
+/// Statistics card widget
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Gradient gradient;
+
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.gradient,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(paddingMedium),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(radiusLarge * 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: Colors.white.withOpacity(0.9),
+            size: iconSizeLarge,
+          ),
+          const SizedBox(height: space2),
+          Text(
+            value,
+            style: app_typography.headingLarge.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 32,
+            ),
+          ),
+          Text(
+            label,
+            style: app_typography.bodyMedium.copyWith(
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Next holiday banner widget
+class _NextHolidayBanner extends StatelessWidget {
+  final Holiday holiday;
+
+  const _NextHolidayBanner({required this.holiday});
+
+  @override
+  Widget build(BuildContext context) {
+    final daysUntil = holiday.daysUntil;
+    final isToday = holiday.isToday;
+
+    return Container(
+      padding: const EdgeInsets.all(paddingLarge),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(radiusLarge * 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4facfe).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            padding: const EdgeInsets.all(paddingMedium),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(radiusLarge),
+            ),
+            child: Icon(
+              _getHolidayIcon(holiday.type),
+              size: 40,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: gapMedium),
+
+          // Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isToday ? 'Today\'s Holiday' : 'Next Holiday',
+                  style: app_typography.labelMedium.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: space1),
+                Text(
+                  holiday.name,
+                  style: app_typography.headingMedium.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: space1),
+                Text(
+                  DateFormat('EEEE, MMMM d, yyyy').format(holiday.date),
+                  style: app_typography.bodySmall.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Countdown
+          if (!isToday)
+            Container(
+              padding: const EdgeInsets.all(paddingMedium),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(radiusLarge),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$daysUntil',
+                    style: app_typography.headingLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF4facfe),
+                      fontSize: 28,
+                    ),
+                  ),
+                  Text(
+                    daysUntil == 1 ? 'day' : 'days',
+                    style: app_typography.labelSmall.copyWith(
+                      color: const Color(0xFF4facfe),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getHolidayIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'public':
+        return Icons.public;
+      case 'company':
+        return Icons.business;
+      case 'optional':
+        return Icons.event_available;
+      default:
+        return Icons.celebration;
+    }
   }
 }
 
@@ -201,9 +399,8 @@ class _YearSelector extends StatelessWidget {
         vertical: paddingSmall,
       ),
       decoration: BoxDecoration(
-        color: backgroundSecondary,
-        borderRadius: BorderRadius.circular(radiusMedium),
-        border: Border.all(color: borderColor, width: 1),
+        color: const Color(0xFFE8E8E8),
+        borderRadius: BorderRadius.circular(radiusLarge * 1.5),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -211,19 +408,19 @@ class _YearSelector extends StatelessWidget {
           IconButton(
             onPressed: canGoPrevious ? () => onYearChanged(-1) : null,
             icon: const Icon(Icons.chevron_left),
-            color: canGoPrevious ? primaryGreen : textSecondary,
+            color: canGoPrevious ? textPrimary : textSecondary,
           ),
           Text(
             '$selectedYear',
-            style: app_typography.labelLarge.copyWith(
-              fontWeight: FontWeight.w600,
+            style: app_typography.headingMedium.copyWith(
+              fontWeight: FontWeight.bold,
               color: textPrimary,
             ),
           ),
           IconButton(
             onPressed: canGoNext ? () => onYearChanged(1) : null,
             icon: const Icon(Icons.chevron_right),
-            color: canGoNext ? primaryGreen : textSecondary,
+            color: canGoNext ? textPrimary : textSecondary,
           ),
         ],
       ),
@@ -239,199 +436,215 @@ class _HolidayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('EEE, MMM d');
     final isUpcoming = holiday.isUpcoming;
     final isToday = holiday.isToday;
+    final gradient = _getGradient(holiday.type, isToday);
 
     return Container(
-      padding: const EdgeInsets.all(paddingMedium),
       decoration: BoxDecoration(
-        color: isToday
-            ? primaryGreen.withValues(alpha: 0.1)
-            : backgroundSecondary,
-        borderRadius: BorderRadius.circular(radiusMedium),
-        border: Border.all(
-          color: isToday ? primaryGreen : borderColor,
-          width: isToday ? 2 : 1,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Date badge
-          Container(
-            width: 60,
-            padding: const EdgeInsets.symmetric(
-              horizontal: paddingSmall,
-              vertical: paddingSmall,
-            ),
-            decoration: BoxDecoration(
-              color: isToday
-                  ? primaryGreen
-                  : isUpcoming
-                      ? infoBackground
-                      : textSecondary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(radiusSmall),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${holiday.date.day}',
-                  style: app_typography.headingMedium.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isToday
-                        ? Colors.white
-                        : isUpcoming
-                            ? Colors.white
-                            : textSecondary,
-                  ),
-                ),
-                Text(
-                  DateFormat('MMM').format(holiday.date).toUpperCase(),
-                  style: app_typography.labelSmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isToday
-                        ? Colors.white
-                        : isUpcoming
-                            ? Colors.white
-                            : textSecondary,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(radiusLarge * 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
-          const SizedBox(width: gapMedium),
-
-          // Content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(radiusLarge * 1.5),
+          onTap: () {}, // Optional: Add detail view
+          child: Padding(
+            padding: const EdgeInsets.all(paddingMedium),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        holiday.name,
-                        style: app_typography.labelLarge.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: textPrimary,
-                        ),
-                      ),
-                    ),
-                    if (isToday)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: paddingSmall,
-                          vertical: space1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: primaryGreen,
-                          borderRadius: BorderRadius.circular(radiusSmall),
-                        ),
-                        child: Text(
-                          'Today',
-                          style: app_typography.labelSmall.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: space1),
-                Text(
-                  dateFormat.format(holiday.date),
-                  style: app_typography.bodySmall.copyWith(
-                    color: textSecondary,
+                // Icon with background
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(radiusLarge),
                   ),
-                ),
-                if (holiday.description != null &&
-                    holiday.description!.isNotEmpty) ...[
-                  const SizedBox(height: space2),
-                  Text(
-                    holiday.description!,
-                    style: app_typography.bodySmall.copyWith(
-                      color: textSecondary,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                if (isUpcoming && !isToday) ...[
-                  const SizedBox(height: space2),
-                  Row(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.schedule,
-                        size: iconSizeSmall,
-                        color: infoBackground,
-                      ),
-                      const SizedBox(width: gapSmall),
                       Text(
-                        _getDaysUntilText(holiday.daysUntil),
-                        style: app_typography.bodySmall.copyWith(
-                          color: infoBackground,
-                          fontWeight: FontWeight.w500,
+                        '${holiday.date.day}',
+                        style: app_typography.headingMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 24,
+                        ),
+                      ),
+                      Text(
+                        DateFormat('MMM').format(holiday.date).toUpperCase(),
+                        style: app_typography.labelSmall.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 10,
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
+                const SizedBox(width: gapMedium),
+
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              holiday.name,
+                              style: app_typography.bodyLarge.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isToday)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: paddingSmall,
+                                vertical: space1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(radiusSmall),
+                              ),
+                              child: Text(
+                                'TODAY',
+                                style: app_typography.labelSmall.copyWith(
+                                  color: _getTypeGradientStartColor(holiday.type),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: space1),
+                      Text(
+                        DateFormat('EEEE').format(holiday.date),
+                        style: app_typography.bodyMedium.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                      if (holiday.description != null &&
+                          holiday.description!.isNotEmpty) ...[
+                        const SizedBox(height: space1),
+                        Text(
+                          holiday.description!,
+                          style: app_typography.bodySmall.copyWith(
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: gapSmall),
+
+                // Type badge
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _getHolidayIcon(holiday.type),
+                      color: Colors.white,
+                      size: iconSizeMedium,
+                    ),
+                    const SizedBox(height: space1),
+                    Text(
+                      _formatType(holiday.type),
+                      style: app_typography.labelSmall.copyWith(
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-
-          // Type badge
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: paddingSmall,
-              vertical: space1,
-            ),
-            decoration: BoxDecoration(
-              color: _getTypeColor(holiday.type).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(radiusSmall),
-              border: Border.all(
-                color: _getTypeColor(holiday.type),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              _formatType(holiday.type),
-              style: app_typography.labelSmall.copyWith(
-                color: _getTypeColor(holiday.type),
-                fontWeight: FontWeight.w600,
-                fontSize: 10,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  String _getDaysUntilText(int days) {
-    if (days == 0) return 'Today';
-    if (days == 1) return 'Tomorrow';
-    if (days < 7) return 'in $days days';
-    if (days < 30) return 'in ${(days / 7).floor()} weeks';
-    return 'in ${(days / 30).floor()} months';
-  }
+  Gradient _getGradient(String type, bool isToday) {
+    if (isToday) {
+      return const LinearGradient(
+        colors: [Color(0xFFf43b47), Color(0xFF453a94)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
 
-  Color _getTypeColor(String type) {
     switch (type.toLowerCase()) {
       case 'public':
-        return primaryGreen;
+        return const LinearGradient(
+          colors: [Color(0xFF56ab2f), Color(0xFFa8e063)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
       case 'company':
-        return infoBackground;
+        return const LinearGradient(
+          colors: [Color(0xFFeb3349), Color(0xFFf45c43)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
       case 'optional':
-        return warningBackground;
+        return const LinearGradient(
+          colors: [Color(0xFFffd89b), Color(0xFF19547b)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
       default:
-        return textSecondary;
+        return const LinearGradient(
+          colors: [Color(0xFF757F9A), Color(0xFFD7DDE8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
+    }
+  }
+
+  Color _getTypeGradientStartColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'public':
+        return const Color(0xFF56ab2f);
+      case 'company':
+        return const Color(0xFFeb3349);
+      case 'optional':
+        return const Color(0xFF19547b);
+      default:
+        return const Color(0xFF757F9A);
+    }
+  }
+
+  IconData _getHolidayIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'public':
+        return Icons.public;
+      case 'company':
+        return Icons.business;
+      case 'optional':
+        return Icons.event_available;
+      default:
+        return Icons.celebration;
     }
   }
 

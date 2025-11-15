@@ -8,10 +8,10 @@ import '../../../design_system/typography.dart' as app_typography;
 import '../controllers/attendance_calendar_controller.dart';
 import '../controllers/day_detail_controller.dart';
 import '../repository/attendance_history_repository.dart';
-import '../widgets/attendance_calendar.dart';
-import '../widgets/attendance_stats_summary.dart';
+import '../widgets/attendance_list_view.dart';
+import '../widgets/attendance_stats_card.dart';
 import '../widgets/day_detail_sheet.dart';
-import '../widgets/month_selector.dart';
+import '../widgets/month_year_selector.dart';
 
 class AttendanceHistoryScreen extends StatefulWidget {
   const AttendanceHistoryScreen({super.key});
@@ -21,17 +21,17 @@ class AttendanceHistoryScreen extends StatefulWidget {
       _AttendanceHistoryScreenState();
 }
 
-/// Attendance history screen with calendar and statistics
+/// Attendance history screen with list view and statistics
 ///
 /// Features:
-/// - Month selector
-/// - Calendar view with color-coded attendance
-/// - Monthly statistics summary
+/// - Month/year selector tabs
+/// - Statistics summary with circular indicators
+/// - List view showing days with check columns
 /// - Day detail bottom sheet
 /// - Export attendance data
-/// Based on spec in docs/client-overhaul/03-attendance-history.md
+/// Redesigned to match attendance.png mockup
 class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
-  DateTime _focusedMonth = DateTime.now();
+  DateTime _selectedDate = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
@@ -48,18 +48,14 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         backgroundColor: backgroundPrimary,
         appBar: AppBar(
           title: Text(
-            'Attendance History',
-            style: app_typography.headingMedium,
+            'Attendance',
+            style: app_typography.headingLarge.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           backgroundColor: backgroundPrimary,
           elevation: 0,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.ios_share_outlined),
-              onPressed: () => _exportAttendance(context),
-              tooltip: 'Export',
-            ),
-          ],
+          centerTitle: true,
         ),
         body: Consumer<AttendanceCalendarController>(
           builder: (context, calendar, _) {
@@ -74,8 +70,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
               );
             }
 
-            // Convert attendance data to map for calendar
-            final attendanceMap = _buildAttendanceMap(calendar.days);
+            // Calculate stats for the month
             final stats = _calculateStats(calendar.days);
 
             return RefreshIndicator(
@@ -83,23 +78,26 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(paddingLarge),
                 children: [
-                  // Month selector
-                  MonthSelector(
-                    selectedMonth: _focusedMonth,
-                    onMonthChanged: (month) {
+                  // Month/Year selector
+                  MonthYearSelector(
+                    selectedDate: _selectedDate,
+                    onDateChanged: (date) {
                       setState(() {
-                        _focusedMonth = month;
+                        _selectedDate = date;
                       });
-                      calendar.selectMonth(month);
+                      calendar.selectMonth(date);
                     },
                   ),
                   const SizedBox(height: space6),
 
-                  // Calendar view
-                  AttendanceCalendar(
-                    focusedMonth: _focusedMonth,
-                    attendanceData: attendanceMap,
-                    onDaySelected: (day) => _openDayDetail(context, day),
+                  // Statistics summary card
+                  AttendanceStatsCard(
+                    present: stats['present'] ?? 0,
+                    absent: stats['absent'] ?? 0,
+                    late: stats['late'] ?? 0,
+                    leave: stats['leave'] ?? 0,
+                    halfDay: stats['halfDay'] ?? 0,
+                    totalDays: stats['total'] ?? 30,
                   ),
                   const SizedBox(height: space6),
 
@@ -109,8 +107,13 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                   if (calendar.isLoading)
                     const SizedBox(height: space6),
 
-                  // Statistics summary
-                  AttendanceStatsSummary(stats: stats),
+                  // Attendance list view
+                  AttendanceListView(
+                    days: calendar.days,
+                    onDayTap: () {
+                      // Could open day detail sheet here
+                    },
+                  ),
                   const SizedBox(height: space16),
                 ],
               ),
@@ -121,54 +124,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     );
   }
 
-  Map<DateTime, AttendanceStatus> _buildAttendanceMap(
-    List<AttendanceDaySummary> days,
-  ) {
-    final map = <DateTime, AttendanceStatus>{};
-
-    for (final day in days) {
-      final normalizedDate = DateTime(
-        day.date.year,
-        day.date.month,
-        day.date.day,
-      );
-
-      final status = _mapStatus(day.status);
-      if (status != null) {
-        map[normalizedDate] = status;
-      }
-    }
-
-    return map;
-  }
-
-  AttendanceStatus? _mapStatus(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'present':
-        return AttendanceStatus.present;
-      case 'absent':
-        return AttendanceStatus.absent;
-      case 'late':
-      case 'early_leave':
-        return AttendanceStatus.late;
-      case 'half_day_absent':
-        return AttendanceStatus.halfDay;
-      case 'on_leave':
-        return AttendanceStatus.leave;
-      case 'holiday':
-        return AttendanceStatus.holiday;
-      default:
-        return null;
-    }
-  }
-
-  AttendanceStats _calculateStats(List<AttendanceDaySummary> days) {
+  Map<String, int> _calculateStats(List<AttendanceDaySummary> days) {
     int present = 0;
     int absent = 0;
     int late = 0;
     int halfDay = 0;
     int leave = 0;
-    int holiday = 0;
 
     for (final day in days) {
       switch (day.status?.toLowerCase()) {
@@ -188,20 +149,24 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         case 'on_leave':
           leave++;
           break;
-        case 'holiday':
-          holiday++;
-          break;
       }
     }
 
-    return AttendanceStats(
-      present: present,
-      absent: absent,
-      late: late,
-      halfDay: halfDay,
-      leave: leave,
-      holiday: holiday,
-    );
+    // Determine total days in month (approximate)
+    final daysInMonth = DateTime(
+      _selectedDate.year,
+      _selectedDate.month + 1,
+      0,
+    ).day;
+
+    return {
+      'present': present,
+      'absent': absent,
+      'late': late,
+      'halfDay': halfDay,
+      'leave': leave,
+      'total': daysInMonth,
+    };
   }
 
   Future<void> _openDayDetail(BuildContext context, DateTime day) async {
@@ -218,44 +183,6 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         );
       },
     );
-  }
-
-
-  void _exportAttendance(BuildContext context) {
-    final calendar = context.read<AttendanceCalendarController>();
-    if (calendar.days.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No attendance data to export for this month.'),
-        ),
-      );
-      return;
-    }
-
-    final payload = AttendanceExportPayload(
-      title:
-          'Attendance ${_focusedMonth.year}-${_focusedMonth.month.toString().padLeft(2, '0')}',
-      generatedAt: DateTime.now(),
-      days: calendar.days.toList(),
-    );
-
-    final exportBuffer =
-        StringBuffer()
-          ..writeln(
-            'Attendance export generated on ${payload.generatedAt.toIso8601String()}',
-          )
-          ..writeln('Date,Status,Violations,Manual Override');
-
-    for (final day in payload.days) {
-      final violations = day.violationTypes.join('|');
-      final manual = day.hasManualOverride ? 'Yes' : 'No';
-      exportBuffer.writeln(
-        '${day.date.toIso8601String()},${day.status ?? 'unknown'},$violations,$manual',
-      );
-    }
-
-    // ignore: deprecated_member_use
-    Share.share(exportBuffer.toString(), subject: payload.title);
   }
 }
 

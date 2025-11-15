@@ -49,6 +49,8 @@ export function useNotifications(initialFilters?: NotificationFilter) {
     setLoading(true);
     const startTime = Date.now();
     const MIN_LOADING_TIME = 500; // Show skeleton for at least 500ms
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | undefined;
 
     const firestore = getFirebaseFirestore();
     const constraints: QueryConstraint[] = [orderBy("sentAt", "desc")];
@@ -106,10 +108,12 @@ export function useNotifications(initialFilters?: NotificationFilter) {
         const elapsedTime = Date.now() - startTime;
         const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
 
-        setTimeout(() => {
-          setRecords(mapped);
-          setError(null);
-          setLoading(false);
+        timeoutId = setTimeout(() => {
+          if (isMounted) {
+            setRecords(mapped);
+            setError(null);
+            setLoading(false);
+          }
         }, remainingTime);
       },
       (err) => {
@@ -119,15 +123,21 @@ export function useNotifications(initialFilters?: NotificationFilter) {
         const elapsedTime = Date.now() - startTime;
         const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
 
-        setTimeout(() => {
-          setRecords([]);
-          setError("Unable to load notifications. Please try again later.");
-          setLoading(false);
+        timeoutId = setTimeout(() => {
+          if (isMounted) {
+            setRecords([]);
+            setError("Unable to load notifications. Please try again later.");
+            setLoading(false);
+          }
         }, remainingTime);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, [filters, watchKey]);
 
   const filteredRecords = useMemo(() => {

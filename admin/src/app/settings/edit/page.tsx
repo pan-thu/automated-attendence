@@ -52,6 +52,7 @@ export default function EditSettingsPage() {
     workplaceLat: "",
     workplaceLng: "",
     workplaceRadius: "",
+    workplaceAddress: "",
     geoFencingEnabled: false,
   });
 
@@ -81,6 +82,7 @@ export default function EditSettingsPage() {
       workplaceLat: settings.workplace_center ? String(settings.workplace_center.latitude) : "",
       workplaceLng: settings.workplace_center ? String(settings.workplace_center.longitude) : "",
       workplaceRadius: settings.workplace_radius ? String(settings.workplace_radius) : "",
+      workplaceAddress: settings.workplaceAddress ?? "",
       geoFencingEnabled: Boolean(settings.geoFencingEnabled),
     };
 
@@ -272,6 +274,10 @@ export default function EditSettingsPage() {
         return;
       }
       payload.workplace_radius = radius;
+    }
+
+    if (form.workplaceAddress) {
+      payload.workplaceAddress = form.workplaceAddress.trim();
     }
 
     const timeWindowPayload = timeWindows.reduce<Record<string, { label: string; start: string; end: string }>>((acc, item) => {
@@ -507,6 +513,16 @@ export default function EditSettingsPage() {
               />
             </div>
             </div>
+              <div className="mt-4 space-y-2">
+                <Label htmlFor="workplaceAddress">Workplace Address (optional)</Label>
+                <Input
+                  id="workplaceAddress"
+                  value={form.workplaceAddress}
+                  onChange={(event) => setForm((prev) => ({ ...prev, workplaceAddress: event.target.value }))}
+                  placeholder="e.g. Vashi - Navi Mumbai"
+                />
+                <p className="text-xs text-muted-foreground">Display name for the office location shown to employees.</p>
+              </div>
               <div className="mt-4 flex items-center gap-2">
               <Toggle
                 id="geoFencingEnabled"

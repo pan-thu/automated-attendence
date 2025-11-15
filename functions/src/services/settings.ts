@@ -10,6 +10,7 @@ export interface CompanySettingsInput {
   timezone?: string;
   workplace_center?: { latitude: number; longitude: number };
   workplace_radius?: number;
+  workplaceAddress?: string;
   timeWindows?: Record<string, { label: string; start: string; end: string }>;
   gracePeriods?: Record<string, number>;
   penaltyRules?: {
@@ -285,6 +286,11 @@ const sanitizeCompanySettingsInput = (
   });
   if (workplaceRadius !== undefined) {
     sanitized.workplace_radius = workplaceRadius;
+  }
+
+  const workplaceAddress = ensureOptionalString(input.workplaceAddress, 'workplaceAddress');
+  if (workplaceAddress !== undefined) {
+    sanitized.workplaceAddress = workplaceAddress;
   }
 
   const timeWindows = sanitizeTimeWindows(input.timeWindows, 'timeWindows');

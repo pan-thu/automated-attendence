@@ -2,6 +2,7 @@ class CompanySettings {
   CompanySettings({
     required this.companyName,
     required this.geofenceRadiusMeters,
+    required this.workplaceAddress,
     required this.timeWindows,
     required this.geoFencingEnabled,
     required this.timezone,
@@ -10,6 +11,7 @@ class CompanySettings {
 
   final String? companyName;
   final double? geofenceRadiusMeters;
+  final String? workplaceAddress;
   final Map<String, TimeWindowSetting> timeWindows;
   final bool geoFencingEnabled;
   final String? timezone;
@@ -31,6 +33,7 @@ class CompanySettings {
     return CompanySettings(
       companyName: json['companyName'] as String?,
       geofenceRadiusMeters: (json['workplaceRadius'] as num?)?.toDouble(),
+      workplaceAddress: json['workplaceAddress'] as String?,
       timeWindows: timeWindows,
       geoFencingEnabled: json['geoFencingEnabled'] as bool? ?? true,
       timezone: json['timezone'] as String?,

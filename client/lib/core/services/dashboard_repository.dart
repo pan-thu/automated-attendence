@@ -186,6 +186,7 @@ class CompanySettingsSummary {
   CompanySettingsSummary({
     required this.companyName,
     required this.geofenceRadiusMeters,
+    required this.workplaceAddress,
     required this.geofence,
     required this.timeWindows,
     required this.geoFencingEnabled,
@@ -194,6 +195,7 @@ class CompanySettingsSummary {
 
   final String? companyName;
   final double? geofenceRadiusMeters;
+  final String? workplaceAddress;
   final Map<String, dynamic>? geofence;
   final Map<String, TimeWindowSummary> timeWindows;
   final bool geoFencingEnabled;
@@ -224,6 +226,7 @@ class CompanySettingsSummary {
     return CompanySettingsSummary(
       companyName: json['companyName'] as String?,
       geofenceRadiusMeters: workplaceRadius,
+      workplaceAddress: json['workplaceAddress'] as String?,
       geofence: geofence,
       timeWindows: timeWindows,
       geoFencingEnabled: json['geoFencingEnabled'] as bool? ?? true,

@@ -423,10 +423,10 @@ export function EmployeeListTable({
                           <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10">
                               <AvatarImage
-                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(employee.fullName)}&background=random`}
+                                src={employee.photoURL || undefined}
                                 alt={employee.fullName}
                               />
-                              <AvatarFallback>
+                              <AvatarFallback className="bg-blue-600 text-white">
                                 {employee.fullName
                                   .split(" ")
                                   .map((n) => n[0])

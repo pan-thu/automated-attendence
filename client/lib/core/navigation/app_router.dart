@@ -20,7 +20,7 @@ import '../../features/onboarding/controllers/onboarding_controller.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/penalties/presentation/penalties_screen.dart';
 import '../../features/resources/presentation/resources_screen.dart';
-import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/settings/presentation/profile_screen.dart';
 import '../../features/widgets/main_scaffold.dart';
 
 class AppRouter {
@@ -154,8 +154,7 @@ class AppRouter {
                 GoRoute(
                   name: AppRoutePaths.settings,
                   path: AppRoutePaths.settings,
-                  builder: (context, state) => SettingsScreen(
-                    repository: _settingsRepository,
+                  builder: (context, state) => ProfileScreen(
                     preferencesController: _preferencesController,
                   ),
                 ),

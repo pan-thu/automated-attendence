@@ -7,8 +7,8 @@ import '../../../design_system/typography.dart' as app_typography;
 
 /// Notification card widget
 ///
-/// Displays notification title, message, timestamp, and read status
-/// Based on spec in docs/client-overhaul/06-notifications.md
+/// Displays notification with icon, title, message, and time
+/// Redesigned to match notification.png mockup
 class NotificationCard extends StatelessWidget {
   final String id;
   final String title;
@@ -16,6 +16,7 @@ class NotificationCard extends StatelessWidget {
   final DateTime timestamp;
   final bool isRead;
   final NotificationType type;
+  final String? category;
   final VoidCallback? onTap;
   final VoidCallback? onMarkAsRead;
 
@@ -27,6 +28,7 @@ class NotificationCard extends StatelessWidget {
     required this.timestamp,
     required this.isRead,
     required this.type,
+    this.category,
     this.onTap,
     this.onMarkAsRead,
   });
@@ -35,35 +37,18 @@ class NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(radiusMedium),
+      borderRadius: BorderRadius.circular(radiusLarge * 1.5),
       child: Container(
         padding: const EdgeInsets.all(paddingMedium),
         decoration: BoxDecoration(
-          color: isRead
-              ? backgroundSecondary
-              : primaryGreen.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(radiusMedium),
-          border: Border.all(
-            color: isRead ? borderColor : primaryGreen.withValues(alpha: 0.2),
-            width: 1,
-          ),
+          color: const Color(0xFFE8E8E8),
+          borderRadius: BorderRadius.circular(radiusLarge * 1.5),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Notification icon
-            Container(
-              padding: const EdgeInsets.all(paddingSmall),
-              decoration: BoxDecoration(
-                color: _getTypeColor().withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(radiusSmall),
-              ),
-              child: Icon(
-                _getTypeIcon(),
-                color: _getTypeColor(),
-                size: iconSizeMedium,
-              ),
-            ),
+            _getIcon(),
             const SizedBox(width: gapMedium),
 
             // Content
@@ -78,10 +63,8 @@ class NotificationCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           title,
-                          style: app_typography.labelLarge.copyWith(
-                            fontWeight: isRead
-                                ? FontWeight.w500
-                                : FontWeight.w700,
+                          style: app_typography.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
                             color: textPrimary,
                           ),
                           maxLines: 1,
@@ -91,17 +74,25 @@ class NotificationCard extends StatelessWidget {
                       if (!isRead) ...[
                         const SizedBox(width: gapSmall),
                         Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: primaryGreen,
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF2196F3), // Blue dot
                             shape: BoxShape.circle,
                           ),
                         ),
                       ],
+                      const SizedBox(width: gapMedium),
+                      // Timestamp
+                      Text(
+                        _formatTimestamp(timestamp),
+                        style: app_typography.bodySmall.copyWith(
+                          color: textSecondary,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: space2),
+                  const SizedBox(height: space1),
 
                   // Message
                   Text(
@@ -112,52 +103,45 @@ class NotificationCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: space2),
-
-                  // Timestamp
-                  Text(
-                    _formatTimestamp(timestamp),
-                    style: app_typography.bodySmall.copyWith(
-                      color: textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
                 ],
               ),
             ),
-
-            // Mark as read button (for unread notifications)
-            if (!isRead && onMarkAsRead != null) ...[
-              const SizedBox(width: gapSmall),
-              IconButton(
-                icon: const Icon(Icons.done),
-                iconSize: iconSizeSmall,
-                color: primaryGreen,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: onMarkAsRead,
-                tooltip: 'Mark as read',
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Color _getTypeColor() {
-    switch (type) {
-      case NotificationType.info:
-        return infoBackground;
-      case NotificationType.success:
-        return successBackground;
-      case NotificationType.warning:
-        return warningBackground;
-      case NotificationType.error:
-        return errorBackground;
-      case NotificationType.general:
-        return primaryGreen;
+  Widget _getIcon() {
+    IconData iconData;
+
+    // Determine icon based on category or type
+    if (category != null) {
+      switch (category!.toLowerCase()) {
+        case 'attendance':
+          iconData = Icons.access_time;
+          break;
+        case 'leave':
+          iconData = Icons.calendar_today;
+          break;
+        case 'penalty':
+          iconData = Icons.warning;
+          break;
+        case 'system':
+          iconData = Icons.settings;
+          break;
+        default:
+          iconData = _getTypeIcon();
+      }
+    } else {
+      iconData = _getTypeIcon();
     }
+
+    return Icon(
+      iconData,
+      size: 32,
+      color: const Color(0xFF1A1A1A),
+    );
   }
 
   IconData _getTypeIcon() {
@@ -167,11 +151,11 @@ class NotificationCard extends StatelessWidget {
       case NotificationType.success:
         return Icons.check_circle_outline;
       case NotificationType.warning:
-        return Icons.warning_amber_outlined;
+        return Icons.warning;
       case NotificationType.error:
         return Icons.error_outline;
       case NotificationType.general:
-        return Icons.notifications_outlined;
+        return Icons.notifications;
     }
   }
 
@@ -182,13 +166,13 @@ class NotificationCard extends StatelessWidget {
     if (difference.inMinutes < 1) {
       return 'Just now';
     } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
+      return '${difference.inMinutes}m';
     } else if (difference.inDays < 1) {
-      return '${difference.inHours}h ago';
+      return '${difference.inHours}h';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
+      return '${difference.inDays}d';
     } else {
-      return DateFormat('MMM d, yyyy').format(timestamp);
+      return DateFormat('MMM d').format(timestamp);
     }
   }
 }

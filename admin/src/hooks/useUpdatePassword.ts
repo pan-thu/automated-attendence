@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFirebaseApp } from "@/lib/firebase/config";
 
 export interface UpdatePasswordPayload {
   currentPassword: string;
@@ -17,7 +18,8 @@ export function useUpdatePassword() {
     setError(null);
 
     try {
-      const functions = getFunctions();
+      const app = getFirebaseApp();
+      const functions = getFunctions(app);
       const updateOwnPassword = httpsCallable<
         UpdatePasswordPayload,
         { success: boolean }

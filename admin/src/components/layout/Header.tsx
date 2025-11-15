@@ -104,7 +104,7 @@ export function Header({ user, onLogout }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">
               <Avatar>
-                <AvatarImage src={undefined} alt={user?.email || "User"} />
+                <AvatarImage src={user?.photoURL || undefined} alt={user?.email || "User"} />
                 <AvatarFallback className="bg-blue-600 text-white">
                   {getUserInitials()}
                 </AvatarFallback>

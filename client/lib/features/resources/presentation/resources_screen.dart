@@ -12,7 +12,7 @@ import '../../../core/services/penalty_repository.dart';
 /// - Penalties (with summary badge)
 /// - Holiday List
 ///
-/// Based on spec in docs/client-overhaul/08-resources.md
+/// Redesigned to match resources.png mockup
 class ResourcesScreen extends StatefulWidget {
   final PenaltyRepositoryBase penaltyRepository;
 
@@ -57,44 +57,22 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       appBar: AppBar(
         title: Text(
           'Resources',
-          style: app_typography.headingMedium,
+          style: app_typography.headingLarge.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: backgroundPrimary,
         elevation: 0,
+        centerTitle: true,
       ),
       body: ListView(
         padding: const EdgeInsets.all(paddingLarge),
         children: [
-          // Header section
-          Padding(
-            padding: const EdgeInsets.only(bottom: space6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Quick Access',
-                  style: app_typography.headingSmall.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
-                  ),
-                ),
-                const SizedBox(height: space2),
-                Text(
-                  'Access leave requests, penalties, and holiday information',
-                  style: app_typography.bodyMedium.copyWith(
-                    color: textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           // Leave Request
           ResourceMenuItem(
             icon: Icons.calendar_today,
-            iconColor: primaryGreen,
             title: 'Leave Request',
-            subtitle: 'Apply for leave',
+            subtitle: 'Apply leave',
             onTap: () {
               context.push('/submit-leave');
             },
@@ -104,22 +82,23 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
           // Penalties with summary badge
           _isLoadingSummary
               ? ResourceMenuItem(
-                  icon: Icons.warning_amber,
-                  iconColor: errorBackground,
+                  icon: Icons.warning,
                   title: 'Penalties',
-                  subtitle: 'View your penalties',
+                  subtitle: 'View penalties',
                   onTap: () {
                     context.push('/penalties');
                   },
                 )
               : ResourceMenuItem(
-                  icon: Icons.warning_amber,
-                  iconColor: errorBackground,
+                  icon: Icons.warning,
                   title: 'Penalties',
-                  subtitle: 'View your penalties',
-                  badge: _penaltySummary != null &&
+                  subtitle: 'View penalties',
+                  badgeLines: _penaltySummary != null &&
                           _penaltySummary!.activeCount > 0
-                      ? '${_penaltySummary!.activeCount} active, Rs ${_penaltySummary!.totalAmount.toStringAsFixed(0)} total'
+                      ? [
+                          '${_penaltySummary!.activeCount} active',
+                          '\$${_penaltySummary!.totalAmount.toStringAsFixed(0)} total',
+                        ]
                       : null,
                   onTap: () {
                     context.push('/penalties');
@@ -129,8 +108,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
 
           // Holiday List
           ResourceMenuItem(
-            icon: Icons.event,
-            iconColor: infoBackground,
+            icon: Icons.calendar_month,
             title: 'Holiday List',
             subtitle: 'View upcoming holidays',
             onTap: () {
@@ -144,21 +122,24 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
 }
 
 /// Resource menu item widget
+///
+/// Redesigned to match resources.png mockup:
+/// - Gray background
+/// - Black icon (no colored container)
+/// - Badge shown on right side
 class ResourceMenuItem extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
   final String title;
   final String subtitle;
-  final String? badge;
+  final List<String>? badgeLines;
   final VoidCallback onTap;
 
   const ResourceMenuItem({
     super.key,
     required this.icon,
-    required this.iconColor,
     required this.title,
     required this.subtitle,
-    this.badge,
+    this.badgeLines,
     required this.onTap,
   });
 
@@ -166,28 +147,20 @@ class ResourceMenuItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(radiusMedium),
+      borderRadius: BorderRadius.circular(radiusLarge * 1.5),
       child: Container(
         padding: const EdgeInsets.all(paddingMedium),
         decoration: BoxDecoration(
-          color: backgroundSecondary,
-          borderRadius: BorderRadius.circular(radiusMedium),
-          border: Border.all(color: borderColor, width: 1),
+          color: const Color(0xFFE8E8E8),
+          borderRadius: BorderRadius.circular(radiusLarge * 1.5),
         ),
         child: Row(
           children: [
-            // Icon container
-            Container(
-              padding: const EdgeInsets.all(paddingMedium),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(radiusSmall),
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: iconSizeLarge,
-              ),
+            // Icon (black, no container)
+            Icon(
+              icon,
+              color: const Color(0xFF1A1A1A),
+              size: 32,
             ),
             const SizedBox(width: gapMedium),
 
@@ -199,7 +172,7 @@ class ResourceMenuItem extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: app_typography.labelLarge.copyWith(
+                    style: app_typography.bodyLarge.copyWith(
                       fontWeight: FontWeight.w600,
                       color: textPrimary,
                     ),
@@ -207,36 +180,35 @@ class ResourceMenuItem extends StatelessWidget {
                   const SizedBox(height: space1),
                   Text(
                     subtitle,
-                    style: app_typography.bodySmall.copyWith(
+                    style: app_typography.bodyMedium.copyWith(
                       color: textSecondary,
                     ),
                   ),
-                  if (badge != null) ...[
-                    const SizedBox(height: space2),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: paddingSmall,
-                        vertical: space1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: warningBackground,
-                        borderRadius: BorderRadius.circular(radiusSmall),
-                      ),
-                      child: Text(
-                        badge!,
-                        style: app_typography.labelSmall.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
 
-            // Trailing icon
+            // Badge (if provided) or chevron
+            if (badgeLines != null && badgeLines!.isNotEmpty) ...[
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final line in badgeLines!) ...[
+                    Text(
+                      line,
+                      style: app_typography.bodySmall.copyWith(
+                        color: textSecondary,
+                      ),
+                    ),
+                    if (line != badgeLines!.last) const SizedBox(height: space1),
+                  ],
+                ],
+              ),
+              const SizedBox(width: gapSmall),
+            ],
+
+            // Trailing chevron
             Icon(
               Icons.chevron_right,
               color: textSecondary,

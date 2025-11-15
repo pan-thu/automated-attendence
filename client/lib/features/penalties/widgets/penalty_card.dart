@@ -8,8 +8,8 @@ import '../../../design_system/typography.dart' as app_typography;
 
 /// Penalty card widget for displaying penalty details
 ///
-/// Shows violation type, date, amount, and status
-/// Based on spec in docs/client-overhaul/07-penalties.md
+/// Shows date, reason, amount, and status
+/// Redesigned to match penalty.png mockup
 class PenaltyCard extends StatelessWidget {
   final PenaltyItem penalty;
   final VoidCallback? onTap;
@@ -22,125 +22,71 @@ class PenaltyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM d, yyyy');
+    final dateFormat = DateFormat('dd MMM');
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(radiusMedium),
+      borderRadius: BorderRadius.circular(radiusLarge * 1.5),
       child: Container(
         padding: const EdgeInsets.all(paddingMedium),
         decoration: BoxDecoration(
-          color: backgroundSecondary,
-          borderRadius: BorderRadius.circular(radiusMedium),
-          border: Border.all(color: borderColor, width: 1),
+          color: const Color(0xFFE8E8E8),
+          borderRadius: BorderRadius.circular(radiusLarge * 1.5),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
           children: [
-            // Header row with violation type and status
-            Row(
-              children: [
-                // Violation icon
-                Container(
-                  padding: const EdgeInsets.all(paddingSmall),
-                  decoration: BoxDecoration(
-                    color: errorBackground.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(radiusSmall),
-                  ),
-                  child: Icon(
-                    _getViolationIcon(penalty.violationType),
-                    color: errorBackground,
-                    size: iconSizeMedium,
-                  ),
-                ),
-                const SizedBox(width: gapMedium),
-
-                // Violation type
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _formatViolationType(penalty.violationType),
-                        style: app_typography.labelLarge.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: space1),
-                      Text(
-                        penalty.dateIncurred != null
-                            ? dateFormat.format(penalty.dateIncurred!)
-                            : 'N/A',
-                        style: app_typography.bodySmall.copyWith(
-                          color: textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Status badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: paddingSmall,
-                    vertical: space1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(penalty.status).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(radiusSmall),
-                    border: Border.all(
-                      color: _getStatusColor(penalty.status),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    _formatStatus(penalty.status),
-                    style: app_typography.labelSmall.copyWith(
-                      color: _getStatusColor(penalty.status),
+            // Left side: Date and Reason
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Date
+                  Text(
+                    penalty.dateIncurred != null
+                        ? dateFormat.format(penalty.dateIncurred!)
+                        : 'N/A',
+                    style: app_typography.bodyLarge.copyWith(
                       fontWeight: FontWeight.w600,
+                      color: textPrimary,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: space1),
+
+                  // Reason
+                  Text(
+                    _formatViolationType(penalty.violationType),
+                    style: app_typography.bodyMedium.copyWith(
+                      color: textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
 
-            // Reason (if available)
-            if (penalty.reason.isNotEmpty) ...[
-              const SizedBox(height: space4),
-              Text(
-                penalty.reason,
-                style: app_typography.bodySmall.copyWith(
-                  color: textSecondary,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-
-            const SizedBox(height: space4),
-
-            // Amount and divider
-            const Divider(height: 1),
-            const SizedBox(height: space3),
-
-            // Amount row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Right side: Amount and Status
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                // Amount
                 Text(
-                  'Penalty Amount',
-                  style: app_typography.bodySmall.copyWith(
-                    color: textSecondary,
+                  '\$${penalty.amount.toStringAsFixed(0)}',
+                  style: app_typography.headingMedium.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
                   ),
                 ),
+                const SizedBox(height: space1),
+
+                // Status
                 Text(
-                  'Rs ${penalty.amount.toStringAsFixed(2)}',
-                  style: app_typography.labelLarge.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: errorBackground,
+                  _formatStatus(penalty.status),
+                  style: app_typography.bodyMedium.copyWith(
+                    color: textPrimary,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],

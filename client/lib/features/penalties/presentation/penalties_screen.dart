@@ -8,10 +8,10 @@ import '../../../design_system/typography.dart' as app_typography;
 import '../../../core/services/penalty_repository.dart';
 import '../../widgets/async_error_view.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/filter_tabs.dart';
-import '../../widgets/offline_notice.dart';
 import '../controllers/penalty_controller.dart';
 import '../widgets/penalty_card.dart';
+import '../widgets/penalty_filter_tabs.dart';
+import '../widgets/penalty_search_bar.dart';
 import '../widgets/penalty_summary_card.dart';
 
 class PenaltiesScreen extends StatelessWidget {
@@ -31,13 +31,20 @@ class PenaltiesScreen extends StatelessWidget {
 /// Penalties screen with filtering and summary
 ///
 /// Features:
-/// - Penalty summary card
+/// - Penalty summary cards (Active/Total)
 /// - Filter tabs for status
+/// - Search bar with sort button
 /// - Penalty cards list
-/// - Empty state
-/// Based on spec in docs/client-overhaul/07-penalties.md
-class _PenaltiesView extends StatelessWidget {
+/// Redesigned to match penalty.png mockup
+class _PenaltiesView extends StatefulWidget {
   const _PenaltiesView();
+
+  @override
+  State<_PenaltiesView> createState() => _PenaltiesViewState();
+}
+
+class _PenaltiesViewState extends State<_PenaltiesView> {
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -48,17 +55,13 @@ class _PenaltiesView extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Penalties',
-          style: app_typography.headingMedium,
+          style: app_typography.headingLarge.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: backgroundPrimary,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            tooltip: 'Help',
-            onPressed: () => _showHelp(context),
-          ),
-        ],
+        centerTitle: true,
       ),
       body: controller.isLoading && controller.items.isEmpty
           ? const Center(child: CircularProgressIndicator())
@@ -66,134 +69,102 @@ class _PenaltiesView extends StatelessWidget {
               ? AsyncErrorView(
                   message: controller.errorMessage!,
                   onRetry: controller.refresh,
-                  onHelp: () => _showHelp(context),
                 )
               : RefreshIndicator(
                   onRefresh: controller.refresh,
-                  child: CustomScrollView(
-                    slivers: [
-                      // Offline notice (if offline)
-                      if (controller.isOffline)
-                        SliverToBoxAdapter(
+                  child: ListView(
+                    padding: const EdgeInsets.all(paddingLarge),
+                    children: [
+                      // Summary cards
+                      if (controller.isLoadingSummary && controller.summary == null)
+                        const Center(
                           child: Padding(
-                            padding: const EdgeInsets.all(paddingLarge),
-                            child: OfflineNotice(
-                              message: 'Showing cached penalties.',
-                              lastUpdated: controller.lastUpdated,
-                              onRetry: controller.refresh,
-                            ),
+                            padding: EdgeInsets.all(paddingLarge),
+                            child: CircularProgressIndicator(),
                           ),
+                        )
+                      else
+                        PenaltySummaryCard(
+                          totalPenalties: (controller.summary?.byStatus.active.count ?? 0) +
+                              (controller.summary?.byStatus.waived.count ?? 0) +
+                              (controller.summary?.byStatus.resolved.count ?? 0) +
+                              (controller.summary?.byStatus.disputed.count ?? 0),
+                          totalAmount: controller.summary?.totalAmount ?? 0.0,
+                          activePenalties: controller.summary?.activeCount ?? 0,
                         ),
-
-                      // Summary card
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            paddingLarge,
-                            paddingLarge,
-                            paddingLarge,
-                            space6,
-                          ),
-                          child: controller.isLoadingSummary && controller.summary == null
-                              ? const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(paddingLarge),
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                )
-                              : PenaltySummaryCard(
-                                  totalPenalties: (controller.summary?.byStatus.active.count ?? 0) +
-                                      (controller.summary?.byStatus.waived.count ?? 0) +
-                                      (controller.summary?.byStatus.resolved.count ?? 0) +
-                                      (controller.summary?.byStatus.disputed.count ?? 0),
-                                  totalAmount: controller.summary?.totalAmount ?? 0.0,
-                                  activePenalties: controller.summary?.activeCount ?? 0,
-                                ),
-                        ),
-                      ),
+                      const SizedBox(height: space6),
 
                       // Filter tabs
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: paddingLarge,
-                          ),
-                          child: FilterTabs(
-                            tabs: [
-                              FilterTab(id: 'all', label: 'All'),
-                              FilterTab(id: 'active', label: 'Active'),
-                              FilterTab(id: 'resolved', label: 'Resolved'),
-                              FilterTab(id: 'waived', label: 'Waived'),
-                            ],
-                            selectedTab: controller.statusFilter.name,
-                            onTabSelected: (value) {
-                              final filter = PenaltyStatusFilter.values.firstWhere(
-                                (f) => f.name == value,
-                                orElse: () => PenaltyStatusFilter.all,
-                              );
-                              controller.changeFilter(filter);
-                            },
-                            style: FilterTabStyle.chips,
-                          ),
-                        ),
+                      PenaltyFilterTabs(
+                        selectedTab: controller.statusFilter.name,
+                        onTabSelected: (value) {
+                          final filter = PenaltyStatusFilter.values.firstWhere(
+                            (f) => f.name == value,
+                            orElse: () => PenaltyStatusFilter.all,
+                          );
+                          controller.changeFilter(filter);
+                        },
                       ),
+                      const SizedBox(height: space6),
 
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: space6),
+                      // Search bar
+                      PenaltySearchBar(
+                        searchQuery: _searchQuery,
+                        onSearchChanged: (query) {
+                          setState(() {
+                            _searchQuery = query;
+                          });
+                        },
+                        onSortPressed: () {
+                          // TODO: Implement sort functionality
+                        },
                       ),
+                      const SizedBox(height: space6),
 
                       // Loading indicator
                       if (controller.isLoading)
-                        const SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: paddingLarge,
-                            ),
-                            child: LinearProgressIndicator(),
-                          ),
-                        ),
+                        const LinearProgressIndicator(),
+                      if (controller.isLoading)
+                        const SizedBox(height: space6),
 
                       // Penalty list
-                      controller.items.isEmpty
-                          ? SliverFillRemaining(
-                              child: EmptyState(
-                                icon: Icons.celebration,
-                                title: 'No Penalties',
-                                message: 'You have no penalties. Keep up the good work!',
-                              ),
-                            )
-                          : SliverPadding(
-                              padding: const EdgeInsets.fromLTRB(
-                                paddingLarge,
-                                space4,
-                                paddingLarge,
-                                paddingLarge,
-                              ),
-                              sliver: SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) {
-                                    final penalty = controller.items[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: gapMedium,
-                                      ),
-                                      child: PenaltyCard(
-                                        penalty: penalty,
-                                        onTap: () => _showPenaltyDetail(
-                                          context,
-                                          penalty,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  childCount: controller.items.length,
-                                ),
-                              ),
+                      if (_getFilteredPenalties(controller.items).isEmpty)
+                        const EmptyState(
+                          icon: Icons.celebration,
+                          title: 'No Penalties',
+                          message: 'You have no penalties. Keep up the good work!',
+                        )
+                      else
+                        ..._getFilteredPenalties(controller.items).map((penalty) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: gapMedium),
+                            child: PenaltyCard(
+                              penalty: penalty,
+                              onTap: () => _showPenaltyDetail(context, penalty),
                             ),
+                          );
+                        }),
                     ],
                   ),
                 ),
     );
+  }
+
+  List<PenaltyItem> _getFilteredPenalties(List<PenaltyItem> items) {
+    if (_searchQuery.isEmpty) {
+      return items;
+    }
+
+    final query = _searchQuery.toLowerCase();
+    return items.where((penalty) {
+      final violationType = penalty.violationType.toLowerCase();
+      final reason = penalty.reason.toLowerCase();
+      final id = penalty.id.toLowerCase();
+
+      return violationType.contains(query) ||
+          reason.contains(query) ||
+          id.contains(query);
+    }).toList();
   }
 
   void _showPenaltyDetail(BuildContext context, PenaltyItem penalty) {
@@ -202,115 +173,6 @@ class _PenaltiesView extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => PenaltyDetailSheet(item: penalty),
-    );
-  }
-
-
-  void _showHelp(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => const _HelpSheet(),
-    );
-  }
-}
-
-/// Help sheet widget
-class _HelpSheet extends StatelessWidget {
-  const _HelpSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        top: paddingLarge,
-        left: paddingLarge,
-        right: paddingLarge,
-        bottom: MediaQuery.of(context).viewInsets.bottom + paddingLarge,
-      ),
-      decoration: const BoxDecoration(
-        color: backgroundPrimary,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(radiusXLarge)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.help_outline,
-                color: primaryGreen,
-                size: iconSizeLarge,
-              ),
-              const SizedBox(width: gapMedium),
-              Text(
-                'Penalty Help',
-                style: app_typography.headingMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: space6),
-          _HelpItem(
-            text: 'Penalties listed here come from your attendance and violation history.',
-          ),
-          _HelpItem(
-            text: 'Use the filters to view penalties by status (all, active, resolved, waived).',
-          ),
-          _HelpItem(
-            text: 'Tap a penalty card to view full details.',
-          ),
-          _HelpItem(
-            text: 'Contact HR if you believe a penalty is incorrect.',
-          ),
-          const SizedBox(height: space6),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Got it'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Help item widget
-class _HelpItem extends StatelessWidget {
-  final String text;
-
-  const _HelpItem({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: space3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: space1),
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: primaryGreen,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: gapMedium),
-          Expanded(
-            child: Text(
-              text,
-              style: app_typography.bodyMedium.copyWith(
-                color: textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

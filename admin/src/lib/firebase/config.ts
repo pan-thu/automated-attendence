@@ -84,22 +84,22 @@ export const getFirebaseStorage = (): FirebaseStorage => {
   return storageInstance;
 };
 
-// Connect to Firebase Emulators in development
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+// Connect to Firebase Emulators if enabled
+if (typeof window !== 'undefined') {
   const useEmulators = process.env.NEXT_PUBLIC_USE_EMULATORS === 'true';
 
   if (useEmulators) {
-    const app = getFirebaseApp();
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const functions = getFunctions(app);
-    const storage = getStorage(app);
-
-    // Determine emulator host - use environment variable or default to localhost
-    const emulatorHost = process.env.NEXT_PUBLIC_EMULATOR_HOST || 'localhost';
-
-    // Connect to emulators (only called once)
     try {
+      const app = getFirebaseApp();
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+      const functions = getFunctions(app);
+      const storage = getStorage(app);
+
+      // Determine emulator host - use environment variable or default to localhost
+      const emulatorHost = process.env.NEXT_PUBLIC_EMULATOR_HOST || 'localhost';
+
+      // Connect to emulators (only called once)
       connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
       connectFirestoreEmulator(db, emulatorHost, 8080);
       connectFunctionsEmulator(functions, emulatorHost, 5001);
@@ -107,7 +107,10 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
 
       console.log(`🔧 Connected to Firebase Emulators @ ${emulatorHost}`);
     } catch (error) {
-      console.log(error);
+      // Already connected, ignore
+      console.log('Emulator connection skipped (already connected)');
     }
+  } else {
+    console.log('🌐 Connected to Firebase Cloud (Production)');
   }
 }

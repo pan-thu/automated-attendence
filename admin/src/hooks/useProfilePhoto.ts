@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFirebaseApp } from "@/lib/firebase/config";
 
 interface GenerateUploadUrlPayload {
   fileName: string;
@@ -36,7 +37,8 @@ export function useProfilePhoto() {
     setUploadProgress(0);
 
     try {
-      const functions = getFunctions();
+      const app = getFirebaseApp();
+      const functions = getFunctions(app);
 
       // Step 1: Generate upload URL
       const generateUploadUrl = httpsCallable<

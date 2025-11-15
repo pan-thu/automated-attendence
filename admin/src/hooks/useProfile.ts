@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFirebaseApp } from "@/lib/firebase/config";
+import { useAuth } from "./useAuth";
 
 export interface ProfileData {
   uid: string;
@@ -20,6 +22,7 @@ export interface ProfileData {
 }
 
 export function useProfile() {
+  const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +32,8 @@ export function useProfile() {
     setError(null);
 
     try {
-      const functions = getFunctions();
+      const app = getFirebaseApp();
+      const functions = getFunctions(app);
       const getOwnProfile = httpsCallable<Record<string, never>, ProfileData>(
         functions,
         "getOwnProfile"
@@ -54,6 +58,12 @@ export function useProfile() {
   };
 
   useEffect(() => {
+    // Don't fetch if auth is still loading or user is not authenticated
+    if (authLoading || !user) {
+      setLoading(authLoading);
+      return;
+    }
+
     let isMounted = true;
 
     const loadProfile = async () => {
@@ -63,7 +73,8 @@ export function useProfile() {
       const MIN_LOADING_TIME = 500; // Show skeleton for at least 500ms
 
       try {
-        const functions = getFunctions();
+        const app = getFirebaseApp();
+        const functions = getFunctions(app);
         const getOwnProfile = httpsCallable<Record<string, never>, ProfileData>(
           functions,
           "getOwnProfile"
@@ -109,7 +120,7 @@ export function useProfile() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [authLoading, user]);
 
   return { profile, loading, error, refetch: fetchProfile };
 }

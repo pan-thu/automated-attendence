@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Timestamp, collection, getDocs } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
-import { getFirebaseFirestore } from "@/lib/firebase/config";
+import { getFirebaseApp, getFirebaseFirestore } from "@/lib/firebase/config";
 import type { EmployeeSummary } from "@/types";
 
 const EMPLOYEE_COLLECTION = "USERS";
@@ -33,6 +34,7 @@ export function useEmployees() {
         department: (data.department as string | null | undefined) ?? null,
         position: (data.position as string | null | undefined) ?? null,
         status: data.isActive === false ? "inactive" : "active",
+        photoURL: (data.photoURL as string | null | undefined) ?? null,
         createdAt:
           createdAtRaw instanceof Timestamp
             ? createdAtRaw.toDate()

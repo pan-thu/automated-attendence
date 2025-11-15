@@ -47,14 +47,17 @@ export function useLeaveDetail(requestId: string) {
         userName: (data.userName as string | undefined) ?? null,
         userEmail: (data.userEmail as string | undefined) ?? null,
         leaveType: (data.leaveType as string | undefined) ?? "unknown",
-        status: (data.status as string | undefined) === "approved" || (data.status as string | undefined) === "rejected"
-          ? (data.status as "approved" | "rejected")
+        status: (data.status as string | undefined) === "approved" ||
+                (data.status as string | undefined) === "rejected" ||
+                (data.status as string | undefined) === "cancelled" ||
+                (data.status as string | undefined) === "pending"
+          ? (data.status as LeaveStatus)
           : "pending",
         startDate: parseTimestamp(data.startDate),
         endDate: parseTimestamp(data.endDate),
         totalDays: (data.totalDays as number | undefined) ?? 0,
-        appliedAt: parseTimestamp(data.appliedAt),
-        notes: (data.notes as string | undefined) ?? null,
+        appliedAt: parseTimestamp(data.submittedAt),
+        notes: (data.reason as string | undefined) ?? null,
         reviewerNotes: (data.reviewerNotes as string | undefined) ?? null,
       };
 

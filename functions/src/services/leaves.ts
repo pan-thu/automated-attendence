@@ -74,6 +74,7 @@ export interface LeaveRequestItem {
 
 const leaveTypeFieldMap: Record<string, string> = {
   full: 'fullLeaveBalance',
+  half: 'halfLeaveBalance',
   medical: 'medicalLeaveBalance',
   maternity: 'maternityLeaveBalance',
 };

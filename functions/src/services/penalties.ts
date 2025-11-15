@@ -308,7 +308,7 @@ export const getPenaltySummary = async (input: GetPenaltySummaryInput): Promise<
     let statusKey: keyof typeof summary.byStatus = 'active';
     if (status === 'waived') {
       statusKey = 'waived';
-    } else if (status === 'resolved' || status === 'paid') {
+    } else if (status === 'paid' || status === 'resolved') {
       statusKey = 'resolved';
     } else if (status === 'disputed') {
       statusKey = 'disputed';

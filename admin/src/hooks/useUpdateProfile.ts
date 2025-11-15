@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFirebaseApp } from "@/lib/firebase/config";
 
 export interface UpdateProfilePayload {
   fullName?: string;
@@ -20,7 +21,8 @@ export function useUpdateProfile() {
     setError(null);
 
     try {
-      const functions = getFunctions();
+      const app = getFirebaseApp();
+      const functions = getFunctions(app);
       const updateOwnProfile = httpsCallable<
         UpdateProfilePayload,
         { success: boolean }

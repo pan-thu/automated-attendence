@@ -31,7 +31,10 @@ const parseTimestamp = (value: unknown): Date | null => {
 };
 
 const normalizeStatus = (value: unknown): LeaveStatus => {
-  return value === "approved" || value === "rejected" ? (value as LeaveStatus) : "pending";
+  if (value === "approved" || value === "rejected" || value === "cancelled" || value === "pending") {
+    return value as LeaveStatus;
+  }
+  return "pending"; // Default fallback for unknown statuses
 };
 
 export function useLeaves(initialFilters?: LeaveFilter) {
@@ -51,9 +54,11 @@ export function useLeaves(initialFilters?: LeaveFilter) {
     setLoading(true);
     const startTime = Date.now();
     const MIN_LOADING_TIME = 500; // Show skeleton for at least 500ms
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | undefined;
 
     const firestore = getFirebaseFirestore();
-    const constraints: QueryConstraint[] = [orderBy("appliedAt", "desc")];
+    const constraints: QueryConstraint[] = [orderBy("submittedAt", "desc")];
 
     if (filters.status && filters.status !== "all") {
       constraints.push(where("status", "==", filters.status));
@@ -83,13 +88,13 @@ export function useLeaves(initialFilters?: LeaveFilter) {
             userId: (data.userId as string | undefined) ?? "",
             userName: (data.userName as string | undefined) ?? null,
             userEmail: (data.userEmail as string | undefined) ?? null,
-            leaveType: (data.type as string | undefined) ?? (data.leaveType as string | undefined) ?? "unknown",
+            leaveType: (data.leaveType as string | undefined) ?? "unknown",
             status: normalizeStatus(data.status),
             startDate: parseTimestamp(data.startDate),
             endDate: parseTimestamp(data.endDate),
             totalDays: (data.totalDays as number | undefined) ?? 0,
-            appliedAt: parseTimestamp(data.appliedAt),
-            notes: (data.reason as string | undefined) ?? (data.notes as string | undefined) ?? null,
+            appliedAt: parseTimestamp(data.submittedAt),
+            notes: (data.reason as string | undefined) ?? null,
             reviewerNotes: (data.reviewerNotes as string | undefined) ?? null,
           } satisfies LeaveRequestSummary;
         });
@@ -98,10 +103,12 @@ export function useLeaves(initialFilters?: LeaveFilter) {
         const elapsedTime = Date.now() - startTime;
         const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
 
-        setTimeout(() => {
-          setRecords(mapped);
-          setError(null);
-          setLoading(false);
+        timeoutId = setTimeout(() => {
+          if (isMounted) {
+            setRecords(mapped);
+            setError(null);
+            setLoading(false);
+          }
         }, remainingTime);
       },
       (err) => {
@@ -111,15 +118,21 @@ export function useLeaves(initialFilters?: LeaveFilter) {
         const elapsedTime = Date.now() - startTime;
         const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
 
-        setTimeout(() => {
-          setRecords([]);
-          setError("Unable to load leave requests. Please try again later.");
-          setLoading(false);
+        timeoutId = setTimeout(() => {
+          if (isMounted) {
+            setRecords([]);
+            setError("Unable to load leave requests. Please try again later.");
+            setLoading(false);
+          }
         }, remainingTime);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, [filters, watchKey]);
 
   const refresh = useCallback(() => {

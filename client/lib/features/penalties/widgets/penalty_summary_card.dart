@@ -4,10 +4,10 @@ import '../../../design_system/colors.dart';
 import '../../../design_system/spacing.dart';
 import '../../../design_system/typography.dart' as app_typography;
 
-/// Penalty summary card showing statistics
+/// Penalty summary cards showing statistics
 ///
-/// Displays total penalties and total amount
-/// Based on spec in docs/client-overhaul/07-penalties.md
+/// Displays active count and total amount side by side
+/// Redesigned to match penalty.png mockup
 class PenaltySummaryCard extends StatelessWidget {
   final int totalPenalties;
   final double totalAmount;
@@ -22,107 +22,37 @@ class PenaltySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(paddingLarge),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            errorBackground,
-            errorBackground.withValues(alpha: 0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return Row(
+      children: [
+        // Active penalties card
+        Expanded(
+          child: _SummaryCard(
+            label: 'Active:',
+            value: activePenalties.toString(),
+          ),
         ),
-        borderRadius: BorderRadius.circular(radiusLarge),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header
-          Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.white,
-                size: iconSizeLarge,
-              ),
-              const SizedBox(width: gapMedium),
-              Text(
-                'Penalty Summary',
-                style: app_typography.headingSmall.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: space6),
+        const SizedBox(width: gapMedium),
 
-          // Stats grid
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryItem(
-                  label: 'Total',
-                  value: '$totalPenalties',
-                  icon: Icons.list_alt,
-                ),
-              ),
-              const SizedBox(width: gapMedium),
-              Expanded(
-                child: _SummaryItem(
-                  label: 'Active',
-                  value: '$activePenalties',
-                  icon: Icons.error_outline,
-                ),
-              ),
-            ],
+        // Total amount card
+        Expanded(
+          child: _SummaryCard(
+            label: 'Total:',
+            value: '\$${totalAmount.toStringAsFixed(0)}',
           ),
-          const SizedBox(height: space4),
-
-          // Total amount
-          Container(
-            padding: const EdgeInsets.all(paddingMedium),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(radiusMedium),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total Amount',
-                  style: app_typography.labelMedium.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                ),
-                Text(
-                  'Rs ${totalAmount.toStringAsFixed(2)}',
-                  style: app_typography.headingMedium.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-/// Summary item widget
-class _SummaryItem extends StatelessWidget {
+/// Individual summary card widget
+class _SummaryCard extends StatelessWidget {
   final String label;
   final String value;
-  final IconData icon;
 
-  const _SummaryItem({
+  const _SummaryCard({
     required this.label,
     required this.value,
-    required this.icon,
   });
 
   @override
@@ -130,31 +60,25 @@ class _SummaryItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(paddingMedium),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(radiusMedium),
+        color: const Color(0xFFE8E8E8),
+        borderRadius: BorderRadius.circular(radiusLarge * 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: Colors.white.withValues(alpha: 0.8),
-            size: iconSizeMedium,
-          ),
-          const SizedBox(height: space2),
           Text(
-            value,
-            style: app_typography.headingLarge.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+            label,
+            style: app_typography.bodyMedium.copyWith(
+              color: textSecondary,
             ),
           ),
           const SizedBox(height: space1),
           Text(
-            label,
-            style: app_typography.bodySmall.copyWith(
-              color: Colors.white.withValues(alpha: 0.8),
+            value,
+            style: app_typography.headingLarge.copyWith(
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
             ),
           ),
         ],
