@@ -26,7 +26,7 @@ interface Penalty {
   violationDate: Date;
   issuedDate: Date;
   status: "pending" | "acknowledged" | "waived" | "paid";
-  violationType: "late" | "absent" | "half_day" | "early_leave";
+  violationType: "absent" | "half-absent" | "late" | "early-leave";
   acknowledgedAt?: Date;
   waivedAt?: Date;
   waivedBy?: string;
@@ -64,19 +64,19 @@ const statusConfig = {
 };
 
 const violationTypeConfig = {
-  late: {
-    label: "Late Arrival",
-    color: "text-yellow-600"
-  },
   absent: {
     label: "Absent",
     color: "text-red-600"
   },
-  half_day: {
-    label: "Half Day",
+  "half-absent": {
+    label: "Half-Absent",
     color: "text-orange-600"
   },
-  early_leave: {
+  late: {
+    label: "Late",
+    color: "text-yellow-600"
+  },
+  "early-leave": {
     label: "Early Leave",
     color: "text-amber-600"
   }
@@ -90,49 +90,14 @@ export function PenaltiesCard({
 }: PenaltiesCardProps) {
   const [expandedPenalty, setExpandedPenalty] = useState<string | null>(null);
 
-  // Mock data for demonstration
-  const mockPenalties: Penalty[] = penalties.length > 0 ? penalties : [
-    {
-      id: "1",
-      amount: 10,
-      reason: "Late arrival on November 15",
-      violationDate: new Date(2024, 10, 15),
-      issuedDate: new Date(2024, 10, 16),
-      status: "pending",
-      violationType: "late"
-    },
-    {
-      id: "2",
-      amount: 20,
-      reason: "Absent without notice on November 10",
-      violationDate: new Date(2024, 10, 10),
-      issuedDate: new Date(2024, 10, 11),
-      status: "acknowledged",
-      violationType: "absent",
-      acknowledgedAt: new Date(2024, 10, 12)
-    },
-    {
-      id: "3",
-      amount: 15,
-      reason: "Half day on November 5",
-      violationDate: new Date(2024, 10, 5),
-      issuedDate: new Date(2024, 10, 6),
-      status: "waived",
-      violationType: "half_day",
-      waivedAt: new Date(2024, 10, 7),
-      waivedBy: "Admin",
-      waivedReason: "Medical emergency"
-    }
-  ];
-
-  const pendingPenalties = mockPenalties.filter(p => p.status === "pending");
+  const pendingPenalties = penalties.filter(p => p.status === "pending");
   const totalPending = pendingPenalties.reduce((sum, p) => sum + p.amount, 0);
-  const totalPenalties = mockPenalties.reduce((sum, p) => sum + p.amount, 0);
-  const waivedPenalties = mockPenalties.filter(p => p.status === "waived");
+  const totalPenalties = penalties.reduce((sum, p) => sum + p.amount, 0);
+  const waivedPenalties = penalties.filter(p => p.status === "waived");
   const totalWaived = waivedPenalties.reduce((sum, p) => sum + p.amount, 0);
 
   // Get recent penalties (last 3)
-  const recentPenalties = mockPenalties.slice(0, 3);
+  const recentPenalties = penalties.slice(0, 3);
 
   return (
     <Card>
@@ -142,7 +107,7 @@ export function PenaltiesCard({
             <AlertTriangle className="h-5 w-5" />
             Penalties & Violations
           </CardTitle>
-          {onViewAll && mockPenalties.length > 3 && (
+          {onViewAll && penalties.length > 3 && (
             <Button variant="ghost" size="sm" onClick={onViewAll}>
               View All
               <ChevronRight className="h-4 w-4 ml-1" />
@@ -155,7 +120,7 @@ export function PenaltiesCard({
           <div className="flex h-32 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
-        ) : mockPenalties.length === 0 ? (
+        ) : penalties.length === 0 ? (
           <div className="text-center py-8">
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
             <p className="text-sm font-medium">No penalties</p>
@@ -168,7 +133,7 @@ export function PenaltiesCard({
             {/* Summary Stats */}
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center p-3 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold text-primary">{mockPenalties.length}</p>
+                <p className="text-2xl font-bold text-primary">{penalties.length}</p>
                 <p className="text-xs text-muted-foreground">Total</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-yellow-50 border border-yellow-200">
@@ -279,7 +244,7 @@ export function PenaltiesCard({
             </div>
 
             {/* Trend Indicator */}
-            {mockPenalties.length > 0 && (
+            {penalties.length > 0 && (
               <div className="p-3 rounded-lg bg-muted/50">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">This Month</span>

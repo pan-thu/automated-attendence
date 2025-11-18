@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Timestamp, doc, getDoc } from "firebase/firestore";
+import { Timestamp, collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 
 import { getFirebaseFirestore } from "@/lib/firebase/config";
 import type { EmployeeDetail } from "@/types";
 
 const EMPLOYEE_COLLECTION = "USERS";
+const PROFILE_PHOTOS_COLLECTION = "PROFILE_PHOTOS";
 
 const parseDate = (value: unknown): Date | null => {
   if (!value) return null;
@@ -48,6 +49,19 @@ export function useEmployeeDetail(uid: string) {
 
     const data = snapshot.data();
 
+    // Fetch active profile photo from PROFILE_PHOTOS collection
+    const profilePhotosQuery = query(
+      collection(firestore, PROFILE_PHOTOS_COLLECTION),
+      where("userId", "==", uid),
+      where("status", "==", "active")
+    );
+    const profilePhotosSnapshot = await getDocs(profilePhotosQuery);
+
+    // Get photoURL from PROFILE_PHOTOS if it exists, otherwise use photoURL from USERS
+    const existingPhotoURL = (data.photoURL as string | null | undefined) ?? null;
+    const profilePhotoURL = profilePhotosSnapshot.docs[0]?.data()?.publicUrl as string | null | undefined ?? null;
+    const finalPhotoURL = existingPhotoURL || profilePhotoURL;
+
     const leaveBalances = parseLeaveBalances(data);
 
     const detail: EmployeeDetail = {
@@ -57,6 +71,7 @@ export function useEmployeeDetail(uid: string) {
       department: (data.department as string | null | undefined) ?? null,
       position: (data.position as string | null | undefined) ?? null,
       phoneNumber: (data.phoneNumber as string | null | undefined) ?? null,
+      photoURL: finalPhotoURL,
       status: data.isActive === false ? "inactive" : "active",
       isActive: data.isActive !== false,
       leaveBalances,

@@ -22,9 +22,10 @@ export interface AttendanceTrendData {
   dateKey: string; // YYYY-MM-DD format for matching
   present: number;
   absent: number;
+  halfAbsent: number;
   late: number;
+  earlyLeave: number;
   onLeave: number;
-  halfDay: number;
   isFuture: boolean;
 }
 
@@ -65,9 +66,10 @@ export function useAttendanceTrends({ year, month }: UseAttendanceTrendsOptions)
       const dataByDate = new Map<string, {
         present: number;
         absent: number;
+        halfAbsent: number;
         late: number;
+        earlyLeave: number;
         onLeave: number;
-        halfDay: number;
       }>();
 
       // Process each attendance record
@@ -88,14 +90,26 @@ export function useAttendanceTrends({ year, month }: UseAttendanceTrendsOptions)
           dataByDate.set(dateKey, {
             present: 0,
             absent: 0,
+            halfAbsent: 0,
             late: 0,
+            earlyLeave: 0,
             onLeave: 0,
-            halfDay: 0,
           });
         }
 
         const dayData = dataByDate.get(dateKey)!;
-        const status = (record.status as string)?.toLowerCase();
+        let status = (record.status as string)?.toLowerCase();
+
+        // Map Firebase status to our standard format
+        if (status === "half_day" || status === "halfday" || status === "half-day") {
+          status = "half-absent";
+        }
+        if (status === "early_leave" || status === "earlyleave") {
+          status = "early-leave";
+        }
+        if (status === "on_leave" || status === "onleave") {
+          status = "on-leave";
+        }
 
         // Categorize based on status
         switch (status) {
@@ -105,26 +119,18 @@ export function useAttendanceTrends({ year, month }: UseAttendanceTrendsOptions)
           case "absent":
             dayData.absent++;
             break;
-          case "on_leave":
-          case "onleave":
+          case "half-absent":
+            dayData.halfAbsent++;
+            break;
+          case "late":
+            dayData.late++;
+            break;
+          case "early-leave":
+            dayData.earlyLeave++;
+            break;
+          case "on-leave":
             dayData.onLeave++;
             break;
-          case "half_day":
-          case "halfday":
-            dayData.halfDay++;
-            break;
-          default:
-            // Check if late based on checks
-            if (record.checks && Array.isArray(record.checks)) {
-              const hasLateCheck = record.checks.some((check: any) =>
-                check.status === "late"
-              );
-              if (hasLateCheck) {
-                dayData.late++;
-              } else if (status === "present") {
-                dayData.present++;
-              }
-            }
         }
       });
 
@@ -134,9 +140,10 @@ export function useAttendanceTrends({ year, month }: UseAttendanceTrendsOptions)
         const dayData = dataByDate.get(dateKey) || {
           present: 0,
           absent: 0,
+          halfAbsent: 0,
           late: 0,
+          earlyLeave: 0,
           onLeave: 0,
-          halfDay: 0,
         };
 
         return {
@@ -144,9 +151,10 @@ export function useAttendanceTrends({ year, month }: UseAttendanceTrendsOptions)
           dateKey,
           present: dayData.present,
           absent: dayData.absent,
+          halfAbsent: dayData.halfAbsent,
           late: dayData.late,
+          earlyLeave: dayData.earlyLeave,
           onLeave: dayData.onLeave,
-          halfDay: dayData.halfDay,
           isFuture: isFuture(day),
         };
       });

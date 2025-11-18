@@ -21,8 +21,7 @@ const metricCategories = [
       { value: "summary", label: "Attendance Summary", description: "Overall attendance statistics" },
       { value: "lateArrivals", label: "Late Arrivals", description: "Track tardiness patterns" },
       { value: "earlyLeaves", label: "Early Departures", description: "Early clock-out records" },
-      { value: "absences", label: "Absences", description: "Complete absence tracking" },
-      { value: "overtime", label: "Overtime Hours", description: "Extra work hours" }
+      { value: "absences", label: "Absences", description: "Complete absence tracking" }
     ]
   },
   {
@@ -33,7 +32,6 @@ const metricCategories = [
     options: [
       { value: "usage", label: "Leave Usage", description: "Leave days utilized" },
       { value: "balance", label: "Leave Balance", description: "Remaining leave days" },
-      { value: "patterns", label: "Leave Patterns", description: "Common leave trends" },
       { value: "requests", label: "Leave Requests", description: "Pending and approved requests" }
     ]
   },

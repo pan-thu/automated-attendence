@@ -7,12 +7,7 @@ import {
   Plus,
   Download,
   Filter,
-  MoreVertical,
-  Edit,
-  Trash2,
   Eye,
-  UserCheck,
-  UserX,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -36,14 +31,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -63,7 +50,6 @@ interface EmployeeListTableProps {
   error?: string | null;
   onCreateClick?: () => void;
   onEditClick?: (id: string) => void;
-  onDeleteClick?: (id: string) => void;
   onStatusToggle?: (id: string, newStatus: EmployeeStatus) => void;
   onExport?: () => void;
 }
@@ -74,13 +60,11 @@ type SortDirection = "asc" | "desc";
 const statusConfig = {
   active: {
     label: "Active",
-    color: "bg-green-100 text-green-700 border-green-200",
-    icon: UserCheck
+    color: "bg-green-100 text-green-700 border-green-200"
   },
   inactive: {
     label: "Inactive",
-    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    icon: UserX
+    color: "bg-yellow-100 text-yellow-700 border-yellow-200"
   }
 };
 
@@ -102,7 +86,6 @@ export function EmployeeListTable({
   error = null,
   onCreateClick,
   onEditClick,
-  onDeleteClick,
   onStatusToggle,
   onExport
 }: EmployeeListTableProps) {
@@ -452,9 +435,8 @@ export function EmployeeListTable({
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={cn("gap-1", statusConfig[employee.status].color)}
+                            className={statusConfig[employee.status].color}
                           >
-                            <StatusIcon className="h-3 w-3" />
                             {statusConfig[employee.status].label}
                           </Badge>
                         </TableCell>
@@ -464,61 +446,18 @@ export function EmployeeListTable({
                             : "—"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem asChild>
-                                <Link href={`/employees/${employee.id}`}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  View Details
-                                </Link>
-                              </DropdownMenuItem>
-                              {onEditClick && (
-                                <DropdownMenuItem onClick={() => onEditClick(employee.id)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit
-                                </DropdownMenuItem>
-                              )}
-                              {onStatusToggle && (
-                                <DropdownMenuItem
-                                  onClick={() => onStatusToggle(
-                                    employee.id,
-                                    employee.status === "active" ? "inactive" : "active"
-                                  )}
-                                >
-                                  {employee.status === "active" ? (
-                                    <>
-                                      <UserX className="mr-2 h-4 w-4" />
-                                      Deactivate
-                                    </>
-                                  ) : (
-                                    <>
-                                      <UserCheck className="mr-2 h-4 w-4" />
-                                      Activate
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                              )}
-                              {onDeleteClick && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => onDeleteClick(employee.id)}
-                                    className="text-red-600 focus:text-red-600"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {employee.role !== "admin" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild
+                            >
+                              <Link href={`/employees/${employee.id}`} className="gap-2">
+                                <Eye className="h-4 w-4" />
+                                View Detail
+                              </Link>
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

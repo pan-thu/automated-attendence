@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Timestamp, collection, getDocs } from "firebase/firestore";
+import { Timestamp, collection, getDocs, query, where } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 import { getFirebaseApp, getFirebaseFirestore } from "@/lib/firebase/config";
 import type { EmployeeSummary } from "@/types";
 
 const EMPLOYEE_COLLECTION = "USERS";
+const PROFILE_PHOTOS_COLLECTION = "PROFILE_PHOTOS";
 
 type StatusFilter = "all" | "active" | "inactive";
 
@@ -21,11 +22,34 @@ export function useEmployees() {
 
   const fetchEmployees = useCallback(async () => {
     const firestore = getFirebaseFirestore();
+
+    // Fetch employees
     const snapshot = await getDocs(collection(firestore, EMPLOYEE_COLLECTION));
+
+    // Fetch active profile photos
+    const profilePhotosQuery = query(
+      collection(firestore, PROFILE_PHOTOS_COLLECTION),
+      where("status", "==", "active")
+    );
+    const profilePhotosSnapshot = await getDocs(profilePhotosQuery);
+
+    // Create a map of userId to photoURL from PROFILE_PHOTOS
+    const profilePhotoMap = new Map<string, string>();
+    profilePhotosSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      if (data.userId && data.publicUrl) {
+        profilePhotoMap.set(data.userId as string, data.publicUrl as string);
+      }
+    });
 
     const results: EmployeeSummary[] = snapshot.docs.map((doc) => {
       const data = doc.data();
       const createdAtRaw = data.createdAt;
+
+      // Use photoURL from USERS collection if it exists, otherwise fallback to PROFILE_PHOTOS
+      const existingPhotoURL = (data.photoURL as string | null | undefined) ?? null;
+      const profilePhotoURL = profilePhotoMap.get(doc.id) ?? null;
+      const finalPhotoURL = existingPhotoURL || profilePhotoURL;
 
       return {
         id: doc.id,
@@ -34,7 +58,10 @@ export function useEmployees() {
         department: (data.department as string | null | undefined) ?? null,
         position: (data.position as string | null | undefined) ?? null,
         status: data.isActive === false ? "inactive" : "active",
-        photoURL: (data.photoURL as string | null | undefined) ?? null,
+        photoURL: finalPhotoURL,
+        role: (data.role as string | null | undefined) ?? null,
+        phoneNumber: (data.phoneNumber as string | null | undefined) ?? null,
+        leaveBalances: (data.leaveBalances as Record<string, number> | undefined) ?? {},
         createdAt:
           createdAtRaw instanceof Timestamp
             ? createdAtRaw.toDate()

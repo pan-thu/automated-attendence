@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -20,22 +19,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select-radix";
-import { AlertCircle, User, Mail, Lock, Phone, Building, Briefcase, FileText } from "lucide-react";
+import { AlertCircle, User, Mail, Phone, Building, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCompanySettings } from "@/hooks/useCompanySettings";
+import type { EmployeeSummary } from "@/types";
 
-interface CreateEmployeeModalProps {
+interface EditEmployeeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: EmployeeFormData) => Promise<void>;
+  employee: EmployeeSummary | null;
+  onSubmit: (id: string, data: EditEmployeeFormData) => Promise<void>;
   loading?: boolean;
   error?: string | null;
 }
 
-export interface EmployeeFormData {
+export interface EditEmployeeFormData {
   fullName: string;
-  email: string;
-  password: string;
   department?: string;
   position?: string;
   phoneNumber?: string;
@@ -73,71 +71,45 @@ const LEAVE_TYPE_LABELS: Record<string, string> = {
   fullLeaveBalance: "Full Leave",
   medicalLeaveBalance: "Medical Leave",
   maternityLeaveBalance: "Maternity Leave",
-  halfLeaveBalance: "Half Leave",
 };
 
-export function CreateEmployeeModal({
+export function EditEmployeeModal({
   open,
   onOpenChange,
+  employee,
   onSubmit,
   loading = false,
   error = null
-}: CreateEmployeeModalProps) {
-  const { settings } = useCompanySettings();
-
-  const getInitialLeaveBalances = (): Record<string, number> => {
-    const leavePolicy = settings?.leavePolicy ?? {};
-    const balances: Record<string, number> = {};
-
-    // Initialize from company settings leave policy
-    for (const [key, value] of Object.entries(leavePolicy)) {
-      balances[key] = value ?? 0;
-    }
-
-    return balances;
-  };
-
-  const [formData, setFormData] = useState<EmployeeFormData>({
+}: EditEmployeeModalProps) {
+  const [formData, setFormData] = useState<EditEmployeeFormData>({
     fullName: "",
-    email: "",
-    password: "",
     department: "",
     position: "",
     phoneNumber: "",
     leaveBalances: {}
   });
 
-  const [validationErrors, setValidationErrors] = useState<Partial<Record<keyof EmployeeFormData, string>>>({});
-  const [showPassword, setShowPassword] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Partial<Record<keyof EditEmployeeFormData, string>>>({});
 
-  // Update leave balances when company settings load or modal opens
+  // Populate form data when employee changes
   useEffect(() => {
-    if (open && settings?.leavePolicy) {
-      setFormData(prev => ({
-        ...prev,
-        leaveBalances: getInitialLeaveBalances()
-      }));
+    if (employee && open) {
+      setFormData({
+        fullName: employee.fullName || "",
+        department: employee.department || "",
+        position: employee.position || "",
+        phoneNumber: employee.phoneNumber || "",
+        leaveBalances: employee.leaveBalances || {}
+      });
+      setValidationErrors({});
     }
-  }, [open, settings?.leavePolicy]);
+  }, [employee, open]);
 
   const validateForm = (): boolean => {
-    const errors: Partial<Record<keyof EmployeeFormData, string>> = {};
+    const errors: Partial<Record<keyof EditEmployeeFormData, string>> = {};
 
     if (!formData.fullName.trim()) {
       errors.fullName = "Full name is required";
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email) {
-      errors.email = "Email is required";
-    } else if (!emailRegex.test(formData.email)) {
-      errors.email = "Please enter a valid email address";
-    }
-
-    if (!formData.password) {
-      errors.password = "Password is required";
-    } else if (formData.password.length < 8) {
-      errors.password = "Password must be at least 8 characters";
     }
 
     if (formData.phoneNumber && !/^\+?[\d\s-()]+$/.test(formData.phoneNumber)) {
@@ -151,22 +123,12 @@ export function CreateEmployeeModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!employee || !validateForm()) {
       return;
     }
 
     try {
-      await onSubmit(formData);
-      // Reset form on success
-      setFormData({
-        fullName: "",
-        email: "",
-        password: "",
-        department: "",
-        position: "",
-        phoneNumber: "",
-        leaveBalances: getInitialLeaveBalances()
-      });
+      await onSubmit(employee.id, formData);
       setValidationErrors({});
       onOpenChange(false);
     } catch (err) {
@@ -175,26 +137,19 @@ export function CreateEmployeeModal({
   };
 
   const handleCancel = () => {
-    setFormData({
-      fullName: "",
-      email: "",
-      password: "",
-      department: "",
-      position: "",
-      phoneNumber: "",
-      leaveBalances: getInitialLeaveBalances()
-    });
     setValidationErrors({});
     onOpenChange(false);
   };
+
+  if (!employee) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Employee</DialogTitle>
+          <DialogTitle>Edit Employee</DialogTitle>
           <DialogDescription>
-            Add a new employee to your organization. They will receive an email invitation to set up their account.
+            Update employee information for {employee.fullName}
           </DialogDescription>
         </DialogHeader>
 
@@ -232,90 +187,42 @@ export function CreateEmployeeModal({
                 <div className="space-y-2">
                   <Label htmlFor="email" className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />
-                    Email <span className="text-red-500">*</span>
+                    Email
                   </Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="john.doe@company.com"
-                    value={formData.email}
-                    onChange={(e) => {
-                      setFormData({ ...formData, email: e.target.value });
-                      setValidationErrors({ ...validationErrors, email: undefined });
-                    }}
-                    className={cn(validationErrors.email && "border-red-500 focus:ring-red-500")}
-                    disabled={loading}
+                    value={employee.email}
+                    disabled
+                    className="bg-gray-50"
                   />
-                  {validationErrors.email && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {validationErrors.email}
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-muted-foreground" />
-                    Temporary Password <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={formData.password}
-                      onChange={(e) => {
-                        setFormData({ ...formData, password: e.target.value });
-                        setValidationErrors({ ...validationErrors, password: undefined });
-                      }}
-                      className={cn(validationErrors.password && "border-red-500 focus:ring-red-500")}
-                      disabled={loading}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? "Hide" : "Show"}
-                    </Button>
-                  </div>
-                  {validationErrors.password && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {validationErrors.password}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    Phone Number
-                  </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+1 (555) 123-4567"
-                    value={formData.phoneNumber}
-                    onChange={(e) => {
-                      setFormData({ ...formData, phoneNumber: e.target.value });
-                      setValidationErrors({ ...validationErrors, phoneNumber: undefined });
-                    }}
-                    className={cn(validationErrors.phoneNumber && "border-red-500 focus:ring-red-500")}
-                    disabled={loading}
-                  />
-                  {validationErrors.phoneNumber && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {validationErrors.phoneNumber}
-                    </p>
-                  )}
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  Phone Number
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1 (555) 123-4567"
+                  value={formData.phoneNumber}
+                  onChange={(e) => {
+                    setFormData({ ...formData, phoneNumber: e.target.value });
+                    setValidationErrors({ ...validationErrors, phoneNumber: undefined });
+                  }}
+                  className={cn(validationErrors.phoneNumber && "border-red-500 focus:ring-red-500")}
+                  disabled={loading}
+                />
+                {validationErrors.phoneNumber && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.phoneNumber}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -370,11 +277,12 @@ export function CreateEmployeeModal({
 
             {/* Leave Balances Section */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">Initial Leave Balances</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Leave Balances</h3>
 
               <div className="grid gap-4 grid-cols-3">
-                {Object.entries(formData.leaveBalances || {}).map(([key, value]) => {
-                  const label = LEAVE_TYPE_LABELS[key] || key.replace(/([A-Z])/g, ' $1').trim();
+                {Object.keys(LEAVE_TYPE_LABELS).map((key) => {
+                  const label = LEAVE_TYPE_LABELS[key];
+                  const value = formData.leaveBalances?.[key] ?? 0;
                   return (
                     <div key={key} className="space-y-2">
                       <Label htmlFor={key}>{label}</Label>
@@ -422,10 +330,10 @@ export function CreateEmployeeModal({
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Creating...
+                  Updating...
                 </span>
               ) : (
-                "Create Employee"
+                "Update Employee"
               )}
             </Button>
           </DialogFooter>

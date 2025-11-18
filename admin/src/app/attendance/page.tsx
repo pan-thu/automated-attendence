@@ -75,8 +75,20 @@ export default function AttendancePage() {
           return false;
         }
 
-        if (filters.status !== "all" && record.status !== filters.status) {
-          return false;
+        // Filter by check status instead of attendance status
+        if (filters.status !== "all") {
+          const checkStatus = record.checks?.[0]?.status;
+          const hasCheckIn = !!record.checks?.[0]?.timestamp;
+
+          if (filters.status === "on_time" && checkStatus !== "on_time") {
+            return false;
+          }
+          if (filters.status === "late" && checkStatus !== "late") {
+            return false;
+          }
+          if (filters.status === "missed" && hasCheckIn) {
+            return false;
+          }
         }
 
         if (filters.employee && filters.employee !== "all" && record.userId !== filters.employee) {
@@ -122,35 +134,22 @@ export default function AttendancePage() {
       }));
   }, [records, filters]);
 
-  // Calculate summary
+  // Calculate summary - count check statuses
   const summary = useMemo(() => {
     const stats = {
-      present: 0,
+      onTime: 0,
       late: 0,
-      absent: 0,
-      onLeave: 0,
-      issues: 0
+      missed: 0
     };
 
     transformedRecords.forEach((record) => {
-      switch (record.status) {
-        case "present":
-          stats.present++;
-          break;
-        case "late":
-          stats.late++;
-          break;
-        case "absent":
-          stats.absent++;
-          break;
-        case "on_leave":
-          stats.onLeave++;
-          break;
-      }
-
-      // Count issues
-      if (!record.checks.checkOut.time && record.checks.checkIn.time) {
-        stats.issues++;
+      // Count based on check-in status
+      if (record.checks.checkIn.status === "on_time") {
+        stats.onTime++;
+      } else if (record.checks.checkIn.status === "late") {
+        stats.late++;
+      } else if (!record.checks.checkIn.time) {
+        stats.missed++;
       }
     });
 

@@ -8,6 +8,8 @@
     "serve": "npm run build && firebase emulators:start",
     "deploy": "npm run build && firebase deploy",
     "seed:firestore": "ts-node src/scripts/seedFirestore.ts",
+    "check-admin": "ts-node src/scripts/checkAdminClaims.ts",
+    "set-admin": "ts-node src/scripts/setAdminClaims.ts",
     "test": "jest --coverage",
     "test:watch": "jest --watch"
   },

@@ -58,11 +58,10 @@ const statusOptions = [
 
 const violationTypeOptions = [
   { value: "all", label: "All Violations" },
-  { value: "late", label: "Late Arrival" },
-  { value: "early_leave", label: "Early Leave" },
   { value: "absent", label: "Absent" },
-  { value: "half_day", label: "Half Day" },
-  { value: "multiple", label: "Multiple" }
+  { value: "half-absent", label: "Half-Absent" },
+  { value: "late", label: "Late" },
+  { value: "early-leave", label: "Early Leave" }
 ];
 
 export function PenaltyFilters({

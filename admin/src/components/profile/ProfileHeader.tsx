@@ -82,10 +82,10 @@ export function ProfileHeader({
               <div className="relative">
                 <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
                   <AvatarImage
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(employee.fullName)}&background=random&size=200`}
+                    src={employee.photoURL || undefined}
                     alt={employee.fullName}
                   />
-                  <AvatarFallback className="text-lg">
+                  <AvatarFallback className="text-lg bg-blue-600 text-white">
                     {employee.fullName
                       .split(" ")
                       .map((n) => n[0])

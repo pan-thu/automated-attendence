@@ -28,13 +28,41 @@ export default function ReportsPage() {
     endDate: Date;
   } | null>(null);
 
+  // Filter records based on scope configuration
+  const filteredRecords = useMemo(() => {
+    if (!generatedReport) return records;
+
+    const { scope } = generatedReport.config;
+
+    // Company-wide: no filtering
+    if (scope.level === "company") {
+      return records;
+    }
+
+    // Department filtering
+    if (scope.level === "department" && scope.departments && scope.departments.length > 0) {
+      return records.filter(record =>
+        record.department && scope.departments!.includes(record.department)
+      );
+    }
+
+    // Individual employee filtering
+    if (scope.level === "individual" && scope.employees && scope.employees.length > 0) {
+      return records.filter(record =>
+        scope.employees!.includes(record.userId)
+      );
+    }
+
+    return records;
+  }, [records, generatedReport]);
+
   const totalByStatus = useMemo(() => {
-    return records.reduce<Record<string, number>>((acc, record) => {
+    return filteredRecords.reduce<Record<string, number>>((acc, record) => {
       const key = record.status.toLowerCase();
       acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     }, {});
-  }, [records]);
+  }, [filteredRecords]);
 
   const handleGenerate = async (config: ReportConfiguration) => {
     setIsGenerating(true);
@@ -78,7 +106,7 @@ export default function ReportsPage() {
         throw new Error("Invalid date range");
       }
 
-      // Run report
+      // Run report (fetch all data first)
       await runReport({
         startDate: format(startDate, "yyyy-MM-dd"),
         endDate: format(endDate, "yyyy-MM-dd"),
@@ -100,9 +128,9 @@ export default function ReportsPage() {
   };
 
   const handleExport = async (exportFormat: "csv" | "json") => {
-    if (records.length === 0) return;
+    if (filteredRecords.length === 0) return;
 
-    const entries = records.map(r => ({
+    const entries = filteredRecords.map(r => ({
       attendanceDate: r.attendanceDate ? format(r.attendanceDate, "yyyy-MM-dd") : "",
       userName: r.userName || r.userId || "",
       userEmail: r.userEmail || "",
@@ -182,7 +210,7 @@ export default function ReportsPage() {
           )}
 
           {/* Status Statistics */}
-          {records.length > 0 && (
+          {filteredRecords.length > 0 && (
             <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {Object.entries(totalByStatus).map(([status, total]) => (
                 <Card key={status}>
@@ -204,29 +232,18 @@ export default function ReportsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Report Results</CardTitle>
-                  <CardDescription>{records.length} record{records.length === 1 ? "" : "s"} returned.</CardDescription>
+                  <CardDescription>{filteredRecords.length} record{filteredRecords.length === 1 ? "" : "s"} returned.</CardDescription>
                 </div>
-                {records.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleExport("csv")}
-                      disabled={loading}
-                    >
-                      <FileDown className="h-4 w-4 mr-2" />
-                      Export CSV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleExport("json")}
-                      disabled={loading}
-                    >
-                      <FileDown className="h-4 w-4 mr-2" />
-                      Export JSON
-                    </Button>
-                  </div>
+                {filteredRecords.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExport("csv")}
+                    disabled={loading}
+                  >
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </Button>
                 )}
               </div>
             </CardHeader>
@@ -243,14 +260,16 @@ export default function ReportsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {records.length === 0 ? (
+                    {filteredRecords.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                          Configure and generate a report to see attendance records.
+                          {records.length === 0
+                            ? "Configure and generate a report to see attendance records."
+                            : "No records match the selected scope filters."}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      records.map((record) => (
+                      filteredRecords.map((record) => (
                         <TableRow key={record.id}>
                           <TableCell>{formatDate(record.attendanceDate)}</TableCell>
                           <TableCell>

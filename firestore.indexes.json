@@ -125,6 +125,14 @@
         { "fieldPath": "month", "order": "ASCENDING" },
         { "fieldPath": "year", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "PENALTIES",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "dateIncurred", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

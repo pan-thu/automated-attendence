@@ -5,15 +5,19 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { EmployeeListTable } from "@/components/employees/EmployeeListTable";
 import { CreateEmployeeModal, type EmployeeFormData } from "@/components/employees/CreateEmployeeModal";
+import { EditEmployeeModal, type EditEmployeeFormData } from "@/components/employees/EditEmployeeModal";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useCreateEmployee } from "@/hooks/useCreateEmployee";
+import { useUpdateEmployee } from "@/hooks/useUpdateEmployee";
 import type { EmployeeStatus } from "@/types";
 
 export default function EmployeesPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
 
   const { employees, loading, error, refresh } = useEmployees();
   const { createEmployee, loading: creating, error: createError, setError: setCreateError } = useCreateEmployee();
+  const { updateEmployee, changeStatus, loading: updating, error: updateError, setError: setUpdateError } = useUpdateEmployee();
 
   const handleCreateEmployee = async (data: EmployeeFormData) => {
     try {
@@ -34,21 +38,32 @@ export default function EmployeesPage() {
   };
 
   const handleStatusToggle = async (id: string, newStatus: EmployeeStatus) => {
-    // TODO: Implement status toggle
-    console.log("Toggle status for", id, "to", newStatus);
-    await refresh();
+    try {
+      const enable = newStatus === "active";
+      await changeStatus(id, enable);
+      await refresh();
+    } catch (err) {
+      console.error("Failed to toggle employee status", err);
+    }
   };
 
   const handleEdit = (id: string) => {
-    // TODO: Implement edit functionality
-    console.log("Edit employee", id);
+    setEditingEmployeeId(id);
   };
 
-  const handleDelete = async (id: string) => {
-    // TODO: Implement delete functionality
-    if (confirm("Are you sure you want to delete this employee?")) {
-      console.log("Delete employee", id);
+  const handleUpdateEmployee = async (id: string, data: EditEmployeeFormData) => {
+    try {
+      await updateEmployee({
+        uid: id,
+        fullName: data.fullName,
+        department: data.department || undefined,
+        position: data.position || undefined,
+        phoneNumber: data.phoneNumber || undefined,
+        leaveBalances: data.leaveBalances
+      });
       await refresh();
+    } catch (err) {
+      throw err;
     }
   };
 
@@ -67,7 +82,6 @@ export default function EmployeesPage() {
             error={error}
             onCreateClick={() => setCreateModalOpen(true)}
             onEditClick={handleEdit}
-            onDeleteClick={handleDelete}
             onStatusToggle={handleStatusToggle}
             onExport={handleExport}
           />
@@ -78,6 +92,15 @@ export default function EmployeesPage() {
             onSubmit={handleCreateEmployee}
             loading={creating}
             error={createError}
+          />
+
+          <EditEmployeeModal
+            open={!!editingEmployeeId}
+            onOpenChange={(open) => !open && setEditingEmployeeId(null)}
+            employee={employees.find(emp => emp.id === editingEmployeeId) || null}
+            onSubmit={handleUpdateEmployee}
+            loading={updating}
+            error={updateError}
           />
         </div>
       </DashboardLayout>

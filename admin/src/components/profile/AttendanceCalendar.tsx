@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 interface AttendanceDay {
   date: Date;
-  status: "present" | "absent" | "late" | "half_day" | "on_leave" | "weekend" | null;
+  status: "present" | "absent" | "half-absent" | "late" | "early-leave" | "on-leave" | "weekend" | null;
   checkIn?: string;
   checkOut?: string;
 }
@@ -39,17 +39,22 @@ const statusConfig = {
     color: "bg-red-100 text-red-700 border-red-200",
     icon: XCircle
   },
+  "half-absent": {
+    label: "Half-Absent",
+    color: "bg-amber-100 text-amber-700 border-amber-200",
+    icon: AlertCircle
+  },
   late: {
     label: "Late",
     color: "bg-yellow-100 text-yellow-700 border-yellow-200",
     icon: Clock
   },
-  half_day: {
-    label: "Half Day",
+  "early-leave": {
+    label: "Early Leave",
     color: "bg-orange-100 text-orange-700 border-orange-200",
     icon: AlertCircle
   },
-  on_leave: {
+  "on-leave": {
     label: "On Leave",
     color: "bg-blue-100 text-blue-700 border-blue-200",
     icon: CalendarIcon
@@ -116,25 +121,103 @@ export function AttendanceCalendar({ attendance = [], loading = false }: Attenda
         case "present":
           stats.present++;
           break;
-        case "late":
-          stats.late++;
-          break;
         case "absent":
           stats.absent++;
           break;
-        case "half_day":
-          stats.halfDay++;
+        case "half-absent":
+          stats.halfAbsent++;
           break;
-        case "on_leave":
+        case "late":
+          stats.late++;
+          break;
+        case "early-leave":
+          stats.earlyLeave++;
+          break;
+        case "on-leave":
           stats.onLeave++;
           break;
       }
     }
     return stats;
-  }, { present: 0, late: 0, absent: 0, halfDay: 0, onLeave: 0 });
+  }, { present: 0, absent: 0, halfAbsent: 0, late: 0, earlyLeave: 0, onLeave: 0 });
 
   return (
     <div className="space-y-4">
+      {/* Statistics Summary */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col items-center justify-center gap-2">
+              <CheckCircle className="h-6 w-6 text-green-500" />
+              <div className="text-center">
+                <p className="text-2xl font-bold">{monthStats.present}</p>
+                <p className="text-xs text-muted-foreground">Present</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col items-center justify-center gap-2">
+              <XCircle className="h-6 w-6 text-red-500" />
+              <div className="text-center">
+                <p className="text-2xl font-bold">{monthStats.absent}</p>
+                <p className="text-xs text-muted-foreground">Absent</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col items-center justify-center gap-2">
+              <Clock className="h-6 w-6 text-yellow-500" />
+              <div className="text-center">
+                <p className="text-2xl font-bold">{monthStats.late}</p>
+                <p className="text-xs text-muted-foreground">Late</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col items-center justify-center gap-2">
+              <AlertCircle className="h-6 w-6 text-orange-500" />
+              <div className="text-center">
+                <p className="text-2xl font-bold">{monthStats.earlyLeave}</p>
+                <p className="text-xs text-muted-foreground">Early Leave</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col items-center justify-center gap-2">
+              <AlertCircle className="h-6 w-6 text-amber-500" />
+              <div className="text-center">
+                <p className="text-2xl font-bold">{monthStats.halfAbsent}</p>
+                <p className="text-xs text-muted-foreground">Half-Absent</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col items-center justify-center gap-2">
+              <CalendarIcon className="h-6 w-6 text-blue-500" />
+              <div className="text-center">
+                <p className="text-2xl font-bold">{monthStats.onLeave}</p>
+                <p className="text-xs text-muted-foreground">On Leave</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <CardTitle className="flex items-center gap-2">
@@ -241,7 +324,7 @@ export function AttendanceCalendar({ attendance = [], loading = false }: Attenda
               </div>
 
               {/* Selected Day Details */}
-              {selectedDayAttendance && selectedDayAttendance.status !== "weekend" && (
+              {selectedDayAttendance && selectedDayAttendance.status && selectedDayAttendance.status !== "weekend" && (
                 <Card className="mt-4">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -258,19 +341,21 @@ export function AttendanceCalendar({ attendance = [], loading = false }: Attenda
                           )}
                         </div>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "gap-1",
-                          statusConfig[selectedDayAttendance.status!].color
-                        )}
-                      >
-                        {(() => {
-                          const StatusIcon = statusConfig[selectedDayAttendance.status!].icon;
-                          return StatusIcon ? <StatusIcon className="h-3 w-3" /> : null;
-                        })()}
-                        {statusConfig[selectedDayAttendance.status!].label}
-                      </Badge>
+                      {statusConfig[selectedDayAttendance.status] && (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "gap-1",
+                            statusConfig[selectedDayAttendance.status].color
+                          )}
+                        >
+                          {(() => {
+                            const StatusIcon = statusConfig[selectedDayAttendance.status].icon;
+                            return StatusIcon ? <StatusIcon className="h-3 w-3" /> : null;
+                          })()}
+                          {statusConfig[selectedDayAttendance.status].label}
+                        </Badge>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -279,57 +364,6 @@ export function AttendanceCalendar({ attendance = [], loading = false }: Attenda
           )}
         </CardContent>
       </Card>
-
-      {/* Statistics Summary */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Present Days</p>
-                <p className="text-2xl font-bold">{monthStats.present}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Late Arrivals</p>
-                <p className="text-2xl font-bold">{monthStats.late}</p>
-              </div>
-              <Clock className="h-8 w-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Absent Days</p>
-                <p className="text-2xl font-bold">{monthStats.absent}</p>
-              </div>
-              <XCircle className="h-8 w-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Leave Days</p>
-                <p className="text-2xl font-bold">{monthStats.onLeave}</p>
-              </div>
-              <CalendarIcon className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

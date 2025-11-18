@@ -20,13 +20,20 @@ interface LeaveBalanceCardProps {
 }
 
 const leaveTypeConfig: Record<string, { label: string; color: string }> = {
-  annual: { label: "Annual Leave", color: "bg-blue-500" },
-  sick: { label: "Sick Leave", color: "bg-red-500" },
-  personal: { label: "Personal Leave", color: "bg-purple-500" },
+  full: { label: "Full Leave", color: "bg-blue-500" },
+  medical: { label: "Medical Leave", color: "bg-red-500" },
   maternity: { label: "Maternity Leave", color: "bg-pink-500" },
-  paternity: { label: "Paternity Leave", color: "bg-indigo-500" },
-  unpaid: { label: "Unpaid Leave", color: "bg-gray-500" },
-  other: { label: "Other Leave", color: "bg-yellow-500" }
+  // Firebase field mappings
+  fullLeaveBalance: { label: "Full Leave", color: "bg-blue-500" },
+  medicalLeaveBalance: { label: "Medical Leave", color: "bg-red-500" },
+  maternityLeaveBalance: { label: "Maternity Leave", color: "bg-pink-500" },
+  // Legacy mappings for backward compatibility
+  annual: { label: "Full Leave", color: "bg-blue-500" },
+  sick: { label: "Medical Leave", color: "bg-red-500" },
+  personal: { label: "Full Leave", color: "bg-blue-500" },
+  paternity: { label: "Maternity Leave", color: "bg-pink-500" },
+  unpaid: { label: "Full Leave", color: "bg-blue-500" },
+  other: { label: "Full Leave", color: "bg-blue-500" }
 };
 
 export function LeaveBalanceCard({
@@ -34,19 +41,24 @@ export function LeaveBalanceCard({
   usedLeaves = {},
   loading = false
 }: LeaveBalanceCardProps) {
-  // Transform leave balances to include used/total
-  const leaveTypes: LeaveType[] = Object.entries(leaveBalances).map(([type, total]) => {
-    const config = leaveTypeConfig[type] || { label: type, color: "bg-gray-500" };
-    // Get actual used leaves from props, default to 0
-    const used = usedLeaves[type] || 0;
+  // Valid leave types to display
+  const validLeaveTypes = ['fullLeaveBalance', 'medicalLeaveBalance', 'maternityLeaveBalance', 'full', 'medical', 'maternity'];
 
-    return {
-      type: config.label,
-      used,
-      total,
-      color: config.color
-    };
-  });
+  // Transform leave balances to include used/total, filtering only valid types
+  const leaveTypes: LeaveType[] = Object.entries(leaveBalances)
+    .filter(([type]) => validLeaveTypes.includes(type))
+    .map(([type, total]) => {
+      const config = leaveTypeConfig[type] || { label: type, color: "bg-gray-500" };
+      // Get actual used leaves from props, default to 0
+      const used = usedLeaves[type] || 0;
+
+      return {
+        type: config.label,
+        used,
+        total,
+        color: config.color
+      };
+    });
 
   const totalLeaves = leaveTypes.reduce((acc, leave) => acc + leave.total, 0);
   const totalUsedLeaves = leaveTypes.reduce((acc, leave) => acc + leave.used, 0);

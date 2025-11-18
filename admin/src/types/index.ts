@@ -41,6 +41,9 @@ export interface EmployeeSummary {
   position?: string | null;
   status: EmployeeStatus;
   photoURL?: string | null;
+  role?: string | null;
+  phoneNumber?: string | null;
+  leaveBalances?: LeaveBalances;
   createdAt?: Date | null;
 }
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -41,11 +40,9 @@ interface FilterBarProps {
   isLoading?: boolean;
   employees?: Array<{ id: string; name: string }>;
   summary?: {
-    present: number;
+    onTime: number;
     late: number;
-    absent: number;
-    onLeave: number;
-    issues: number;
+    missed: number;
   };
 }
 
@@ -59,11 +56,9 @@ const quickFilters = [
 
 const statusOptions = [
   { value: "all", label: "All Status" },
-  { value: "present", label: "Present", color: "bg-green-100 text-green-700" },
+  { value: "on_time", label: "On-Time", color: "bg-green-100 text-green-700" },
   { value: "late", label: "Late", color: "bg-yellow-100 text-yellow-700" },
-  { value: "absent", label: "Absent", color: "bg-red-100 text-red-700" },
-  { value: "half_day", label: "Half Day", color: "bg-orange-100 text-orange-700" },
-  { value: "on_leave", label: "On Leave", color: "bg-blue-100 text-blue-700" }
+  { value: "missed", label: "Missed", color: "bg-red-100 text-red-700" }
 ];
 
 const sourceOptions = [
@@ -83,7 +78,6 @@ export function FilterBar({
   employees = [],
   summary
 }: FilterBarProps) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleQuickFilter = (value: string) => {
     const today = new Date();
@@ -110,15 +104,15 @@ export function FilterBar({
 
   return (
     <div className="space-y-4">
-      {/* Summary Stats */}
+      {/* Summary Stats - Check Status */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-green-600">Present</span>
+              <span className="text-xs text-green-600">On-Time</span>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </div>
-            <p className="text-2xl font-bold text-green-700 mt-1">{summary.present}</p>
+            <p className="text-2xl font-bold text-green-700 mt-1">{summary.onTime}</p>
           </div>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
             <div className="flex items-center justify-between">
@@ -129,24 +123,10 @@ export function FilterBar({
           </div>
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-red-600">Absent</span>
+              <span className="text-xs text-red-600">Missed</span>
               <XCircle className="h-4 w-4 text-red-600" />
             </div>
-            <p className="text-2xl font-bold text-red-700 mt-1">{summary.absent}</p>
-          </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-blue-600">On Leave</span>
-              <Calendar className="h-4 w-4 text-blue-600" />
-            </div>
-            <p className="text-2xl font-bold text-blue-700 mt-1">{summary.onLeave}</p>
-          </div>
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-orange-600">Issues</span>
-              <AlertCircle className="h-4 w-4 text-orange-600" />
-            </div>
-            <p className="text-2xl font-bold text-orange-700 mt-1">{summary.issues}</p>
+            <p className="text-2xl font-bold text-red-700 mt-1">{summary.missed}</p>
           </div>
         </div>
       )}
@@ -186,19 +166,6 @@ export function FilterBar({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
-            {Object.values(filters).filter(v => v && v !== "all").length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {Object.values(filters).filter(v => v && v !== "all").length}
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={onExport}
           >
             <Download className="h-4 w-4 mr-2" />
@@ -216,9 +183,8 @@ export function FilterBar({
         </div>
       </div>
 
-      {/* Advanced Filters */}
-      {showAdvanced && (
-        <div className="grid gap-4 md:grid-cols-5 p-4 bg-gray-50 rounded-lg">
+      {/* Filter Options - Always Visible */}
+      <div className="grid gap-4 md:grid-cols-5 p-4 bg-gray-50 rounded-lg">
           {/* Search */}
           <div className="relative md:col-span-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -317,25 +283,24 @@ export function FilterBar({
             />
           </div>
 
-          {/* Clear Filters */}
-          <div className="md:col-span-3 flex items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onFiltersChange({
-                quickFilter: "today",
-                dateRange: { start: new Date(), end: new Date() },
-                status: "all",
-                employee: "all",
-                source: "all",
-                search: ""
-              })}
-            >
-              Clear all filters
-            </Button>
-          </div>
+        {/* Clear Filters */}
+        <div className="md:col-span-3 flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onFiltersChange({
+              quickFilter: "today",
+              dateRange: { start: new Date(), end: new Date() },
+              status: "all",
+              employee: "all",
+              source: "all",
+              search: ""
+            })}
+          >
+            Clear all filters
+          </Button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

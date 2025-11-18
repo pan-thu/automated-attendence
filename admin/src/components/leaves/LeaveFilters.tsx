@@ -54,13 +54,9 @@ const statusOptions = [
 
 const leaveTypeOptions = [
   { value: "all", label: "All Types" },
-  { value: "annual", label: "Annual Leave" },
-  { value: "sick", label: "Sick Leave" },
+  { value: "full", label: "Full Leave" },
   { value: "medical", label: "Medical Leave" },
-  { value: "maternity", label: "Maternity Leave" },
-  { value: "paternity", label: "Paternity Leave" },
-  { value: "unpaid", label: "Unpaid Leave" },
-  { value: "other", label: "Other" }
+  { value: "maternity", label: "Maternity Leave" }
 ];
 
 export function LeaveFilters({

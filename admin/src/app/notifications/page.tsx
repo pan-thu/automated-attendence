@@ -8,19 +8,17 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useEmployees } from "@/hooks/useEmployees";
-import { callSendBulkNotification, callSendNotification } from "@/lib/firebase/functions";
+import { callSendBulkNotification } from "@/lib/firebase/functions";
 
 // Import new components
-import { NotificationCard } from "@/components/notifications/NotificationCard";
+import { NotificationListTable } from "@/components/notifications/NotificationListTable";
 import { NotificationFilters } from "@/components/notifications/NotificationFilters";
 import { NotificationComposer } from "@/components/notifications/NotificationComposer";
 import { NotificationListSkeleton } from "@/components/notifications/NotificationListSkeleton";
-import { Bell, Send, Users, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 export default function NotificationsPage() {
   const [detailsDialog, setDetailsDialog] = useState<any>(null);
-  const [recipientsDialog, setRecipientsDialog] = useState<any>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
 
@@ -106,10 +104,8 @@ export default function NotificationsPage() {
         else if (notification.type === "warning") priority = "high";
         else if (notification.type === "success") priority = "low";
 
-        // Determine status
-        let status: any = "sent";
-        if (notification.isRead) status = "read";
-        if (notification.sentAt && !(notification as any).deliveredAt) status = "pending";
+        // Determine status - simplified to just sent/read
+        let status: any = notification.isRead ? "read" : "sent";
 
         return {
           id: notification.id,
@@ -145,32 +141,18 @@ export default function NotificationsPage() {
       .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
   }, [records, employees, filters]);
 
-  // Separate notifications by status
-  const pendingNotifications = transformedNotifications.filter(n => n.status === "pending");
+  // Separate notifications by status - simplified to sent/read only
   const sentNotifications = transformedNotifications.filter(n => n.status === "sent");
-  const deliveredNotifications = transformedNotifications.filter(n => n.status === "delivered");
   const readNotifications = transformedNotifications.filter(n => n.status === "read");
-  const failedNotifications = transformedNotifications.filter(n => n.status === "failed");
 
   // Calculate stats
   const stats = useMemo(() => {
-    const byChannel = {
-      inApp: transformedNotifications.filter(n => n.channel === "in-app").length,
-      email: transformedNotifications.filter(n => n.channels?.includes("email")).length,
-      push: transformedNotifications.filter(n => n.channels?.includes("push")).length,
-      sms: transformedNotifications.filter(n => n.channels?.includes("sms")).length
-    };
-
     return {
       total: transformedNotifications.length,
-      pending: pendingNotifications.length,
       sent: sentNotifications.length,
-      delivered: deliveredNotifications.length,
-      read: readNotifications.length,
-      failed: failedNotifications.length,
-      byChannel
+      read: readNotifications.length
     };
-  }, [transformedNotifications, pendingNotifications, sentNotifications, deliveredNotifications, readNotifications, failedNotifications]);
+  }, [transformedNotifications, sentNotifications, readNotifications]);
 
   const handleSendNotification = async (notification: any) => {
     if (notification.targetType === "all") {
@@ -196,62 +178,21 @@ export default function NotificationsPage() {
     await refresh();
   };
 
-  const handleResend = async (id: string) => {
-    // TODO: Implement resend functionality
-    console.log("Resending notification", id);
-    await refresh();
-  };
-
-  const handleCancel = async (id: string) => {
-    // TODO: Implement cancel functionality
-    console.log("Cancelling notification", id);
-    await refresh();
-  };
-
-  const handleExport = () => {
-    console.log("Exporting notifications");
-  };
-
   const handleViewDetails = (notification: any) => {
     setDetailsDialog(notification);
   };
 
-  const handleViewRecipients = (notification: any) => {
-    setRecipientsDialog(notification);
-  };
-
   const getNotificationsByTab = () => {
     switch (activeTab) {
-      case "pending":
-        return pendingNotifications;
       case "sent":
         return sentNotifications;
-      case "delivered":
-        return deliveredNotifications;
       case "read":
         return readNotifications;
-      case "failed":
-        return failedNotifications;
       default:
         return transformedNotifications;
     }
   };
 
-  // Get unique senders for filter
-  const senders = useMemo(() => {
-    const uniqueSenders = new Map<string, { id: string; name: string }>();
-
-    transformedNotifications.forEach(notif => {
-      if (notif.sentBy && !uniqueSenders.has(notif.sentBy)) {
-        uniqueSenders.set(notif.sentBy, {
-          id: notif.sentBy,
-          name: notif.sentByName
-        });
-      }
-    });
-
-    return Array.from(uniqueSenders.values());
-  }, [transformedNotifications]);
 
   return (
     <ProtectedLayout>
@@ -262,10 +203,8 @@ export default function NotificationsPage() {
             filters={filters}
             onFiltersChange={setFilters}
             onRefresh={refresh}
-            onExport={handleExport}
             onComposeNew={() => setComposeOpen(true)}
             isLoading={loading}
-            users={senders}
             stats={stats}
           />
 
@@ -278,54 +217,26 @@ export default function NotificationsPage() {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full max-w-[600px] grid-cols-6">
+            <TabsList className="grid w-full max-w-[400px] grid-cols-3">
               <TabsTrigger value="all">
                 All ({transformedNotifications.length})
               </TabsTrigger>
-              <TabsTrigger value="pending">
-                Pending ({pendingNotifications.length})
-              </TabsTrigger>
               <TabsTrigger value="sent">
-                Sent ({sentNotifications.length})
-              </TabsTrigger>
-              <TabsTrigger value="delivered">
-                Delivered ({deliveredNotifications.length})
+                Unread ({sentNotifications.length})
               </TabsTrigger>
               <TabsTrigger value="read">
                 Read ({readNotifications.length})
-              </TabsTrigger>
-              <TabsTrigger value="failed">
-                Failed ({failedNotifications.length})
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="mt-6">
               {loading ? (
                 <NotificationListSkeleton count={8} />
-              ) : getNotificationsByTab().length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-center">
-                  <Bell className="h-12 w-12 text-gray-400 mb-3" />
-                  <p className="text-sm font-medium text-gray-900">No notifications found</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {activeTab === "all"
-                      ? "No notifications match your filters"
-                      : `No ${activeTab} notifications`}
-                  </p>
-                </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
-                  {getNotificationsByTab().map((notification) => (
-                    <NotificationCard
-                      key={notification.id}
-                      notification={notification}
-                      onResend={notification.status === "failed" ? handleResend : undefined}
-                      onCancel={notification.status === "pending" ? handleCancel : undefined}
-                      onViewDetails={handleViewDetails}
-                      onViewRecipients={handleViewRecipients}
-                      isProcessing={false}
-                    />
-                  ))}
-                </div>
+                <NotificationListTable
+                  notifications={getNotificationsByTab()}
+                  onViewDetails={handleViewDetails}
+                />
               )}
             </TabsContent>
           </Tabs>

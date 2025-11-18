@@ -116,35 +116,15 @@ export function TodayStatusCard({ attendanceToday, loading = false }: TodayStatu
   const today = new Date();
   const isWeekend = today.getDay() === 0 || today.getDay() === 6;
 
-  // Mock data for demonstration
-  const mockAttendance = attendanceToday || {
-    check1: {
-      time: "08:35 AM",
-      status: "on_time" as const,
-      location: { latitude: 0, longitude: 0 }
-    },
-    check2: {
-      time: "13:10 PM",
-      status: "late" as const,
-      location: { latitude: 0, longitude: 0 }
-    },
-    check3: {
-      status: "pending" as const
-    },
-    overallStatus: "present" as const,
-    workingHours: 5.5,
-    requiredHours: 8
-  };
-
-  const completedChecks = [
-    mockAttendance.check1?.status !== "pending" && mockAttendance.check1?.status !== "missed",
-    mockAttendance.check2?.status !== "pending" && mockAttendance.check2?.status !== "missed",
-    mockAttendance.check3?.status !== "pending" && mockAttendance.check3?.status !== "missed"
-  ].filter(Boolean).length;
+  const completedChecks = attendanceToday ? [
+    attendanceToday.check1?.status !== "pending" && attendanceToday.check1?.status !== "missed",
+    attendanceToday.check2?.status !== "pending" && attendanceToday.check2?.status !== "missed",
+    attendanceToday.check3?.status !== "pending" && attendanceToday.check3?.status !== "missed"
+  ].filter(Boolean).length : 0;
 
   const progressPercentage = (completedChecks / 3) * 100;
-  const hoursPercentage = mockAttendance.workingHours && mockAttendance.requiredHours
-    ? (mockAttendance.workingHours / mockAttendance.requiredHours) * 100
+  const hoursPercentage = attendanceToday?.workingHours && attendanceToday?.requiredHours
+    ? (attendanceToday.workingHours / attendanceToday.requiredHours) * 100
     : 0;
 
   return (
@@ -155,12 +135,12 @@ export function TodayStatusCard({ attendanceToday, loading = false }: TodayStatu
             <Calendar className="h-5 w-5" />
             Today's Status
           </span>
-          {mockAttendance.overallStatus && (
+          {attendanceToday?.overallStatus && (
             <Badge
               variant="outline"
-              className={cn("font-normal", overallStatusConfig[mockAttendance.overallStatus].color)}
+              className={cn("font-normal", overallStatusConfig[attendanceToday.overallStatus].color)}
             >
-              {overallStatusConfig[mockAttendance.overallStatus].label}
+              {overallStatusConfig[attendanceToday.overallStatus].label}
             </Badge>
           )}
         </CardTitle>
@@ -170,11 +150,17 @@ export function TodayStatusCard({ attendanceToday, loading = false }: TodayStatu
           <div className="flex h-32 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
-        ) : isWeekend && !mockAttendance.check1 ? (
+        ) : isWeekend && !attendanceToday?.check1 ? (
           <div className="text-center py-8">
             <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">It's the weekend!</p>
             <p className="text-xs text-muted-foreground mt-1">No attendance required today</p>
+          </div>
+        ) : !attendanceToday ? (
+          <div className="text-center py-8">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">No attendance data available</p>
+            <p className="text-xs text-muted-foreground mt-1">Check-ins will appear here once recorded</p>
           </div>
         ) : (
           <>
@@ -184,9 +170,9 @@ export function TodayStatusCard({ attendanceToday, loading = false }: TodayStatu
                 <p className="text-sm font-medium">{format(today, "EEEE")}</p>
                 <p className="text-xs text-muted-foreground">{format(today, "MMMM dd, yyyy")}</p>
               </div>
-              {mockAttendance.overallStatus && (
+              {attendanceToday.overallStatus && (
                 <p className="text-xs text-muted-foreground">
-                  {overallStatusConfig[mockAttendance.overallStatus].description}
+                  {overallStatusConfig[attendanceToday.overallStatus].description}
                 </p>
               )}
             </div>
@@ -203,7 +189,7 @@ export function TodayStatusCard({ attendanceToday, loading = false }: TodayStatu
             {/* Individual Checks */}
             <div className="space-y-3">
               {(["check1", "check2", "check3"] as const).map((checkKey) => {
-                const check = mockAttendance[checkKey];
+                const check = attendanceToday[checkKey];
                 const config = checkConfig[checkKey];
                 const status = check?.status || "pending";
                 const statusInfo = statusConfig[status];
@@ -258,7 +244,7 @@ export function TodayStatusCard({ attendanceToday, loading = false }: TodayStatu
             </div>
 
             {/* Working Hours */}
-            {mockAttendance.workingHours !== undefined && (
+            {attendanceToday.workingHours !== undefined && (
               <div className="space-y-2 pt-2 border-t">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
@@ -266,7 +252,7 @@ export function TodayStatusCard({ attendanceToday, loading = false }: TodayStatu
                     <span className="text-muted-foreground">Working Hours</span>
                   </div>
                   <span className="font-medium">
-                    {mockAttendance.workingHours}h / {mockAttendance.requiredHours}h
+                    {attendanceToday.workingHours}h / {attendanceToday.requiredHours}h
                   </span>
                 </div>
                 <Progress
@@ -276,14 +262,14 @@ export function TodayStatusCard({ attendanceToday, loading = false }: TodayStatu
                 />
                 {hoursPercentage < 100 && (
                   <p className="text-xs text-muted-foreground">
-                    {(mockAttendance.requiredHours! - mockAttendance.workingHours).toFixed(1)}h remaining
+                    {(attendanceToday.requiredHours! - attendanceToday.workingHours).toFixed(1)}h remaining
                   </p>
                 )}
               </div>
             )}
 
             {/* Current Status */}
-            {!mockAttendance.check3?.time && mockAttendance.check2?.time && (
+            {!attendanceToday.check3?.time && attendanceToday.check2?.time && (
               <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-blue-600" />

@@ -105,5 +105,11 @@ service cloud.firestore {
       allow read: if isAdmin() || isOwner(resource.data.userId);
       allow write: if false;
     }
+
+    // PROFILE_PHOTOS collection rules (storage uploads are signed; Firestore entries writable via backend only)
+    match /PROFILE_PHOTOS/{photoId} {
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+      allow write: if false;
+    }
   }
 }

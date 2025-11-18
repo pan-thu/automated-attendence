@@ -3,6 +3,8 @@
 import { use, useState } from "react";
 import { useEmployeeDetail } from "@/hooks/useEmployeeDetail";
 import { useUpdateEmployee } from "@/hooks/useUpdateEmployee";
+import { useEmployeeAttendance } from "@/hooks/useEmployeeAttendance";
+import { useEmployeePenalties } from "@/hooks/useEmployeePenalties";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 
@@ -14,8 +16,6 @@ import { TodayStatusCard } from "@/components/profile/TodayStatusCard";
 import { LeaveBalanceCard } from "@/components/profile/LeaveBalanceCard";
 import { AttendanceCalendar } from "@/components/profile/AttendanceCalendar";
 import { PenaltiesCard } from "@/components/profile/PenaltiesCard";
-import { ViolationsTable } from "@/components/profile/ViolationsTable";
-import { StatsSummary } from "@/components/profile/StatsSummary";
 
 // Edit dialog components
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,6 +28,8 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const { employee, loading, error, refresh } = useEmployeeDetail(id);
   const { updateEmployee, changeStatus, loading: saving } = useUpdateEmployee();
+  const { attendanceRecords, todayAttendance, loading: attendanceLoading } = useEmployeeAttendance(id);
+  const { penalties, loading: penaltiesLoading } = useEmployeePenalties(id);
 
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -38,8 +40,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     department: "",
     position: "",
     phoneNumber: "",
-    address: "",
-    emergencyContact: ""
+    leaveBalances: {} as Record<string, number>
   });
 
   const handleEdit = () => {
@@ -50,8 +51,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
       department: employee.department || "",
       position: employee.position || "",
       phoneNumber: employee.phoneNumber || "",
-      address: (employee as any).address || "",
-      emergencyContact: (employee as any).emergencyContact || ""
+      leaveBalances: employee.leaveBalances || {}
     });
     setShowEditDialog(true);
   };
@@ -66,7 +66,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         department: formData.department || undefined,
         position: formData.position || undefined,
         phoneNumber: formData.phoneNumber || undefined,
-        // Note: address and emergencyContact might need to be added to the update function
+        leaveBalances: formData.leaveBalances
       });
       setShowEditDialog(false);
       await refresh();
@@ -89,11 +89,6 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const handleWaivePenalty = async (penaltyId: string) => {
     // This would call a waive penalty function
     console.log("Waiving penalty:", penaltyId);
-  };
-
-  const handleExportViolations = () => {
-    // This would export violations to CSV
-    console.log("Exporting violations");
   };
 
   const handleViewAllPenalties = () => {
@@ -140,19 +135,21 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
           {/* Tabs Navigation */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full max-w-[600px] grid-cols-5">
+            <TabsList className="grid w-full max-w-[500px] grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="attendance">Attendance</TabsTrigger>
               <TabsTrigger value="leaves">Leaves</TabsTrigger>
               <TabsTrigger value="penalties">Penalties</TabsTrigger>
-              <TabsTrigger value="stats">Stats</TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6">
               <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2 space-y-6">
-                  <TodayStatusCard />
+                  <TodayStatusCard
+                    attendanceToday={todayAttendance || undefined}
+                    loading={attendanceLoading}
+                  />
                   <div className="grid gap-6 md:grid-cols-2">
                     <ContactCard employee={employee} />
                     <EmploymentCard employee={employee} />
@@ -161,6 +158,8 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 <div className="space-y-6">
                   <LeaveBalanceCard leaveBalances={employee.leaveBalances} />
                   <PenaltiesCard
+                    penalties={penalties}
+                    loading={penaltiesLoading}
                     onViewAll={handleViewAllPenalties}
                     onWaivePenalty={handleWaivePenalty}
                   />
@@ -170,9 +169,14 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
             {/* Attendance Tab */}
             <TabsContent value="attendance" className="space-y-6">
-              <AttendanceCalendar />
-              <ViolationsTable
-                onExport={handleExportViolations}
+              <AttendanceCalendar
+                attendance={attendanceRecords.map(record => ({
+                  date: record.date,
+                  status: record.status,
+                  checkIn: record.check1Timestamp?.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+                  checkOut: record.check3Timestamp?.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+                }))}
+                loading={attendanceLoading}
               />
             </TabsContent>
 
@@ -190,16 +194,10 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
             {/* Penalties Tab */}
             <TabsContent value="penalties" className="space-y-6">
               <PenaltiesCard
+                penalties={penalties}
+                loading={penaltiesLoading}
                 onWaivePenalty={handleWaivePenalty}
               />
-              <ViolationsTable
-                onExport={handleExportViolations}
-              />
-            </TabsContent>
-
-            {/* Stats Tab */}
-            <TabsContent value="stats">
-              <StatsSummary />
             </TabsContent>
           </Tabs>
 
@@ -245,21 +243,41 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                     onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-address">Address</Label>
-                  <Input
-                    id="edit-address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-emergency">Emergency Contact</Label>
-                  <Input
-                    id="edit-emergency"
-                    value={formData.emergencyContact}
-                    onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                  />
+
+                {/* Leave Balances Section */}
+                <div className="space-y-3 pt-4 border-t">
+                  <h4 className="text-sm font-medium">Leave Balances</h4>
+                  <div className="grid gap-3 grid-cols-3">
+                    {Object.entries(formData.leaveBalances || {})
+                      .filter(([key]) => ["fullLeaveBalance", "medicalLeaveBalance", "maternityLeaveBalance"].includes(key))
+                      .map(([key, value]) => {
+                        const labels: Record<string, string> = {
+                          fullLeaveBalance: "Full Leave",
+                          medicalLeaveBalance: "Medical Leave",
+                          maternityLeaveBalance: "Maternity Leave"
+                        };
+                        return (
+                          <div key={key} className="grid gap-2">
+                            <Label htmlFor={`edit-${key}`} className="text-xs">
+                              {labels[key] || key}
+                            </Label>
+                            <Input
+                              id={`edit-${key}`}
+                              type="number"
+                              min="0"
+                              value={value}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                leaveBalances: {
+                                  ...formData.leaveBalances,
+                                  [key]: parseInt(e.target.value) || 0
+                                }
+                              })}
+                            />
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
               </div>
               <DialogFooter>

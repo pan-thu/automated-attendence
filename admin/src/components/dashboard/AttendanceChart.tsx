@@ -20,9 +20,10 @@ interface AttendanceData {
   dateKey: string;
   present: number;
   absent: number;
+  halfAbsent: number;
   late: number;
+  earlyLeave: number;
   onLeave: number;
-  halfDay?: number;
   isFuture?: boolean;
 }
 
@@ -50,9 +51,10 @@ export function AttendanceChart({
       // Don't show data for future dates
       present: item.isFuture ? 0 : item.present,
       absent: item.isFuture ? 0 : item.absent,
+      halfAbsent: item.isFuture ? 0 : item.halfAbsent,
       late: item.isFuture ? 0 : item.late,
+      earlyLeave: item.isFuture ? 0 : item.earlyLeave,
       onLeave: item.isFuture ? 0 : item.onLeave,
-      halfDay: item.isFuture ? 0 : (item.halfDay || 0),
     }));
   }, [data]);
 
@@ -213,6 +215,24 @@ export function AttendanceChart({
                 dot={{ fill: "#ef4444", strokeWidth: 2, r: 4 }}
                 activeDot={{ r: 6 }}
                 name="Absent"
+              />
+              <Line
+                type="monotone"
+                dataKey="halfAbsent"
+                stroke="#f97316"
+                strokeWidth={2}
+                dot={{ fill: "#f97316", strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6 }}
+                name="Half-Absent"
+              />
+              <Line
+                type="monotone"
+                dataKey="earlyLeave"
+                stroke="#fb923c"
+                strokeWidth={2}
+                dot={{ fill: "#fb923c", strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6 }}
+                name="Early Leave"
               />
               <Line
                 type="monotone"

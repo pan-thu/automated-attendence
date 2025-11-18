@@ -29,13 +29,6 @@ export const DEFAULT_LEAVE_KEYS = [
   'maternityLeaveBalance',
 ] as const;
 
-const DEFAULT_LEAVE_BALANCE: Record<typeof DEFAULT_LEAVE_KEYS[number], number> = {
-  fullLeaveBalance: 12,
-  halfLeaveBalance: 12,
-  medicalLeaveBalance: 10,
-  maternityLeaveBalance: 0,
-};
-
 export const createEmployee = async (input: CreateEmployeeInput, performedBy: string) => {
   const { email, password, fullName, department, position, phoneNumber, leaveBalances } = input;
 
@@ -51,6 +44,17 @@ export const createEmployee = async (input: CreateEmployeeInput, performedBy: st
 
   await admin.auth().setCustomUserClaims(uid, { role: 'employee' });
 
+  // Fetch initial leave balances from company settings
+  const { getCompanySettings } = await import('./settings');
+  const companySettings = await getCompanySettings();
+  const leavePolicy = companySettings?.leavePolicy ?? {};
+
+  // Build initial leave balances from company settings (default to 0 if not configured)
+  const initialLeaveBalances: Record<string, number> = {};
+  for (const key of Object.keys(leavePolicy)) {
+    initialLeaveBalances[key] = leavePolicy[key] ?? 0;
+  }
+
   const userDoc = firestore.collection(USERS_COLLECTION).doc(uid);
 
   await userDoc.set({
@@ -65,7 +69,7 @@ export const createEmployee = async (input: CreateEmployeeInput, performedBy: st
     createdAt: nowTimestamp(),
     updatedAt: nowTimestamp(),
     createdBy: performedBy,
-    ...DEFAULT_LEAVE_BALANCE,
+    ...initialLeaveBalances,
     ...(leaveBalances ?? {}),
   });
 
