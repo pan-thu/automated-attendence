@@ -7,6 +7,7 @@ import { queueNotification } from './notifications';
 import { recordAuditLog } from './audit';
 import { CompanySettingsInput } from './settings';
 import { isWeekend, isCompanyHoliday } from '../utils/dateUtils';
+import { getDateKeyInTimezoneFromISO } from '../utils/timezoneUtils';
 
 type CheckSlot = 'check1' | 'check2' | 'check3';
 type CheckStatus = 'on_time' | 'late' | 'early_leave' | 'missed';
@@ -214,8 +215,6 @@ const resolveSlotOutcome = (
   return null;
 };
 
-const normalizeDateKey = (iso: string) => iso.slice(0, 10);
-
 const getAttendanceDoc = (userId: string, dateKey: string) =>
   firestore.collection(ATTENDANCE_COLLECTION).doc(`${userId}_${dateKey}`);
 
@@ -230,7 +229,8 @@ export const handleClockIn = async ({ userId, payload }: ClockInServiceInput): P
 
   // Validate timestamp is within ±5 minutes of server time
   const now = Date.now();
-  const timeDiff = Math.abs(payload.timestamp - now);
+  const timestampMs = new Date(payload.timestamp).getTime();
+  const timeDiff = Math.abs(timestampMs - now);
   const MAX_TIME_DIFF = 5 * 60 * 1000; // 5 minutes in milliseconds
 
   if (timeDiff > MAX_TIME_DIFF) {
@@ -276,7 +276,9 @@ export const handleClockIn = async ({ userId, payload }: ClockInServiceInput): P
     }
   }
 
-  const attendanceDate = normalizeDateKey(payload.timestamp);
+  // Use company timezone to determine the attendance date
+  const timezone = settings.timezone || 'Asia/Kolkata';
+  const attendanceDate = getDateKeyInTimezoneFromISO(payload.timestamp, timezone);
   const attendanceDoc = getAttendanceDoc(userId, attendanceDate);
   const transactionResult = await runTransaction(async (tx) => {
     const slotOutcome = resolveSlotOutcome(payload.timestamp, settings);

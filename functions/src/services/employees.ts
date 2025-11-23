@@ -3,6 +3,7 @@ import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { firestore } from '../utils/firestore';
 import { getCompanySettings } from './settings';
 import { admin } from '../firebase';
+import { getCompanyTimezoneDateKey, getCompanyTimezoneDateKeyFromISO } from '../utils/timezoneUtils';
 
 const USERS_COLLECTION = 'USERS';
 const ATTENDANCE_COLLECTION = 'ATTENDANCE_RECORDS';
@@ -74,7 +75,10 @@ const formatTimestamp = (value: unknown): string | null => {
 };
 
 export const fetchEmployeeDashboard = async (userId: string, dateIso?: string): Promise<EmployeeDashboardSummary> => {
-  const dateKey = dateIso ? dateIso.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  // Use company timezone for date key calculation
+  const dateKey = dateIso
+    ? await getCompanyTimezoneDateKeyFromISO(dateIso)
+    : await getCompanyTimezoneDateKey();
 
   const [profile, attendanceSnapshot] = await Promise.all([
     fetchEmployeeProfile(userId),

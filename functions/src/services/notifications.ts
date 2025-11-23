@@ -218,8 +218,23 @@ export const getEmployeesNeedingClockInReminder = async (
   dateKey: string,
   slot: ReminderCheckSlot
 ): Promise<string[]> => {
-  const start = Timestamp.fromDate(new Date(`${dateKey}T00:00:00Z`));
-  const end = Timestamp.fromDate(new Date(`${dateKey}T23:59:59Z`));
+  // Import timezone utilities for proper date range calculation
+  const { getEffectiveTimezone } = await import('../utils/timezoneUtils');
+  const { fromZonedTime } = await import('date-fns-tz');
+
+  // Get company timezone
+  const timezone = await getEffectiveTimezone();
+
+  // Create start and end dates in company timezone, then convert to UTC
+  const startInTimezone = new Date(`${dateKey}T00:00:00`);
+  const endInTimezone = new Date(`${dateKey}T23:59:59`);
+
+  // Convert from company timezone to UTC for Firestore query
+  const startUTC = fromZonedTime(startInTimezone, timezone);
+  const endUTC = fromZonedTime(endInTimezone, timezone);
+
+  const start = Timestamp.fromDate(startUTC);
+  const end = Timestamp.fromDate(endUTC);
 
   const [attendanceSnap, activeEmployees] = await Promise.all([
     firestore

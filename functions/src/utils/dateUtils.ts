@@ -130,9 +130,10 @@ export function isWeekend(date: Date): boolean {
  */
 export async function isCompanyHoliday(date: Date): Promise<boolean> {
   const db = admin.firestore();
+  const { getCompanyTimezoneDateKey } = await import('./timezoneUtils');
 
-  // Format date as YYYY-MM-DD for document ID
-  const dateString = date.toISOString().slice(0, 10);
+  // Format date as YYYY-MM-DD in company timezone for document ID
+  const dateString = await getCompanyTimezoneDateKey(date);
 
   const holidayDoc = await db.collection('COMPANY_HOLIDAYS').doc(dateString).get();
 
@@ -140,10 +141,12 @@ export async function isCompanyHoliday(date: Date): Promise<boolean> {
 }
 
 /**
- * Format date as YYYY-MM-DD.
+ * Format date as YYYY-MM-DD in company timezone.
+ * @deprecated Use getCompanyTimezoneDateKey or getDateKeyInTimezone from timezoneUtils instead
  */
-export function formatDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
+export async function formatDateKey(date: Date): Promise<string> {
+  const { getCompanyTimezoneDateKey } = await import('./timezoneUtils');
+  return getCompanyTimezoneDateKey(date);
 }
 
 /**

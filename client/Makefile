@@ -24,7 +24,7 @@ build-dev:
 .PHONY: prod
 prod:
 	@echo "Running Flutter app with Firebase Cloud (Production)..."
-	flutter run --dart-define=USE_EMULATORS=false
+
 
 # Production build (APK)
 .PHONY: build-prod

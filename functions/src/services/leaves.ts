@@ -11,13 +11,14 @@ import {
   attachAttachmentToLeave,
   getAttachmentById,
 } from './leaveAttachments';
+import { getDateKeyInTimezone } from '../utils/timezoneUtils';
 
 const LEAVE_COLLECTION = 'LEAVE_REQUESTS';
 const USERS_COLLECTION = 'USERS';
 const ATTENDANCE_COLLECTION = 'ATTENDANCE_RECORDS';
 
-const formatDateKey = (date: Date): string => {
-  return date.toISOString().slice(0, 10);
+const formatDateKey = (date: Date, timezone: string): string => {
+  return getDateKeyInTimezone(date, timezone);
 };
 
 const asUtcDate = (source: Date): Date => {
@@ -81,6 +82,10 @@ const leaveTypeFieldMap: Record<string, string> = {
 
 export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
   const { requestId, action, reviewerId, notes } = input;
+
+  // Get company settings for timezone
+  const settings = await getCompanySettings();
+  const timezone = settings.timezone || 'Asia/Kolkata';
 
   const overrides: Array<{
     userId: string;
@@ -154,7 +159,7 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
       const attendanceCollection = firestore.collection(ATTENDANCE_COLLECTION);
 
       while (cursor.getTime() <= endUtc.getTime()) {
-        const dateKey = formatDateKey(cursor);
+        const dateKey = formatDateKey(cursor, timezone);
         const docId = `${userId}_${dateKey}`;
         const attendanceRef = attendanceCollection.doc(docId);
         const attendanceSnap = await tx.get(attendanceRef);
@@ -234,8 +239,8 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
 
     // Bug Fix #8: Queue notifications INSIDE transaction to ensure atomicity
     const notificationRef = firestore.collection('NOTIFICATIONS').doc();
-    const startKey = formatDateKey(leaveSummary.startDate);
-    const endKey = formatDateKey(leaveSummary.endDate);
+    const startKey = formatDateKey(leaveSummary.startDate, timezone);
+    const endKey = formatDateKey(leaveSummary.endDate, timezone);
 
     if (action === 'approve') {
       tx.create(notificationRef, {
@@ -484,6 +489,10 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
 export const cancelLeaveRequest = async (input: CancelLeaveRequestInput) => {
   const { userId, requestId } = input;
 
+  // Get company settings for timezone
+  const settings = await getCompanySettings();
+  const timezone = settings.timezone || 'Asia/Kolkata';
+
   const ref = firestore.collection(LEAVE_COLLECTION).doc(requestId);
   let leaveData: FirebaseFirestore.DocumentData = {};
 
@@ -546,7 +555,7 @@ export const cancelLeaveRequest = async (input: CancelLeaveRequestInput) => {
       let cursor = new Date(asUtcDate(startDate).getTime());
 
       while (cursor.getTime() <= asUtcDate(endDate).getTime()) {
-        const dateKey = formatDateKey(cursor);
+        const dateKey = formatDateKey(cursor, timezone);
         const docId = `${userId}_${dateKey}`;
         const attendanceRef = firestore.collection(ATTENDANCE_COLLECTION).doc(docId);
         const attendanceSnap = await tx.get(attendanceRef);

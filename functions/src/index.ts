@@ -1173,27 +1173,55 @@ export const registerDeviceToken = onCall(
 
 export const scheduledPenaltyAutomation = onSchedule(
   {
-    schedule: '0 2 1 * *',
+    // Run daily at 2 AM UTC to check if it's the 1st of the month in company timezone
+    schedule: '0 2 * * *',
     timeZone: 'UTC',
   },
   async () => {
     const now = new Date();
-    const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+
+    // Import timezone utilities
+    const { convertToCompanyTimezone, formatInCompanyTimezone } = await import('./utils/timezoneUtils');
+
+    // Get current date in company timezone
+    const companyDate = await convertToCompanyTimezone(now);
+
+    // Check if it's the 1st of the month in company timezone
+    if (companyDate.getDate() !== 1) {
+      return; // Not the 1st of the month in company timezone
+    }
+
+    // Get the month string in company timezone
+    const month = await formatInCompanyTimezone(now, 'yyyy-MM');
+
     await calculateMonthlyViolationsService({ month });
   }
 );
 
 export const scheduledDailyClockInReminder = onSchedule(
   {
-    schedule: '30 8,13,17 * * *',
+    // Run every 30 minutes to check for notification times in company timezone
+    schedule: '*/30 * * * *',
     timeZone: 'UTC',
   },
   async (event) => {
     const runDate = event.scheduleTime ? new Date(event.scheduleTime) : new Date();
-    const dateKey = runDate.toISOString().slice(0, 10);
-    const hour = runDate.getUTCHours();
 
-    const slot = hour < 10 ? 'check1' : hour < 16 ? 'check2' : 'check3';
+    // Import timezone utilities
+    const { getNotificationSlotForTime, getCompanyTimezoneDateKey } = await import('./utils/timezoneUtils');
+
+    // Check if current time matches any notification schedule in company timezone
+    const notificationConfig = await getNotificationSlotForTime(runDate);
+    if (!notificationConfig) {
+      // Not a notification time in company timezone
+      return;
+    }
+
+    const { slot } = notificationConfig;
+
+    // Get date key in company timezone
+    const dateKey = await getCompanyTimezoneDateKey(runDate);
+
     const targets = await getEmployeesNeedingClockInReminder(dateKey, slot);
     if (targets.length === 0) {
       return;
@@ -1210,7 +1238,7 @@ export const scheduledDailyClockInReminder = onSchedule(
       },
       check3: {
         title: 'End-of-Day Clock-Out Reminder',
-        message: 'Heading out? Don’t forget to clock out before you leave.',
+        message: 'Heading out? Don\'t forget to clock out before you leave.',
       },
     };
 
@@ -1230,9 +1258,15 @@ export const scheduledDailyClockInReminder = onSchedule(
 export const triggerDailyAnalyticsAggregation = onCall(
   wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
     assertAdminV2(request);
-    const date = new Date();
-    date.setUTCDate(date.getUTCDate() - 1);
-    const dateKey = date.toISOString().slice(0, 10);
+
+    // Import timezone utilities
+    const { convertToCompanyTimezone, formatInCompanyTimezone } = await import('./utils/timezoneUtils');
+
+    // Get yesterday's date in company timezone
+    const now = new Date();
+    const companyNow = await convertToCompanyTimezone(now);
+    companyNow.setDate(companyNow.getDate() - 1);
+    const dateKey = await formatInCompanyTimezone(companyNow, 'yyyy-MM-dd');
 
     const result = await aggregateDailyAttendance(dateKey);
 
@@ -1251,9 +1285,15 @@ export const triggerDailyAnalyticsAggregation = onCall(
 export const triggerMonthlyAnalyticsAggregation = onCall(
   wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
     assertAdminV2(request);
+
+    // Import timezone utilities
+    const { convertToCompanyTimezone, formatInCompanyTimezone } = await import('./utils/timezoneUtils');
+
+    // Get last month in company timezone
     const now = new Date();
-    now.setUTCMonth(now.getUTCMonth() - 1);
-    const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    const companyNow = await convertToCompanyTimezone(now);
+    companyNow.setMonth(companyNow.getMonth() - 1);
+    const monthKey = await formatInCompanyTimezone(companyNow, 'yyyy-MM');
 
     const result = await aggregateMonthlyAttendance(monthKey);
 

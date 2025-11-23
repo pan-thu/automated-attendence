@@ -454,10 +454,11 @@ export const registerProfilePhoto = async (
 
   await batch.commit();
 
-  return {
-    photoId,
-    photoURL: publicUrl,
-  };
+    return {
+      photoId,
+      photoURL: publicUrl,
+    };
+  });
 };
 
 export const updateOwnPassword = async (userId: string, email: string, input: UpdatePasswordInput): Promise<void> => {

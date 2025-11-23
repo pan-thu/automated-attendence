@@ -26,6 +26,15 @@
       ]
     },
     {
+      "collectionGroup": "LEAVE_REQUESTS",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "startDate", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "VIOLATION_HISTORY",
       "queryScope": "COLLECTION",
       "fields": [
@@ -130,6 +139,15 @@
       "collectionGroup": "PENALTIES",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "dateIncurred", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "PENALTIES",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "dateIncurred", "order": "DESCENDING" }
       ]
