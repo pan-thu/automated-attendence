@@ -18,6 +18,7 @@ import { useUpdateCompanySettings } from "@/hooks/useUpdateCompanySettings";
 import { SectionNav } from "@/components/settings/SectionNav";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
 import { WorkingDaysGrid } from "@/components/settings/WorkingDaysGrid";
+import { TimezoneSelector } from "@/components/ui/timezone-selector";
 
 const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 
@@ -619,12 +620,12 @@ export default function EditSettingsPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="timezone">Timezone</Label>
-                        <Input
-                          id="timezone"
+                        <TimezoneSelector
                           value={form.timezone}
-                          onChange={(event) => setForm((prev) => ({ ...prev, timezone: event.target.value }))}
-                          placeholder="e.g. America/New_York"
+                          onChange={(value) => setForm((prev) => ({ ...prev, timezone: value }))}
+                          placeholder="Select a timezone..."
                         />
+                        <p className="text-xs text-muted-foreground">Choose the timezone for your company's operations.</p>
                       </div>
                     </div>
                   </section>

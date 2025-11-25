@@ -5,6 +5,29 @@ import { getCompanySettings } from '../services/settings';
 const DEFAULT_TIMEZONE = 'Asia/Kolkata';
 
 /**
+ * Validates if a Date object is valid
+ * @param date - Date object to validate
+ * @returns true if date is valid, false otherwise
+ */
+function isValidDate(date: Date): boolean {
+  return date instanceof Date && !isNaN(date.getTime());
+}
+
+/**
+ * Validates if a timezone string is valid by testing it with date-fns-tz
+ */
+function isValidTimezone(timezone: string): boolean {
+  try {
+    // Test if the timezone works with toZonedTime
+    const testDate = new Date('2024-01-01T00:00:00Z');
+    const zonedDate = toZonedTime(testDate, timezone);
+    return isValidDate(zonedDate);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Gets the effective timezone to use for scheduling and notifications
  * Returns company timezone from settings, or default timezone if not configured
  */
@@ -13,7 +36,13 @@ export async function getEffectiveTimezone(): Promise<string> {
     const settings = await getCompanySettings();
 
     if (settings.timezone && settings.timezone.trim()) {
-      return settings.timezone;
+      const tz = settings.timezone.trim();
+      // Validate the timezone is actually valid
+      if (isValidTimezone(tz)) {
+        return tz;
+      } else {
+        console.warn(`Invalid timezone in company settings: "${tz}". Falling back to ${DEFAULT_TIMEZONE}`);
+      }
     }
   } catch (error) {
     console.warn('Failed to fetch company settings for timezone:', error);
@@ -27,11 +56,15 @@ export async function getEffectiveTimezone(): Promise<string> {
  * @param utcDate - Date in UTC
  * @param timezone - Target timezone (optional, will fetch from settings if not provided)
  * @returns Date object in the specified timezone
+ * @throws Error if the date is invalid
  */
 export async function convertToCompanyTimezone(
   utcDate: Date,
   timezone?: string
 ): Promise<Date> {
+  if (!isValidDate(utcDate)) {
+    throw new Error('Invalid date provided to convertToCompanyTimezone');
+  }
   const tz = timezone || await getEffectiveTimezone();
   return toZonedTime(utcDate, tz);
 }
@@ -41,11 +74,15 @@ export async function convertToCompanyTimezone(
  * @param localDate - Date in company timezone
  * @param timezone - Source timezone (optional, will fetch from settings if not provided)
  * @returns Date object in UTC
+ * @throws Error if the date is invalid
  */
 export async function convertFromCompanyTimezone(
   localDate: Date,
   timezone?: string
 ): Promise<Date> {
+  if (!isValidDate(localDate)) {
+    throw new Error('Invalid date provided to convertFromCompanyTimezone');
+  }
   const tz = timezone || await getEffectiveTimezone();
   return fromZonedTime(localDate, tz);
 }
@@ -68,12 +105,16 @@ export async function getCompanyTimezoneHour(utcDate?: Date): Promise<number> {
  * @param formatString - Format string for date-fns
  * @param timezone - Target timezone (optional, will fetch from settings if not provided)
  * @returns Formatted date string
+ * @throws Error if the date is invalid
  */
 export async function formatInCompanyTimezone(
   utcDate: Date,
   formatString: string,
   timezone?: string
 ): Promise<string> {
+  if (!isValidDate(utcDate)) {
+    throw new Error('Invalid date provided to formatInCompanyTimezone');
+  }
   const tz = timezone || await getEffectiveTimezone();
   return format(toZonedTime(utcDate, tz), formatString, { timeZone: tz });
 }
@@ -135,11 +176,18 @@ export async function getNotificationSlotForTime(
  * Creates a date key (YYYY-MM-DD) in company timezone
  * @param utcDate - UTC date
  * @returns Date key string in company timezone
+ * @throws Error if the date is invalid
  */
 export async function getCompanyTimezoneDateKey(utcDate?: Date): Promise<string> {
   const date = utcDate || new Date();
+  if (!isValidDate(date)) {
+    throw new Error(`Invalid date provided to getCompanyTimezoneDateKey: ${date}`);
+  }
   const timezone = await getEffectiveTimezone();
   const zonedDate = toZonedTime(date, timezone);
+  if (!isValidDate(zonedDate)) {
+    throw new Error(`toZonedTime produced invalid date. Input: ${date.toISOString()}, timezone: ${timezone}`);
+  }
 
   return format(zonedDate, 'yyyy-MM-dd');
 }
@@ -150,8 +198,12 @@ export async function getCompanyTimezoneDateKey(utcDate?: Date): Promise<string>
  * @param utcDate - UTC date
  * @param timezone - Target timezone
  * @returns Date key string in the specified timezone
+ * @throws Error if the date is invalid
  */
 export function getDateKeyInTimezone(utcDate: Date, timezone: string): string {
+  if (!isValidDate(utcDate)) {
+    throw new Error('Invalid date provided to getDateKeyInTimezone');
+  }
   const zonedDate = toZonedTime(utcDate, timezone);
   return format(zonedDate, 'yyyy-MM-dd');
 }
@@ -160,9 +212,13 @@ export function getDateKeyInTimezone(utcDate: Date, timezone: string): string {
  * Creates a date key (YYYY-MM-DD) from an ISO string in company timezone
  * @param isoString - ISO 8601 date string
  * @returns Date key string in company timezone
+ * @throws Error if the date string is invalid
  */
 export async function getCompanyTimezoneDateKeyFromISO(isoString: string): Promise<string> {
   const date = new Date(isoString);
+  if (!isValidDate(date)) {
+    throw new Error(`Invalid date string: "${isoString}"`);
+  }
   return getCompanyTimezoneDateKey(date);
 }
 
@@ -171,8 +227,12 @@ export async function getCompanyTimezoneDateKeyFromISO(isoString: string): Promi
  * @param isoString - ISO 8601 date string
  * @param timezone - Target timezone
  * @returns Date key string in the specified timezone
+ * @throws Error if the date string is invalid
  */
 export function getDateKeyInTimezoneFromISO(isoString: string, timezone: string): string {
   const date = new Date(isoString);
+  if (!isValidDate(date)) {
+    throw new Error(`Invalid date string: "${isoString}"`);
+  }
   return getDateKeyInTimezone(date, timezone);
 }

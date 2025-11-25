@@ -4,6 +4,7 @@ import '../../../design_system/colors.dart';
 import '../../../design_system/spacing.dart';
 import '../../../design_system/typography.dart' as app_typography;
 import '../../../core/services/penalty_repository.dart';
+import '../../../core/navigation/app_router.dart';
 
 /// Resources screen - navigation hub for secondary features
 ///
@@ -68,13 +69,13 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       body: ListView(
         padding: const EdgeInsets.all(paddingLarge),
         children: [
-          // Leave Request
+          // Leaves
           ResourceMenuItem(
             icon: Icons.calendar_today,
-            title: 'Leave Request',
-            subtitle: 'Apply leave',
+            title: 'Leaves',
+            subtitle: 'View balance and apply leave',
             onTap: () {
-              context.push('/submit-leave');
+              context.push(AppRoutePaths.leaves);
             },
           ),
           const SizedBox(height: gapMedium),
@@ -86,7 +87,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   title: 'Penalties',
                   subtitle: 'View penalties',
                   onTap: () {
-                    context.push('/penalties');
+                    context.push(AppRoutePaths.penalties);
                   },
                 )
               : ResourceMenuItem(
@@ -101,7 +102,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                         ]
                       : null,
                   onTap: () {
-                    context.push('/penalties');
+                    context.push(AppRoutePaths.penalties);
                   },
                 ),
           const SizedBox(height: gapMedium),
@@ -112,7 +113,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
             title: 'Holiday List',
             subtitle: 'View upcoming holidays',
             onTap: () {
-              context.push('/holidays');
+              context.push(AppRoutePaths.holidays);
             },
           ),
         ],
@@ -156,11 +157,19 @@ class ResourceMenuItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Icon (black, no container)
-            Icon(
-              icon,
-              color: const Color(0xFF1A1A1A),
-              size: 32,
+            // Icon with green background
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(radiusMedium),
+              ),
+              child: Icon(
+                icon,
+                color: const Color(0xFF4CAF50),
+                size: 28,
+              ),
             ),
             const SizedBox(width: gapMedium),
 

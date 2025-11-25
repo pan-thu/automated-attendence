@@ -60,7 +60,7 @@ class _MonthOption extends StatelessWidget {
           vertical: paddingSmall,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1A1A1A) : const Color(0xFFE8E8E8),
+          color: isSelected ? const Color(0xFF4CAF50) : const Color(0xFFE8E8E8),
           borderRadius: BorderRadius.circular(radiusLarge * 1.5),
         ),
         child: Text(

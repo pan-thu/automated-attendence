@@ -56,31 +56,28 @@ class _NotificationsViewState extends State<_NotificationsView> {
     return Scaffold(
       backgroundColor: backgroundPrimary,
       appBar: AppBar(
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Updates',
-                style: app_typography.headingLarge.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            // Mark all as read button
-            if (controller.items.any((item) => !item.isRead))
-              TextButton(
-                onPressed: controller.isLoading
-                    ? null
-                    : () => _markAllAsRead(context, controller),
-                child: Text(
-                  'Mark all read',
-                  style: app_typography.bodyMedium,
-                ),
-              ),
-          ],
+        title: Text(
+          'Updates',
+          style: app_typography.headingLarge.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        centerTitle: true,
         backgroundColor: backgroundPrimary,
         elevation: 0,
+        actions: [
+          // Mark all as read button
+          if (controller.items.any((item) => !item.isRead))
+            TextButton(
+              onPressed: controller.isLoading
+                  ? null
+                  : () => _markAllAsRead(context, controller),
+              child: Text(
+                'Mark all read',
+                style: app_typography.bodyMedium,
+              ),
+            ),
+        ],
       ),
       body: controller.isLoading && controller.items.isEmpty
           ? const Center(child: CircularProgressIndicator())
@@ -129,12 +126,6 @@ class _NotificationsViewState extends State<_NotificationsView> {
                         },
                       ),
                       const SizedBox(height: space6),
-
-                      // Loading indicator
-                      if (controller.isLoading)
-                        const LinearProgressIndicator(),
-                      if (controller.isLoading)
-                        const SizedBox(height: space6),
 
                       // Notification list with date grouping
                       controller.items.isEmpty

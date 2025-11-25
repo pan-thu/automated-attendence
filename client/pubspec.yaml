@@ -52,6 +52,7 @@ dependencies:
   share_plus: ^12.0.0
   http: ^1.2.2
   file_picker: ^8.1.2
+  image_picker: ^1.1.2
   synchronized: ^3.3.0+3
 
 dev_dependencies:

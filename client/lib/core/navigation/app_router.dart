@@ -154,9 +154,7 @@ class AppRouter {
                 GoRoute(
                   name: AppRoutePaths.settings,
                   path: AppRoutePaths.settings,
-                  builder: (context, state) => ProfileScreen(
-                    preferencesController: _preferencesController,
-                  ),
+                  builder: (context, state) => const ProfileScreen(),
                 ),
               ],
             ),

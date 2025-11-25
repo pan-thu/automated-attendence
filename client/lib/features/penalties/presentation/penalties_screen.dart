@@ -115,9 +115,6 @@ class _PenaltiesViewState extends State<_PenaltiesView> {
                             _searchQuery = query;
                           });
                         },
-                        onSortPressed: () {
-                          // TODO: Implement sort functionality
-                        },
                       ),
                       const SizedBox(height: space6),
 

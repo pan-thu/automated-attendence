@@ -62,6 +62,17 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshUser() async {
+    final currentUser = _firebaseAuth.currentUser;
+    if (currentUser != null) {
+      await currentUser.reload();
+      _user = _firebaseAuth.currentUser;
+      final idTokenResult = await currentUser.getIdTokenResult(true);
+      _claims = Map<String, dynamic>.from(idTokenResult.claims ?? {});
+      notifyListeners();
+    }
+  }
+
   StreamSubscription<User?>? _authSubscription;
 
   static const String _sessionTokenKey = 'session_token';

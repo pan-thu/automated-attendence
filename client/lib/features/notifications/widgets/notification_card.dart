@@ -140,7 +140,7 @@ class NotificationCard extends StatelessWidget {
     return Icon(
       iconData,
       size: 32,
-      color: const Color(0xFF1A1A1A),
+      color: const Color(0xFF4CAF50),
     );
   }
 

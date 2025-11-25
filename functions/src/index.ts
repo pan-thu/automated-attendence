@@ -603,7 +603,30 @@ export const getEmployeeDashboard = onCall(
     const payload = request.data ? assertPayload<Record<string, unknown>>(request.data) : {};
     const userId = requireAuthUidV2(request);
 
-    const date = typeof payload.date === 'string' ? payload.date : undefined;
+    // Validate date parameter if provided
+    let date: string | undefined;
+    if (payload.date !== undefined && payload.date !== null) {
+      if (typeof payload.date !== 'string') {
+        throw new HttpsError('invalid-argument', 'Date must be a string');
+      }
+      const dateStr = payload.date.trim();
+      if (dateStr === '') {
+        // Empty string is treated as no date provided
+        date = undefined;
+      } else {
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(dateStr)) {
+          throw new HttpsError('invalid-argument', 'Date must be in YYYY-MM-DD format');
+        }
+        // Validate that it's a parseable date
+        const testDate = new Date(dateStr);
+        if (isNaN(testDate.getTime())) {
+          throw new HttpsError('invalid-argument', 'Invalid date value');
+        }
+        date = dateStr;
+      }
+    }
 
     const summary = await fetchEmployeeDashboard(userId, date);
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/navigation/app_router.dart';
 import '../../../core/services/leave_repository.dart';
 import '../../../design_system/colors.dart';
 import '../../../design_system/spacing.dart';
@@ -125,9 +126,7 @@ class _LeaveViewState extends State<_LeaveView> {
                     )
                   else if (_balance != null)
                     LeaveBalanceCard(
-                      remaining: _balance!.remaining,
-                      total: _balance!.total,
-                      used: _balance!.used,
+                      balance: _balance!,
                     )
                   else if (_balanceError != null)
                     Container(
@@ -214,11 +213,18 @@ class _LeaveViewState extends State<_LeaveView> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: () {
-                  context.push('/submit-leave');
+                onPressed: () async {
+                  final result = await context.push(AppRoutePaths.submitLeave);
+                  // Refresh if leave was successfully submitted
+                  if (result == true && mounted) {
+                    await Future.wait([
+                      listController.refresh(),
+                      _loadBalance(),
+                    ]);
+                  }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A1A1A),
+                  backgroundColor: const Color(0xFF4CAF50),
                   foregroundColor: backgroundPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(

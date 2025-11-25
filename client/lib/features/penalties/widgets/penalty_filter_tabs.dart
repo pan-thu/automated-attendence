@@ -82,14 +82,14 @@ class _TabItem extends StatelessWidget {
             vertical: paddingSmall,
           ),
           decoration: BoxDecoration(
-            color: isSelected ? backgroundPrimary : Colors.transparent,
+            color: isSelected ? const Color(0xFF4CAF50) : Colors.transparent,
             borderRadius: BorderRadius.circular(radiusLarge),
           ),
           child: Center(
             child: Text(
               label,
               style: app_typography.bodyMedium.copyWith(
-                color: isSelected ? textPrimary : textSecondary,
+                color: isSelected ? backgroundPrimary : textSecondary,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),

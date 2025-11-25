@@ -29,6 +29,7 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
   DateTime? _endDate;
   DateTime _viewingMonth = DateTime.now();
   bool _isLoading = false;
+  String _selectedLeaveType = 'casual'; // casual, sick, vacation
 
   @override
   void dispose() {
@@ -60,7 +61,7 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
 
     try {
       await widget.repository.submitLeaveRequest(
-        leaveType: 'casual', // Default to casual leave
+        leaveType: _selectedLeaveType,
         startDate: _startDate!,
         endDate: _endDate!,
         reason: _reasonController.text,
@@ -68,7 +69,7 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
 
       if (mounted) {
         _showSuccess();
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
@@ -128,6 +129,38 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Leave Type Selection
+                    Text(
+                      'Leave Type',
+                      style: app_typography.labelLarge.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: space3),
+                    Row(
+                      children: [
+                        _LeaveTypeOption(
+                          label: 'Casual',
+                          isSelected: _selectedLeaveType == 'casual',
+                          onTap: () => setState(() => _selectedLeaveType = 'casual'),
+                        ),
+                        const SizedBox(width: gapMedium),
+                        _LeaveTypeOption(
+                          label: 'Medical',
+                          isSelected: _selectedLeaveType == 'sick',
+                          onTap: () => setState(() => _selectedLeaveType = 'sick'),
+                        ),
+                        const SizedBox(width: gapMedium),
+                        _LeaveTypeOption(
+                          label: 'Maternity',
+                          isSelected: _selectedLeaveType == 'vacation',
+                          onTap: () => setState(() => _selectedLeaveType = 'vacation'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: space6),
+
                     // Date pickers side by side
                     Container(
                       padding: const EdgeInsets.all(paddingLarge),
@@ -222,6 +255,9 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
                             color: textSecondary,
                           ),
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
                           contentPadding: EdgeInsets.zero,
                         ),
                         style: app_typography.bodyMedium.copyWith(
@@ -262,7 +298,7 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _handleSubmit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A1A1A),
+                    backgroundColor: const Color(0xFF4CAF50),
                     foregroundColor: backgroundPrimary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -506,7 +542,7 @@ class _CalendarWidget extends StatelessWidget {
         height: 40,
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF1A1A1A)
+              ? const Color(0xFF4CAF50)
               : isInRange
                   ? const Color(0xFFD0D0D0)
                   : Colors.transparent,
@@ -527,5 +563,42 @@ class _CalendarWidget extends StatelessWidget {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+}
+
+/// Leave type option chip
+class _LeaveTypeOption extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _LeaveTypeOption({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: paddingLarge,
+          vertical: paddingSmall,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF4CAF50) : const Color(0xFFE8E8E8),
+          borderRadius: BorderRadius.circular(radiusLarge * 1.5),
+        ),
+        child: Text(
+          label,
+          style: app_typography.bodyMedium.copyWith(
+            color: isSelected ? backgroundPrimary : textSecondary,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
   }
 }

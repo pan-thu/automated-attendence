@@ -9,7 +9,7 @@ import '../../../design_system/typography.dart' as app_typography;
 ///
 /// Shows horizontal month tabs (May, June, July) and year dropdown
 /// Redesigned to match attendance.png mockup
-class MonthYearSelector extends StatelessWidget {
+class MonthYearSelector extends StatefulWidget {
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateChanged;
 
@@ -20,43 +20,63 @@ class MonthYearSelector extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final currentMonth = selectedDate.month;
-    final currentYear = selectedDate.year;
+  State<MonthYearSelector> createState() => _MonthYearSelectorState();
+}
 
-    // Show current month and 2 months before
-    final months = [
-      DateTime(currentYear, currentMonth - 2),
-      DateTime(currentYear, currentMonth - 1),
-      DateTime(currentYear, currentMonth),
-    ];
+class _MonthYearSelectorState extends State<MonthYearSelector> {
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentMonth = widget.selectedDate.month;
+    final currentYear = widget.selectedDate.year;
+
+    // Generate all 12 months for the selected year
+    final months = List.generate(
+      12,
+      (index) => DateTime(currentYear, index + 1),
+    );
 
     return Row(
       children: [
-        // Month tabs
+        // Horizontally scrollable month tabs
         Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: months.map((month) {
-              final isSelected = month.month == currentMonth && month.year == currentYear;
-              return Padding(
-                padding: const EdgeInsets.only(right: gapSmall),
-                child: _MonthTab(
-                  month: month,
-                  isSelected: isSelected,
-                  onTap: () => onDateChanged(month),
-                ),
-              );
-            }).toList(),
+          child: SizedBox(
+            height: 44,
+            child: ListView.builder(
+              key: PageStorageKey<String>('month_selector_$currentYear'),
+              scrollDirection: Axis.horizontal,
+              physics: const ClampingScrollPhysics(),
+              itemCount: months.length,
+              itemBuilder: (context, index) {
+                final month = months[index];
+                final isSelected = month.month == currentMonth;
+                return Padding(
+                  padding: EdgeInsets.only(
+                    right: index < months.length - 1 ? gapSmall : 0,
+                  ),
+                  child: _MonthTab(
+                    month: month,
+                    isSelected: isSelected,
+                    onTap: () => widget.onDateChanged(month),
+                  ),
+                );
+              },
+            ),
           ),
         ),
+
+        const SizedBox(width: gapMedium),
 
         // Year dropdown
         _YearDropdown(
           selectedYear: currentYear,
           onYearChanged: (year) {
             final newDate = DateTime(year, currentMonth);
-            onDateChanged(newDate);
+            widget.onDateChanged(newDate);
           },
         ),
       ],
@@ -125,8 +145,8 @@ class _YearDropdown extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: paddingMedium,
-        vertical: paddingSmall,
+        horizontal: paddingSmall,
+        vertical: paddingXSmall,
       ),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF3E0),
@@ -138,8 +158,9 @@ class _YearDropdown extends StatelessWidget {
         icon: const Icon(
           Icons.keyboard_arrow_down,
           color: Color(0xFFFFA726),
-          size: 20,
+          size: 18,
         ),
+        isDense: true,
         style: app_typography.bodyMedium.copyWith(
           fontWeight: FontWeight.w600,
           color: const Color(0xFFFFA726),

@@ -104,7 +104,7 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
                                 value: '${_holidays.length}',
                                 icon: Icons.celebration,
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                  colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -117,7 +117,7 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
                                 value: '${upcomingHolidays.length}',
                                 icon: Icons.event,
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
+                                  colors: [Color(0xFF66BB6A), Color(0xFF81C784)],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -266,14 +266,14 @@ class _NextHolidayBanner extends StatelessWidget {
       padding: const EdgeInsets.all(paddingLarge),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
+          colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(radiusLarge * 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4facfe).withOpacity(0.3),
+            color: const Color(0xFF4CAF50).withOpacity(0.3),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -344,14 +344,14 @@ class _NextHolidayBanner extends StatelessWidget {
                     '$daysUntil',
                     style: app_typography.headingLarge.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF4facfe),
+                      color: const Color(0xFF4CAF50),
                       fontSize: 28,
                     ),
                   ),
                   Text(
                     daysUntil == 1 ? 'day' : 'days',
                     style: app_typography.labelSmall.copyWith(
-                      color: const Color(0xFF4facfe),
+                      color: const Color(0xFF4CAF50),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
