@@ -20,7 +20,9 @@ import {
   Clock,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  LogOut,
+  CalendarOff
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +45,8 @@ interface FilterBarProps {
     onTime: number;
     late: number;
     missed: number;
+    earlyLeave: number;
+    onLeave: number;
   };
 }
 
@@ -106,7 +110,7 @@ export function FilterBar({
     <div className="space-y-4">
       {/* Summary Stats - Check Status */}
       {summary && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
             <div className="flex items-center justify-between">
               <span className="text-xs text-green-600">On-Time</span>
@@ -120,6 +124,20 @@ export function FilterBar({
               <Clock className="h-4 w-4 text-yellow-600" />
             </div>
             <p className="text-2xl font-bold text-yellow-700 mt-1">{summary.late}</p>
+          </div>
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-orange-600">Early Leave</span>
+              <LogOut className="h-4 w-4 text-orange-600" />
+            </div>
+            <p className="text-2xl font-bold text-orange-700 mt-1">{summary.earlyLeave}</p>
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-blue-600">On Leave</span>
+              <CalendarOff className="h-4 w-4 text-blue-600" />
+            </div>
+            <p className="text-2xl font-bold text-blue-700 mt-1">{summary.onLeave}</p>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
             <div className="flex items-center justify-between">

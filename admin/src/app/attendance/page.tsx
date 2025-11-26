@@ -139,10 +139,18 @@ export default function AttendancePage() {
     const stats = {
       onTime: 0,
       late: 0,
-      missed: 0
+      missed: 0,
+      earlyLeave: 0,
+      onLeave: 0
     };
 
     transformedRecords.forEach((record) => {
+      // Count on leave separately
+      if (record.status === "on_leave") {
+        stats.onLeave++;
+        return;
+      }
+
       // Count based on check-in status
       if (record.checks.checkIn.status === "on_time") {
         stats.onTime++;
@@ -150,6 +158,11 @@ export default function AttendancePage() {
         stats.late++;
       } else if (!record.checks.checkIn.time) {
         stats.missed++;
+      }
+
+      // Count early leave based on checkout status
+      if (record.checks.checkOut?.status === "early") {
+        stats.earlyLeave++;
       }
     });
 
