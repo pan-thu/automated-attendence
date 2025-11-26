@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
 import 'spacing.dart';
 import 'styles.dart';
@@ -26,7 +27,7 @@ ThemeData get lightTheme => ThemeData(
       scaffoldBackgroundColor: backgroundSecondary,
 
       // AppBar
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: backgroundPrimary,
         foregroundColor: textPrimary,
         elevation: 0,
@@ -86,8 +87,8 @@ ThemeData get lightTheme => ThemeData(
         style: textButtonStyle,
       ),
 
-      // Text Theme
-      textTheme: const TextTheme(
+      // Text Theme - Using Poppins font
+      textTheme: GoogleFonts.poppinsTextTheme().copyWith(
         displayLarge: app_typography.displayLarge,
         headlineLarge: app_typography.headingLarge,
         headlineMedium: app_typography.headingMedium,

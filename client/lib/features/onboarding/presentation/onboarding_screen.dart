@@ -106,13 +106,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     : const Icon(Icons.check_circle),
                 label: const Text('Finish Setup'),
               ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () {
-                  session.markOnboardingComplete();
-                },
-                child: const Text('Skip for now'),
-              ),
               const SizedBox(height: 8),
             ],
           ),

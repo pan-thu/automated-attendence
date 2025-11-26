@@ -110,8 +110,6 @@ class _HeaderRow extends StatelessWidget {
             ),
           ),
 
-          // Menu button space
-          const SizedBox(width: 40),
         ],
       ),
     );
@@ -226,18 +224,6 @@ class _AttendanceRow extends StatelessWidget {
                 );
               }).toList(),
             ),
-          ),
-
-          // Menu button
-          IconButton(
-            icon: Icon(
-              Icons.more_vert,
-              color: textSecondary,
-              size: 20,
-            ),
-            onPressed: onTap,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
           ),
         ],
       ),
