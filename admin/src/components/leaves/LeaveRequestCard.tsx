@@ -20,7 +20,7 @@ import {
   Building,
   Mail
 } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface LeaveRequest {
@@ -41,7 +41,6 @@ interface LeaveRequest {
   reviewedBy?: string;
   reviewedAt?: Date;
   reviewerNotes?: string;
-  leaveBalance?: { used: number; total: number };
 }
 
 interface LeaveRequestCardProps {
@@ -85,9 +84,6 @@ export function LeaveRequestCard({
   const StatusIcon = statusInfo.icon;
   const LeaveIcon = leaveConfig.icon;
 
-  const daysFromNow = differenceInDays(request.startDate, new Date());
-  const isUrgent = daysFromNow <= 2 && daysFromNow >= 0 && request.status === "pending";
-
   const handleApprove = () => {
     if (onApprove) {
       onApprove(request.id, reviewNotes);
@@ -103,15 +99,12 @@ export function LeaveRequestCard({
   };
 
   return (
-    <Card className={cn(
-      "transition-all hover:shadow-md",
-      isUrgent && "border-orange-400 border-2"
-    )}>
+    <Card className="transition-all hover:shadow-md">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-2">
           {/* Employee Info */}
-          <div className="flex items-start gap-3">
-            <Avatar className="h-10 w-10">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <Avatar className="h-10 w-10 flex-shrink-0">
               <AvatarImage
                 src={request.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.userName)}&background=random`}
                 alt={request.userName}
@@ -120,16 +113,16 @@ export function LeaveRequestCard({
                 {request.userName.split(" ").map(n => n[0]).join("").toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <p className="font-medium">{request.userName}</p>
+            <div className="min-w-0">
+              <p className="font-medium truncate">{request.userName}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Mail className="h-3 w-3" />
-                <span>{request.userEmail}</span>
+                <Mail className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{request.userEmail}</span>
                 {request.department && (
                   <>
-                    <span>•</span>
-                    <Building className="h-3 w-3" />
-                    <span>{request.department}</span>
+                    <span className="flex-shrink-0">•</span>
+                    <Building className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{request.department}</span>
                   </>
                 )}
               </div>
@@ -137,17 +130,10 @@ export function LeaveRequestCard({
           </div>
 
           {/* Status Badge */}
-          <div className="flex items-center gap-2">
-            {isUrgent && (
-              <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200">
-                Urgent
-              </Badge>
-            )}
-            <Badge variant="outline" className={cn("gap-1", statusInfo.color)}>
-              <StatusIcon className="h-3 w-3" />
-              {statusInfo.label}
-            </Badge>
-          </div>
+          <Badge variant="outline" className={cn("gap-1 flex-shrink-0", statusInfo.color)}>
+            <StatusIcon className="h-3 w-3" />
+            {statusInfo.label}
+          </Badge>
         </div>
       </CardHeader>
 
@@ -181,16 +167,6 @@ export function LeaveRequestCard({
             <Paperclip className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
               {request.attachments.length} attachment{request.attachments.length > 1 ? 's' : ''}
-            </span>
-          </div>
-        )}
-
-        {/* Leave Balance */}
-        {request.leaveBalance && (
-          <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-            <span className="text-xs text-muted-foreground">Leave Balance After Approval</span>
-            <span className="text-sm font-medium">
-              {request.leaveBalance.total - request.leaveBalance.used - request.totalDays} / {request.leaveBalance.total} days
             </span>
           </div>
         )}

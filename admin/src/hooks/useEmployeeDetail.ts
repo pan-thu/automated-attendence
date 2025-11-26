@@ -24,6 +24,19 @@ const parseDate = (value: unknown): Date | null => {
 };
 
 const parseLeaveBalances = (payload: Record<string, unknown>): Record<string, number> => {
+  // First check for nested leaveBalances object
+  const nestedBalances = payload.leaveBalances as Record<string, number> | undefined;
+  if (nestedBalances && typeof nestedBalances === 'object') {
+    const balances: Record<string, number> = {};
+    for (const [key, value] of Object.entries(nestedBalances)) {
+      if (typeof value === 'number') {
+        balances[key] = value;
+      }
+    }
+    return balances;
+  }
+
+  // Fallback: look for top-level balance fields
   const balances: Record<string, number> = {};
   for (const [key, value] of Object.entries(payload)) {
     if ((key.endsWith("Balance") || key.startsWith("leave")) && typeof value === "number") {

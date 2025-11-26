@@ -788,9 +788,10 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
       ),
       content: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // Current password
             TextFormField(
               controller: _currentPasswordController,
@@ -912,7 +913,8 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
                 return null;
               },
             ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [

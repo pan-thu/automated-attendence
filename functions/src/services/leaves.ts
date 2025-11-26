@@ -77,6 +77,7 @@ const leaveTypeFieldMap: Record<string, string> = {
   full: 'fullLeaveBalance',
   half: 'halfLeaveBalance',
   medical: 'medicalLeaveBalance',
+  sick: 'medicalLeaveBalance', // sick maps to medical leave balance
   maternity: 'maternityLeaveBalance',
 };
 
@@ -421,7 +422,14 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
   const balanceField = leaveTypeFieldMap[leaveTypeLower];
 
   if (balanceField) {
-    const currentBalance = (userSnap.get(balanceField) as number) ?? 0;
+    // Get leave balances from user document
+    const leaveBalances = (userSnap.get('leaveBalances') as Record<string, number> | undefined) ?? {};
+
+    // Find the balance with case-insensitive matching
+    const balanceKey = Object.keys(leaveBalances).find(
+      (key) => key.toLowerCase() === balanceField.toLowerCase()
+    );
+    const currentBalance = balanceKey ? (leaveBalances[balanceKey] ?? 0) : 0;
 
     if (totalDays > currentBalance) {
       throw new functions.https.HttpsError(

@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { v4 as uuidv4 } from 'uuid';
 import { admin } from '../firebase';
 import { firestore } from '../utils/firestore';
 import { DEFAULT_LEAVE_KEYS } from './users';
@@ -8,7 +9,7 @@ import { authLogger } from '../utils/logger';
 const USERS_COLLECTION = 'USERS';
 const PROFILE_PHOTOS_COLLECTION = 'PROFILE_PHOTOS';
 const DEFAULT_ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const DEFAULT_PHOTO_SIZE_MB = 5;
+const DEFAULT_PHOTO_SIZE_MB = 10;
 const SIGNED_URL_TTL_SECONDS = 5 * 60; // 5 minutes
 const PHOTO_REGISTRATION_WINDOW_MINUTES = 15;
 
@@ -322,23 +323,31 @@ export const registerProfilePhoto = async (
 ): Promise<RegisterProfilePhotoResult> => {
   const { userId, photoId } = input;
 
-  // Use a transaction to prevent race conditions
-  return await firestore.runTransaction(async (transaction) => {
-    const photoDoc = await transaction.get(profilePhotosCollection.doc(photoId));
+  // Fetch photo document
+  const photoDoc = await profilePhotosCollection.doc(photoId).get();
 
-    if (!photoDoc.exists) {
-      throw new functions.https.HttpsError('not-found', 'Photo record not found.');
-    }
+  if (!photoDoc.exists) {
+    throw new functions.https.HttpsError('not-found', 'Photo record not found.');
+  }
 
-    const photo = photoDoc.data() ?? {};
+  const photo = photoDoc.data() ?? {};
 
-    if (photo.userId !== userId) {
-      throw new functions.https.HttpsError('permission-denied', 'Photo does not belong to this user.');
-    }
+  if (photo.userId !== userId) {
+    throw new functions.https.HttpsError('permission-denied', 'Photo does not belong to this user.');
+  }
 
-    if (photo.status !== 'pending') {
-      throw new functions.https.HttpsError('failed-precondition', 'Photo is already finalized.');
-    }
+  // Handle already-finalized photos (idempotency for retries)
+  if (photo.status === 'active' || photo.status === 'ready') {
+    authLogger.info('[registerProfilePhoto] Photo already finalized, returning existing URL');
+    return {
+      photoId,
+      photoURL: photo.publicUrl,
+    };
+  }
+
+  if (photo.status !== 'pending') {
+    throw new functions.https.HttpsError('failed-precondition', `Photo cannot be registered (status: ${photo.status}).`);
+  }
 
   if (photo.uploadUrlExpiresAt && photo.uploadUrlExpiresAt.toMillis() < Date.now()) {
     await profilePhotosCollection.doc(photoId).update({
@@ -357,15 +366,23 @@ export const registerProfilePhoto = async (
   }
 
   const bucketName = photo.bucket ?? admin.storage().bucket().name;
+  authLogger.info(`[registerProfilePhoto] Using bucket: ${bucketName}, path: ${photo.storagePath}`);
+
   const bucket = admin.storage().bucket(bucketName);
   const file = bucket.file(photo.storagePath);
+
+  authLogger.info('[registerProfilePhoto] Checking if file exists...');
   const [exists] = await file.exists();
+  authLogger.info(`[registerProfilePhoto] File exists: ${exists}`);
 
   if (!exists) {
     throw new functions.https.HttpsError('not-found', 'Uploaded photo not found.');
   }
 
+  authLogger.info('[registerProfilePhoto] Getting file metadata...');
   const [metadata] = await file.getMetadata();
+  authLogger.info('[registerProfilePhoto] Got metadata');
+
   const actualSize = Number(metadata.size ?? 0);
   if (!Number.isFinite(actualSize) || actualSize <= 0) {
     throw new functions.https.HttpsError('failed-precondition', 'Photo size could not be determined.');
@@ -391,7 +408,10 @@ export const registerProfilePhoto = async (
 
   // Validate image magic bytes
   try {
+    authLogger.info('[registerProfilePhoto] Downloading magic bytes...');
     const [buffer] = await file.download({ start: 0, end: 4 });
+    authLogger.info('[registerProfilePhoto] Downloaded magic bytes');
+
     const isValidImage = validateImageMagicBytes(buffer, contentType);
 
     if (!isValidImage) {
@@ -407,42 +427,51 @@ export const registerProfilePhoto = async (
     throw new functions.https.HttpsError('internal', 'Failed to validate file content.');
   }
 
-  // Make the file publicly readable
-  await file.makePublic();
+  // Generate a download token and set it as metadata
+  authLogger.info('[registerProfilePhoto] Setting download token metadata...');
+  const downloadToken = uuidv4();
+  await file.setMetadata({
+    metadata: {
+      firebaseStorageDownloadTokens: downloadToken,
+    },
+  });
+  authLogger.info('[registerProfilePhoto] Set metadata successfully');
 
-  // Get the public URL
-  const publicUrl = `https://storage.googleapis.com/${bucket.name}/${photo.storagePath}`;
+  // Construct the Firebase Storage download URL
+  const encodedPath = encodeURIComponent(photo.storagePath);
+  const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${downloadToken}`;
 
-  // Update photo record
-  await profilePhotosCollection.doc(photoId).update({
-    status: 'ready',
+  // Update user's photoURL in Firebase Auth
+  authLogger.info('[registerProfilePhoto] Updating Firebase Auth user...');
+  await admin.auth().updateUser(userId, {
+    photoURL: publicUrl,
+  });
+  authLogger.info('[registerProfilePhoto] Firebase Auth user updated');
+
+  // Mark previous photos as inactive and update all records in a single batch
+  authLogger.info('[registerProfilePhoto] Querying previous active photos...');
+  const previousPhotos = await profilePhotosCollection
+    .where('userId', '==', userId)
+    .where('status', '==', 'active')
+    .get();
+  authLogger.info(`[registerProfilePhoto] Found ${previousPhotos.docs.length} previous photos`);
+
+  const batch = firestore.batch();
+
+  // Mark previous photos as inactive
+  previousPhotos.docs.forEach((doc) => {
+    batch.update(doc.ref, { status: 'inactive', updatedAt: FieldValue.serverTimestamp() });
+  });
+
+  // Mark this photo as active with all metadata
+  batch.update(profilePhotosCollection.doc(photoId), {
+    status: 'active',
     sizeBytes: actualSize,
     mimeType: normalizeMimeType(contentType),
     publicUrl,
     validatedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
     readyAt: FieldValue.serverTimestamp(),
-  });
-
-  // Update user's photoURL in Firebase Auth
-  await admin.auth().updateUser(userId, {
-    photoURL: publicUrl,
-  });
-
-  // Mark previous photos as inactive
-  const previousPhotos = await profilePhotosCollection
-    .where('userId', '==', userId)
-    .where('status', '==', 'active')
-    .get();
-
-  const batch = firestore.batch();
-  previousPhotos.docs.forEach((doc) => {
-    batch.update(doc.ref, { status: 'inactive', updatedAt: FieldValue.serverTimestamp() });
-  });
-
-  // Mark this photo as active
-  batch.update(profilePhotosCollection.doc(photoId), {
-    status: 'active',
     activatedAt: FieldValue.serverTimestamp(),
   });
 
@@ -452,13 +481,14 @@ export const registerProfilePhoto = async (
     updatedAt: FieldValue.serverTimestamp(),
   });
 
+  authLogger.info('[registerProfilePhoto] Committing batch...');
   await batch.commit();
+  authLogger.info('[registerProfilePhoto] Batch committed, returning result');
 
-    return {
-      photoId,
-      photoURL: publicUrl,
-    };
-  });
+  return {
+    photoId,
+    photoURL: publicUrl,
+  };
 };
 
 export const updateOwnPassword = async (userId: string, email: string, input: UpdatePasswordInput): Promise<void> => {

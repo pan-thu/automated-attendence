@@ -84,9 +84,9 @@ export function AttendanceTable({ records, loading = false }: AttendanceTablePro
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Recent Attendance Checks</CardTitle>
+          <CardTitle>Today's Check-ins</CardTitle>
           <CardDescription>
-            Live feed of employee check-ins and attendance status
+            Real-time check-ins for today
           </CardDescription>
         </div>
         <Link href="/attendance">
@@ -103,8 +103,8 @@ export function AttendanceTable({ records, loading = false }: AttendanceTablePro
         ) : sortedRecords.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <MinusCircle className="mb-3 h-12 w-12 text-gray-400" />
-            <p className="text-sm font-medium">No check-ins yet</p>
-            <p className="text-xs text-muted-foreground">Attendance records will appear here</p>
+            <p className="text-sm font-medium">No check-ins today</p>
+            <p className="text-xs text-muted-foreground">Check-ins will appear here as employees clock in</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

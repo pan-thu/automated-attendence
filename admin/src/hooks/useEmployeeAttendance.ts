@@ -34,10 +34,34 @@ interface TodayAttendance {
     status: "on_time" | "late" | "early_leave" | "missed" | "pending";
     location?: { latitude: number; longitude: number };
   };
-  overallStatus?: "present" | "absent" | "half-absent" | "late" | "early-leave" | "on-leave" | "weekend";
+  overallStatus?: "present" | "absent" | "half_day" | "on_leave" | "weekend";
   workingHours?: number;
   requiredHours?: number;
 }
+
+// Map Firebase status to UI-compatible overall status
+const mapOverallStatus = (status: string | null | undefined): "present" | "absent" | "half_day" | "on_leave" | "weekend" | undefined => {
+  if (!status) return undefined;
+  switch (status) {
+    case "present":
+    case "in_progress": // Treat in_progress as present (working day)
+      return "present";
+    case "absent":
+      return "absent";
+    case "half_day":
+    case "half_day_absent":
+    case "half-absent":
+      return "half_day";
+    case "on_leave":
+    case "on-leave":
+      return "on_leave";
+    case "weekend":
+      return "weekend";
+    default:
+      // For late, early_leave etc., they were still present
+      return "present";
+  }
+};
 
 const parseTimestamp = (value: unknown): Date | null => {
   if (!value) return null;
@@ -133,7 +157,7 @@ export function useEmployeeAttendance(employeeId: string, monthStart?: Date, mon
           time: formatTime(todayRecord.check3Timestamp),
           status: mapCheckStatus(todayRecord.check3Status),
         },
-        overallStatus: todayRecord.status || "present",
+        overallStatus: mapOverallStatus(todayRecord.status),
       });
     } else {
       setTodayAttendance(null);

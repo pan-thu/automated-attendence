@@ -135,6 +135,14 @@ export const getDashboardStats = async (input: DashboardStatsInput) => {
   const start = toTimestamp(`${date}T00:00:00Z`);
   const end = toTimestamp(`${date}T23:59:59Z`);
 
+  // Query total active employees
+  const usersSnap = await firestore
+    .collection(USERS_COLLECTION)
+    .where('isActive', '==', true)
+    .get();
+
+  const totalEmployees = usersSnap.size;
+
   const attendanceSnap = await firestore
     .collection(ATTENDANCE_COLLECTION)
     .where('attendanceDate', '>=', start)
@@ -150,12 +158,14 @@ export const getDashboardStats = async (input: DashboardStatsInput) => {
     const status = (doc.get('status') as string | undefined)?.toLowerCase();
     switch (status) {
       case 'present':
+      case 'in_progress':
         totalPresent += 1;
         break;
       case 'absent':
         totalAbsent += 1;
         break;
       case 'half_day_absent':
+      case 'half_day':
         totalHalfDay += 1;
         break;
       case 'on_leave':
@@ -171,7 +181,14 @@ export const getDashboardStats = async (input: DashboardStatsInput) => {
     .where('status', '==', 'pending')
     .get();
 
+  // Count active violations/penalties
+  const penaltiesSnap = await firestore
+    .collection('PENALTIES')
+    .where('status', '==', 'active')
+    .get();
+
   return {
+    totalEmployees,
     attendance: {
       present: totalPresent,
       absent: totalAbsent,
@@ -180,6 +197,7 @@ export const getDashboardStats = async (input: DashboardStatsInput) => {
       total: attendanceSnap.size,
     },
     pendingLeaves: leaveSnap.size,
+    activeViolations: penaltiesSnap.size,
   };
 };
 

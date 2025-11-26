@@ -127,17 +127,26 @@ export function isWeekend(date: Date): boolean {
 /**
  * Check if a date is a company holiday.
  * Bug Fix #19: Validate clock-ins against company holidays.
+ * Reads holidays from COMPANY_SETTINGS.main.holidays array (format: "YYYY-MM-DD Name")
  */
 export async function isCompanyHoliday(date: Date): Promise<boolean> {
   const db = admin.firestore();
   const { getCompanyTimezoneDateKey } = await import('./timezoneUtils');
 
-  // Format date as YYYY-MM-DD in company timezone for document ID
+  // Format date as YYYY-MM-DD in company timezone
   const dateString = await getCompanyTimezoneDateKey(date);
 
-  const holidayDoc = await db.collection('COMPANY_HOLIDAYS').doc(dateString).get();
+  // Read holidays from company settings
+  const settingsDoc = await db.collection('COMPANY_SETTINGS').doc('main').get();
+  if (!settingsDoc.exists) {
+    return false;
+  }
 
-  return holidayDoc.exists;
+  const data = settingsDoc.data();
+  const holidays = (data?.holidays as string[] | undefined) ?? [];
+
+  // Check if any holiday matches the date (format: "YYYY-MM-DD Name")
+  return holidays.some((holiday) => holiday.startsWith(dateString));
 }
 
 /**

@@ -31,6 +31,7 @@ import { updateCompanySettings as updateCompanySettingsService } from './service
 import {
   waivePenalty as waivePenaltyService,
   calculateMonthlyViolations as calculateMonthlyViolationsService,
+  calculateDailyViolations as calculateDailyViolationsService,
   listEmployeePenalties as listEmployeePenaltiesService,
   acknowledgePenalty as acknowledgePenaltyService,
   getPenaltySummary as getPenaltySummaryService,
@@ -49,10 +50,7 @@ import {
   markNotificationAsRead as markNotificationAsReadService,
   markAllNotificationsAsRead as markAllNotificationsAsReadService,
 } from './services/notifications';
-import {
-  getHolidays as getHolidaysService,
-  createHoliday as createHolidayService,
-} from './services/holidays';
+import { getHolidays as getHolidaysService } from './services/holidays';
 import { registerDeviceToken as registerDeviceTokenService } from './services/deviceTokens';
 import { handleClockIn as handleClockInService } from './services/clockInUtils';
 import {
@@ -839,38 +837,6 @@ export const getHolidays = onCall(
   }, 'getHolidays')
 );
 
-export const createHoliday = onCall(
-  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
-    assertAdminV2(request);
-    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
-    const userId = requireAuthUidV2(request);
-
-    const name = assertString(payload.name, 'name', { min: 1, max: 200 });
-    const date = assertString(payload.date, 'date'); // ISO 8601 format
-    const type = payload.type ? assertString(payload.type, 'type') : undefined;
-    const description = payload.description ? assertString(payload.description, 'description', { max: 500 }) : undefined;
-    const companyId = payload.companyId as string | undefined;
-
-    const holidayId = await createHolidayService({
-      name,
-      date,
-      type,
-      description,
-      companyId,
-    });
-
-    await recordAuditLog({
-      action: 'create_holiday',
-      resource: 'HOLIDAYS',
-      resourceId: holidayId,
-      status: 'success',
-      performedBy: userId,
-      metadata: { name, date, type: type ?? null },
-    });
-
-    return { id: holidayId };
-  }, 'createHoliday', { rateLimit: RATE_LIMITS.WRITE })
-);
 
 export const submitLeaveRequest = onCall(
   wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
@@ -1214,11 +1180,77 @@ export const scheduledPenaltyAutomation = onSchedule(
       return; // Not the 1st of the month in company timezone
     }
 
-    // Get the month string in company timezone
-    const month = await formatInCompanyTimezone(now, 'yyyy-MM');
+    // Calculate penalties for the PREVIOUS month (not current month)
+    // On Jan 1st, we calculate December's penalties
+    const previousMonth = new Date(companyDate);
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+
+    // Get the previous month string in company timezone
+    const month = await formatInCompanyTimezone(previousMonth, 'yyyy-MM');
 
     await calculateMonthlyViolationsService({ month });
   }
+);
+
+/**
+ * Daily penalty calculation - runs after all check windows close
+ * Creates penalties immediately for each violation (late, early_leave, absent, half_day_absent)
+ */
+export const scheduledDailyPenaltyCalculation = onSchedule(
+  {
+    // Run at 11 PM UTC daily - adjust based on company timezone
+    // This should run after all check-out windows have closed
+    schedule: '0 23 * * *',
+    timeZone: 'UTC',
+  },
+  async () => {
+    const now = new Date();
+
+    // Import timezone utilities
+    const { convertToCompanyTimezone, formatInCompanyTimezone } = await import('./utils/timezoneUtils');
+    const { isWeekend } = await import('./utils/dateUtils');
+
+    // Get today's date in company timezone
+    const companyDate = await convertToCompanyTimezone(now);
+
+    // Skip weekends
+    if (isWeekend(companyDate)) {
+      return;
+    }
+
+    // Get today's date string
+    const dateKey = await formatInCompanyTimezone(companyDate, 'yyyy-MM-dd');
+
+    // Calculate daily penalties
+    await calculateDailyViolationsService({ date: dateKey });
+  }
+);
+
+/**
+ * Manual trigger for daily penalty calculation (admin only)
+ */
+export const calculateDailyViolations = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAdminV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data);
+    const date = assertString(payload.date, 'date');
+
+    const result = await calculateDailyViolationsService({
+      date,
+      userId: payload.userId as string | undefined,
+    });
+
+    await recordAuditLog({
+      action: 'calculate_daily_violations',
+      resource: 'PENALTIES',
+      resourceId: date,
+      status: 'success',
+      performedBy: requireAuthUidV2(request),
+      metadata: { result },
+    });
+
+    return result;
+  }, 'calculateDailyViolations')
 );
 
 export const scheduledDailyClockInReminder = onSchedule(
@@ -1244,6 +1276,12 @@ export const scheduledDailyClockInReminder = onSchedule(
 
     // Get date key in company timezone
     const dateKey = await getCompanyTimezoneDateKey(runDate);
+
+    // Skip reminders on holidays
+    const { isCompanyHoliday } = await import('./utils/dateUtils');
+    if (await isCompanyHoliday(runDate)) {
+      return;
+    }
 
     const targets = await getEmployeesNeedingClockInReminder(dateKey, slot);
     if (targets.length === 0) {

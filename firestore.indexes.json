@@ -21,6 +21,14 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "LEAVE_REQUESTS",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "startDate", "order": "DESCENDING" }
       ]
@@ -126,6 +134,14 @@
       ]
     },
     {
+      "collectionGroup": "LEAVE_REQUESTS",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "PENALTIES",
       "queryScope": "COLLECTION",
       "fields": [
@@ -153,11 +169,22 @@
       ]
     },
     {
-      "collectionGroup": "HOLIDAYS",
+      "collectionGroup": "PENALTIES",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "year", "order": "ASCENDING" },
-        { "fieldPath": "date", "order": "ASCENDING" }
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "dateKey", "order": "ASCENDING" },
+        { "fieldPath": "violationType", "order": "ASCENDING" },
+        { "fieldPath": "violationField", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "PENALTIES",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "violationType", "order": "ASCENDING" },
+        { "fieldPath": "dateIncurred", "order": "ASCENDING" }
       ]
     }
   ],

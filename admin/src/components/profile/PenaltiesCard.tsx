@@ -25,12 +25,18 @@ interface Penalty {
   reason: string;
   violationDate: Date;
   issuedDate: Date;
-  status: "pending" | "acknowledged" | "waived" | "paid";
-  violationType: "absent" | "half-absent" | "late" | "early-leave";
+  status: "pending" | "acknowledged" | "waived" | "paid" | "active";
+  violationType: "absent" | "half_day_absent" | "half-absent" | "late" | "early_leave" | "early-leave";
   acknowledgedAt?: Date;
   waivedAt?: Date;
   waivedBy?: string;
   waivedReason?: string;
+  // New daily penalty fields
+  isWarning?: boolean;
+  violationCount?: number;
+  threshold?: number;
+  dateKey?: string;
+  violationField?: string;
 }
 
 interface PenaltiesCardProps {
@@ -40,11 +46,16 @@ interface PenaltiesCardProps {
   onWaivePenalty?: (penaltyId: string) => void;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   pending: {
     label: "Pending",
     color: "bg-yellow-100 text-yellow-700 border-yellow-200",
     icon: Clock
+  },
+  active: {
+    label: "Active",
+    color: "bg-red-100 text-red-700 border-red-200",
+    icon: AlertTriangle
   },
   acknowledged: {
     label: "Acknowledged",
@@ -63,10 +74,14 @@ const statusConfig = {
   }
 };
 
-const violationTypeConfig = {
+const violationTypeConfig: Record<string, { label: string; color: string }> = {
   absent: {
     label: "Absent",
     color: "text-red-600"
+  },
+  half_day_absent: {
+    label: "Half-Day Absent",
+    color: "text-orange-600"
   },
   "half-absent": {
     label: "Half-Absent",
@@ -75,6 +90,10 @@ const violationTypeConfig = {
   late: {
     label: "Late",
     color: "text-yellow-600"
+  },
+  early_leave: {
+    label: "Early Leave",
+    color: "text-amber-600"
   },
   "early-leave": {
     label: "Early Leave",
@@ -90,14 +109,17 @@ export function PenaltiesCard({
 }: PenaltiesCardProps) {
   const [expandedPenalty, setExpandedPenalty] = useState<string | null>(null);
 
-  const pendingPenalties = penalties.filter(p => p.status === "pending");
-  const totalPending = pendingPenalties.reduce((sum, p) => sum + p.amount, 0);
-  const totalPenalties = penalties.reduce((sum, p) => sum + p.amount, 0);
+  // Separate warnings from actual fines
+  const warnings = penalties.filter(p => p.isWarning === true);
+  const actualFines = penalties.filter(p => p.isWarning !== true);
+
+  const activePenalties = actualFines.filter(p => p.status === "pending" || p.status === "active");
+  const totalActive = activePenalties.reduce((sum, p) => sum + p.amount, 0);
   const waivedPenalties = penalties.filter(p => p.status === "waived");
   const totalWaived = waivedPenalties.reduce((sum, p) => sum + p.amount, 0);
 
-  // Get recent penalties (last 3)
-  const recentPenalties = penalties.slice(0, 3);
+  // Get recent penalties (last 5)
+  const recentPenalties = penalties.slice(0, 5);
 
   return (
     <Card>
@@ -131,17 +153,21 @@ export function PenaltiesCard({
         ) : (
           <>
             {/* Summary Stats */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold text-primary">{penalties.length}</p>
+            <div className="grid grid-cols-4 gap-2">
+              <div className="text-center p-2 rounded-lg bg-muted/50">
+                <p className="text-xl font-bold text-primary">{penalties.length}</p>
                 <p className="text-xs text-muted-foreground">Total</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                <p className="text-2xl font-bold text-yellow-700">${totalPending}</p>
-                <p className="text-xs text-yellow-600">Pending</p>
+              <div className="text-center p-2 rounded-lg bg-orange-50 border border-orange-200">
+                <p className="text-xl font-bold text-orange-700">{warnings.length}</p>
+                <p className="text-xs text-orange-600">Warnings</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-green-50 border border-green-200">
-                <p className="text-2xl font-bold text-green-700">${totalWaived}</p>
+              <div className="text-center p-2 rounded-lg bg-red-50 border border-red-200">
+                <p className="text-xl font-bold text-red-700">${totalActive}</p>
+                <p className="text-xs text-red-600">Active Fines</p>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-green-50 border border-green-200">
+                <p className="text-xl font-bold text-green-700">${totalWaived}</p>
                 <p className="text-xs text-green-600">Waived</p>
               </div>
             </div>
@@ -151,15 +177,17 @@ export function PenaltiesCard({
               <h4 className="text-sm font-medium text-muted-foreground">Recent Penalties</h4>
               {recentPenalties.map((penalty) => {
                 const isExpanded = expandedPenalty === penalty.id;
-                const StatusIcon = statusConfig[penalty.status].icon;
-                const violationConfig = violationTypeConfig[penalty.violationType];
+                const statusCfg = statusConfig[penalty.status] || statusConfig.pending;
+                const StatusIcon = statusCfg.icon;
+                const violationConfig = violationTypeConfig[penalty.violationType] || { label: penalty.violationType, color: "text-gray-600" };
 
                 return (
                   <div
                     key={penalty.id}
                     className={cn(
                       "rounded-lg border p-3 transition-all",
-                      penalty.status === "pending" && "border-yellow-200 bg-yellow-50/50",
+                      penalty.isWarning && "border-orange-200 bg-orange-50/50",
+                      !penalty.isWarning && (penalty.status === "pending" || penalty.status === "active") && "border-red-200 bg-red-50/50",
                       penalty.status === "waived" && "border-green-200 bg-green-50/50",
                       isExpanded && "shadow-md"
                     )}
@@ -169,15 +197,28 @@ export function PenaltiesCard({
                       onClick={() => setExpandedPenalty(isExpanded ? null : penalty.id)}
                     >
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">${penalty.amount}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {penalty.isWarning ? (
+                            <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-200">
+                              Warning
+                            </Badge>
+                          ) : (
+                            <>
+                              <DollarSign className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">${penalty.amount}</span>
+                            </>
+                          )}
                           <Badge
                             variant="outline"
                             className={cn("text-xs", violationConfig.color)}
                           >
                             {violationConfig.label}
                           </Badge>
+                          {penalty.violationCount && penalty.threshold && (
+                            <span className="text-xs text-muted-foreground">
+                              ({penalty.violationCount}/{penalty.threshold} threshold)
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {format(penalty.violationDate, "MMM dd, yyyy")}
@@ -185,10 +226,10 @@ export function PenaltiesCard({
                       </div>
                       <Badge
                         variant="outline"
-                        className={cn("text-xs", statusConfig[penalty.status].color)}
+                        className={cn("text-xs", statusCfg.color)}
                       >
                         <StatusIcon className="h-3 w-3 mr-1" />
-                        {statusConfig[penalty.status].label}
+                        {statusCfg.label}
                       </Badge>
                     </div>
 
@@ -222,7 +263,7 @@ export function PenaltiesCard({
                             </>
                           )}
                         </div>
-                        {penalty.status === "pending" && onWaivePenalty && (
+                        {(penalty.status === "pending" || penalty.status === "active") && onWaivePenalty && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -249,7 +290,7 @@ export function PenaltiesCard({
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">This Month</span>
                   <div className="flex items-center gap-1">
-                    {pendingPenalties.length > 2 ? (
+                    {activePenalties.length > 2 ? (
                       <>
                         <TrendingUp className="h-3 w-3 text-red-600" />
                         <span className="text-xs text-red-600">

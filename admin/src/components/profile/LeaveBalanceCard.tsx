@@ -8,37 +8,47 @@ import { cn } from "@/lib/utils";
 
 interface LeaveType {
   type: string;
-  used: number;
+  key: string;
+  remaining: number;
   total: number;
+  used: number;
   color: string;
 }
 
 interface LeaveBalanceCardProps {
-  leaveBalances?: Record<string, number>;
-  usedLeaves?: Record<string, number>;
+  leaveBalances?: Record<string, number>;  // Remaining balance per type
+  leavePolicy?: Record<string, number>;    // Original total from company settings
   loading?: boolean;
 }
 
-const leaveTypeConfig: Record<string, { label: string; color: string }> = {
-  full: { label: "Full Leave", color: "bg-blue-500" },
-  medical: { label: "Medical Leave", color: "bg-red-500" },
-  maternity: { label: "Maternity Leave", color: "bg-pink-500" },
-  // Firebase field mappings
-  fullLeaveBalance: { label: "Full Leave", color: "bg-blue-500" },
-  medicalLeaveBalance: { label: "Medical Leave", color: "bg-red-500" },
-  maternityLeaveBalance: { label: "Maternity Leave", color: "bg-pink-500" },
-  // Legacy mappings for backward compatibility
-  annual: { label: "Full Leave", color: "bg-blue-500" },
-  sick: { label: "Medical Leave", color: "bg-red-500" },
-  personal: { label: "Full Leave", color: "bg-blue-500" },
-  paternity: { label: "Maternity Leave", color: "bg-pink-500" },
-  unpaid: { label: "Full Leave", color: "bg-blue-500" },
-  other: { label: "Full Leave", color: "bg-blue-500" }
+const leaveTypeConfig: Record<string, { label: string; color: string; policyKey: string }> = {
+  // Firebase field mappings (employee.leaveBalances keys)
+  fullLeaveBalance: { label: "Full Leave", color: "bg-blue-500", policyKey: "fullLeaveBalance" },
+  medicalLeaveBalance: { label: "Medical Leave", color: "bg-red-500", policyKey: "medicalLeaveBalance" },
+  maternityLeaveBalance: { label: "Maternity Leave", color: "bg-pink-500", policyKey: "maternityLeaveBalance" },
+  // Short form keys
+  full: { label: "Full Leave", color: "bg-blue-500", policyKey: "fullLeaveBalance" },
+  medical: { label: "Medical Leave", color: "bg-red-500", policyKey: "medicalLeaveBalance" },
+  maternity: { label: "Maternity Leave", color: "bg-pink-500", policyKey: "maternityLeaveBalance" },
+};
+
+// Find matching policy value with case-insensitive matching
+const findPolicyValue = (policy: Record<string, number>, key: string): number | null => {
+  // Direct match
+  if (key in policy) return policy[key];
+
+  // Case-insensitive match
+  const lowerKey = key.toLowerCase();
+  for (const [pKey, value] of Object.entries(policy)) {
+    if (pKey.toLowerCase() === lowerKey) return value;
+  }
+
+  return null;
 };
 
 export function LeaveBalanceCard({
   leaveBalances = {},
-  usedLeaves = {},
+  leavePolicy = {},
   loading = false
 }: LeaveBalanceCardProps) {
   // Valid leave types to display
@@ -47,23 +57,31 @@ export function LeaveBalanceCard({
   // Transform leave balances to include used/total, filtering only valid types
   const leaveTypes: LeaveType[] = Object.entries(leaveBalances)
     .filter(([type]) => validLeaveTypes.includes(type))
-    .map(([type, total]) => {
-      const config = leaveTypeConfig[type] || { label: type, color: "bg-gray-500" };
-      // Get actual used leaves from props, default to 0
-      const used = usedLeaves[type] || 0;
+    .map(([type, remaining]) => {
+      const config = leaveTypeConfig[type] || { label: type, color: "bg-gray-500", policyKey: type };
+
+      // Get original total from company policy, fallback to remaining if not found
+      const policyTotal = findPolicyValue(leavePolicy, config.policyKey)
+        ?? findPolicyValue(leavePolicy, type)
+        ?? remaining;
+
+      // Calculate used = original total - remaining
+      const used = Math.max(0, policyTotal - remaining);
 
       return {
         type: config.label,
+        key: type,
+        remaining,
+        total: policyTotal,
         used,
-        total,
         color: config.color
       };
     });
 
-  const totalLeaves = leaveTypes.reduce((acc, leave) => acc + leave.total, 0);
-  const totalUsedLeaves = leaveTypes.reduce((acc, leave) => acc + leave.used, 0);
-  const remainingLeaves = totalLeaves - totalUsedLeaves;
-  const usagePercentage = totalLeaves > 0 ? (totalUsedLeaves / totalLeaves) * 100 : 0;
+  const totalRemaining = leaveTypes.reduce((acc, leave) => acc + leave.remaining, 0);
+  const totalPolicy = leaveTypes.reduce((acc, leave) => acc + leave.total, 0);
+  const totalUsed = leaveTypes.reduce((acc, leave) => acc + leave.used, 0);
+  const usagePercentage = totalPolicy > 0 ? (totalUsed / totalPolicy) * 100 : 0;
 
   return (
     <Card>
@@ -74,7 +92,7 @@ export function LeaveBalanceCard({
             Leave Balance
           </span>
           <Badge variant="secondary" className="font-normal">
-            {remainingLeaves} days remaining
+            {totalRemaining} days remaining
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -93,11 +111,11 @@ export function LeaveBalanceCard({
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Overall Usage</span>
-                <span className="font-medium">{totalUsedLeaves} / {totalLeaves} days</span>
+                <span className="font-medium">{totalUsed} / {totalPolicy} days used</span>
               </div>
               <Progress value={usagePercentage} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                {usagePercentage.toFixed(0)}% of annual leave used
+                {usagePercentage.toFixed(0)}% of total leave used
               </p>
             </div>
 
@@ -105,17 +123,16 @@ export function LeaveBalanceCard({
             <div className="space-y-4">
               {leaveTypes.map((leave) => {
                 const percentage = leave.total > 0 ? (leave.used / leave.total) * 100 : 0;
-                const remaining = leave.total - leave.used;
 
                 return (
-                  <div key={leave.type} className="space-y-2">
+                  <div key={leave.key} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={cn("h-3 w-3 rounded-full", leave.color)} />
                         <span className="text-sm font-medium">{leave.type}</span>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {remaining} left
+                        {leave.remaining} left
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -124,7 +141,7 @@ export function LeaveBalanceCard({
                         className="flex-1 h-1.5"
                         indicatorClassName={leave.color}
                       />
-                      <span className="text-xs font-medium min-w-[40px] text-right">
+                      <span className="text-xs font-medium min-w-[50px] text-right">
                         {leave.used}/{leave.total}
                       </span>
                     </div>
@@ -134,12 +151,12 @@ export function LeaveBalanceCard({
             </div>
 
             {/* Warning if low balance */}
-            {remainingLeaves < 5 && remainingLeaves > 0 && (
+            {totalRemaining < 5 && totalRemaining > 0 && (
               <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
                 <div className="flex items-center gap-2">
                   <TrendingDown className="h-4 w-4 text-yellow-600" />
                   <p className="text-sm text-yellow-800">
-                    Low leave balance. Only {remainingLeaves} days remaining for the year.
+                    Low leave balance. Only {totalRemaining} days remaining for the year.
                   </p>
                 </div>
               </div>

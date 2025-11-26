@@ -33,16 +33,27 @@ export default function LeavesPage() {
   const { employees } = useEmployees();
   const { submitLeaveDecision, loading: processing } = useLeaveApproval();
 
+  // Create a map of employees for quick lookup
+  const employeeMap = useMemo(() => {
+    const map = new Map<string, typeof employees[0]>();
+    employees.forEach((emp) => map.set(emp.id, emp));
+    return map;
+  }, [employees]);
+
   // Filter and transform records
   const transformedRecords = useMemo(() => {
     if (!records) return [];
 
     return records
       .filter((record) => {
+        // Get employee for search
+        const employee = employeeMap.get(record.userId);
+        const employeeName = employee?.fullName || record.userName || "";
+
         // Apply filters
         if (filters.search) {
           const searchLower = filters.search.toLowerCase();
-          if (!record.userName?.toLowerCase().includes(searchLower) &&
+          if (!employeeName.toLowerCase().includes(searchLower) &&
               !record.notes?.toLowerCase().includes(searchLower)) {
             return false;
           }
@@ -70,31 +81,35 @@ export default function LeavesPage() {
 
         return true;
       })
-      .map((record) => ({
-        id: record.id,
-        userId: record.userId,
-        userName: record.userName || "Unknown",
-        userEmail: record.userEmail || "",
-        department: "Engineering", // Mock data
-        avatar: undefined,
-        leaveType: record.leaveType as any,
-        startDate: record.startDate || new Date(),
-        endDate: record.endDate || new Date(),
-        totalDays: record.totalDays,
-        reason: record.notes || "",
-        status: record.status as any,
-        appliedAt: record.appliedAt || new Date(),
-        attachments: (record as any).attachments?.map((a: any) => ({
-          id: a.id,
-          name: a.fileName || "Document",
-          url: a.url || ""
-        })),
-        reviewedBy: (record as any).reviewedBy,
-        reviewedAt: (record as any).reviewedAt,
-        reviewerNotes: record.reviewerNotes || undefined,
-        leaveBalance: { used: 5, total: 21 } // Mock data
-      }));
-  }, [records, filters]);
+      .map((record) => {
+        // Look up employee details
+        const employee = employeeMap.get(record.userId);
+
+        return {
+          id: record.id,
+          userId: record.userId,
+          userName: employee?.fullName || record.userName || "Unknown",
+          userEmail: employee?.email || record.userEmail || "",
+          department: employee?.department || undefined,
+          avatar: employee?.photoURL || undefined,
+          leaveType: record.leaveType as any,
+          startDate: record.startDate || new Date(),
+          endDate: record.endDate || new Date(),
+          totalDays: record.totalDays,
+          reason: record.notes || "",
+          status: record.status as any,
+          appliedAt: record.appliedAt || new Date(),
+          attachments: (record as any).attachments?.map((a: any) => ({
+            id: a.id,
+            name: a.fileName || "Document",
+            url: a.url || ""
+          })),
+          reviewedBy: (record as any).reviewedBy,
+          reviewedAt: (record as any).reviewedAt,
+          reviewerNotes: record.reviewerNotes || undefined,
+        };
+      });
+  }, [records, filters, employeeMap]);
 
   // Separate records by status
   const pendingRecords = transformedRecords.filter(r => r.status === "pending");

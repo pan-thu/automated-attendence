@@ -103,9 +103,9 @@ export function LeaveRequests({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Leave Requests</CardTitle>
+          <CardTitle>Pending Leave Requests</CardTitle>
           <CardDescription>
-            {pendingRequests.length} pending request{pendingRequests.length !== 1 ? "s" : ""} awaiting approval
+            {pendingRequests.length} request{pendingRequests.length !== 1 ? "s" : ""} awaiting approval
           </CardDescription>
         </div>
         <Link href="/leaves">

@@ -5,6 +5,8 @@ import { useEmployeeDetail } from "@/hooks/useEmployeeDetail";
 import { useUpdateEmployee } from "@/hooks/useUpdateEmployee";
 import { useEmployeeAttendance } from "@/hooks/useEmployeeAttendance";
 import { useEmployeePenalties } from "@/hooks/useEmployeePenalties";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useLeaves } from "@/hooks/useLeaves";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 
@@ -23,6 +25,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileText, Calendar, CheckCircle, XCircle, Clock } from "lucide-react";
+import { format } from "date-fns";
 
 export default function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -30,6 +36,8 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const { updateEmployee, changeStatus, loading: saving } = useUpdateEmployee();
   const { attendanceRecords, todayAttendance, loading: attendanceLoading } = useEmployeeAttendance(id);
   const { penalties, loading: penaltiesLoading } = useEmployeePenalties(id);
+  const { settings } = useCompanySettings();
+  const { records: leaveRecords, loading: leavesLoading } = useLeaves({ userId: id });
 
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -156,7 +164,10 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   </div>
                 </div>
                 <div className="space-y-6">
-                  <LeaveBalanceCard leaveBalances={employee.leaveBalances} />
+                  <LeaveBalanceCard
+                    leaveBalances={employee.leaveBalances}
+                    leavePolicy={settings?.leavePolicy}
+                  />
                   <PenaltiesCard
                     penalties={penalties}
                     loading={penaltiesLoading}
@@ -182,13 +193,78 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
             {/* Leaves Tab */}
             <TabsContent value="leaves" className="space-y-6">
-              <LeaveBalanceCard leaveBalances={employee.leaveBalances} />
-              {/* Leave history table would go here */}
-              <div className="rounded-lg border bg-card p-6">
-                <p className="text-center text-sm text-muted-foreground">
-                  Leave history will be displayed here
-                </p>
-              </div>
+              <LeaveBalanceCard
+                leaveBalances={employee.leaveBalances}
+                leavePolicy={settings?.leavePolicy}
+              />
+
+              {/* Leave History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Leave History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {leavesLoading ? (
+                    <div className="flex h-32 items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    </div>
+                  ) : leaveRecords.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-muted-foreground">
+                      No leave requests found
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {leaveRecords.map((leave) => {
+                        const statusConfig = {
+                          approved: { icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },
+                          rejected: { icon: XCircle, color: "text-red-600", bg: "bg-red-100" },
+                          pending: { icon: Clock, color: "text-yellow-600", bg: "bg-yellow-100" },
+                          cancelled: { icon: XCircle, color: "text-gray-600", bg: "bg-gray-100" },
+                        };
+                        const config = statusConfig[leave.status] || statusConfig.pending;
+                        const StatusIcon = config.icon;
+
+                        return (
+                          <div
+                            key={leave.id}
+                            className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-full ${config.bg}`}>
+                                <StatusIcon className={`h-4 w-4 ${config.color}`} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium capitalize">
+                                  {leave.leaveType?.replace(/_/g, " ") || "Leave"}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>
+                                    {leave.startDate ? format(leave.startDate, "MMM d") : "N/A"}
+                                    {" - "}
+                                    {leave.endDate ? format(leave.endDate, "MMM d, yyyy") : "N/A"}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{leave.totalDays} day{leave.totalDays !== 1 ? "s" : ""}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={`capitalize ${config.color} ${config.bg} border-0`}
+                            >
+                              {leave.status}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Penalties Tab */}

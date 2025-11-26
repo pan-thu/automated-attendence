@@ -12,12 +12,18 @@ interface Penalty {
   reason: string;
   violationDate: Date;
   issuedDate: Date;
-  status: "pending" | "acknowledged" | "waived" | "paid";
-  violationType: "absent" | "half-absent" | "late" | "early-leave";
+  status: "pending" | "acknowledged" | "waived" | "paid" | "active";
+  violationType: "absent" | "half_day_absent" | "half-absent" | "late" | "early_leave" | "early-leave";
   acknowledgedAt?: Date;
   waivedAt?: Date;
   waivedBy?: string;
   waivedReason?: string;
+  // New daily penalty fields
+  isWarning?: boolean;
+  violationCount?: number;
+  threshold?: number;
+  dateKey?: string;
+  violationField?: string;
 }
 
 const parseTimestamp = (value: unknown): Date | null => {
@@ -75,6 +81,12 @@ export function useEmployeePenalties(employeeId: string) {
           waivedAt: parseTimestamp(data.waivedAt) || undefined,
           waivedBy: data.waivedBy,
           waivedReason: data.waivedReason,
+          // New daily penalty fields
+          isWarning: data.isWarning ?? false,
+          violationCount: data.violationCount,
+          threshold: data.threshold,
+          dateKey: data.dateKey,
+          violationField: data.violationField,
         });
       }
     });

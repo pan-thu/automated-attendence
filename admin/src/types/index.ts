@@ -14,8 +14,10 @@ export type AttendanceSummary = {
 };
 
 export interface DashboardSummary {
+  totalEmployees: number;
   attendance: AttendanceSummary;
   pendingLeaves: number;
+  activeViolations: number;
   recentViolations: ViolationSummary[];
 }
 

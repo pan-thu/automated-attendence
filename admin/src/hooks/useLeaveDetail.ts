@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Timestamp, doc, getDoc } from "firebase/firestore";
 
 import { getFirebaseFirestore } from "@/lib/firebase/config";
-import type { LeaveRequestSummary } from "@/types";
+import type { LeaveRequestSummary, LeaveStatus } from "@/types";
 
 const LEAVE_COLLECTION = "LEAVE_REQUESTS";
 

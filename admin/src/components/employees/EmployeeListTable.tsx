@@ -15,7 +15,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Users
+  Users,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -60,11 +62,13 @@ type SortDirection = "asc" | "desc";
 const statusConfig = {
   active: {
     label: "Active",
-    color: "bg-green-100 text-green-700 border-green-200"
+    color: "bg-green-100 text-green-700 border-green-200",
+    icon: CheckCircle
   },
   inactive: {
     label: "Inactive",
-    color: "bg-yellow-100 text-yellow-700 border-yellow-200"
+    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    icon: XCircle
   }
 };
 

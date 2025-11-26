@@ -53,11 +53,11 @@ export function useAttendanceTrends({ year, month }: UseAttendanceTrendsOptions)
       // Get all days in the month
       const allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-      // Query attendance records for this month
+      // Query attendance records for this month using attendanceDate field
       const attendanceQuery = query(
         collection(firestore, "ATTENDANCE_RECORDS"),
-        where("date", ">=", Timestamp.fromDate(monthStart)),
-        where("date", "<=", Timestamp.fromDate(monthEnd))
+        where("attendanceDate", ">=", Timestamp.fromDate(monthStart)),
+        where("attendanceDate", "<=", Timestamp.fromDate(monthEnd))
       );
 
       const snapshot = await getDocs(attendanceQuery);
@@ -76,9 +76,11 @@ export function useAttendanceTrends({ year, month }: UseAttendanceTrendsOptions)
       snapshot.docs.forEach((doc) => {
         const record = doc.data();
 
-        // Parse date from document
+        // Parse date from document - try attendanceDate first, then date
         let recordDate: Date | null = null;
-        if (record.date && typeof record.date.toDate === "function") {
+        if (record.attendanceDate && typeof record.attendanceDate.toDate === "function") {
+          recordDate = record.attendanceDate.toDate();
+        } else if (record.date && typeof record.date.toDate === "function") {
           recordDate = record.date.toDate();
         }
 
@@ -98,37 +100,34 @@ export function useAttendanceTrends({ year, month }: UseAttendanceTrendsOptions)
         }
 
         const dayData = dataByDate.get(dateKey)!;
-        let status = (record.status as string)?.toLowerCase();
+        const status = (record.status as string)?.toLowerCase();
 
-        // Map Firebase status to our standard format
-        if (status === "half_day" || status === "halfday" || status === "half-day") {
-          status = "half-absent";
-        }
-        if (status === "early_leave" || status === "earlyleave") {
-          status = "early-leave";
-        }
-        if (status === "on_leave" || status === "onleave") {
-          status = "on-leave";
-        }
-
-        // Categorize based on status
+        // Categorize based on Firebase status values
         switch (status) {
           case "present":
+          case "in_progress":
             dayData.present++;
             break;
           case "absent":
             dayData.absent++;
             break;
+          case "half_day_absent":
+          case "half_day":
           case "half-absent":
+          case "halfday":
             dayData.halfAbsent++;
             break;
           case "late":
             dayData.late++;
             break;
+          case "early_leave":
           case "early-leave":
+          case "earlyleave":
             dayData.earlyLeave++;
             break;
+          case "on_leave":
           case "on-leave":
+          case "onleave":
             dayData.onLeave++;
             break;
         }

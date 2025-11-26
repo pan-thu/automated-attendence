@@ -9,6 +9,7 @@ import { getFirebaseFirestore } from "@/lib/firebase/config";
 import type { DashboardSummary, ViolationSummary } from "@/types";
 
 const buildDefaultSummary = (): DashboardSummary => ({
+  totalEmployees: 0,
   attendance: {
     present: 0,
     absent: 0,
@@ -17,6 +18,7 @@ const buildDefaultSummary = (): DashboardSummary => ({
     total: 0,
   },
   pendingLeaves: 0,
+  activeViolations: 0,
   recentViolations: [],
 });
 
@@ -44,6 +46,7 @@ export function useDashboardSummary() {
 
     const statsData = statsResponse.data as
       | {
+          totalEmployees?: number;
           attendance?: {
             present?: number;
             absent?: number;
@@ -52,10 +55,12 @@ export function useDashboardSummary() {
             total?: number;
           };
           pendingLeaves?: number;
+          activeViolations?: number;
         }
       | undefined;
 
     const summary: DashboardSummary = buildDefaultSummary();
+    summary.totalEmployees = statsData?.totalEmployees ?? 0;
     if (statsData?.attendance) {
       summary.attendance.present = statsData.attendance.present ?? 0;
       summary.attendance.absent = statsData.attendance.absent ?? 0;
@@ -65,6 +70,7 @@ export function useDashboardSummary() {
     }
 
     summary.pendingLeaves = statsData?.pendingLeaves ?? 0;
+    summary.activeViolations = statsData?.activeViolations ?? 0;
     summary.recentViolations = violationsSnapshot.docs.map((doc) => {
       const payload = doc.data();
 

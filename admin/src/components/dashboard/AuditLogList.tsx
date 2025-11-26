@@ -26,20 +26,51 @@ interface AuditLogListProps {
 }
 
 const actionConfig: Record<string, { label: string; color: string; icon: typeof FileText }> = {
+  // Employee actions
   create_employee: { label: "Created Employee", color: "bg-blue-500", icon: User },
   update_employee: { label: "Updated Employee", color: "bg-yellow-500", icon: User },
   delete_employee: { label: "Deleted Employee", color: "bg-red-500", icon: User },
+  // Leave actions
   approve_leave: { label: "Approved Leave", color: "bg-green-500", icon: FileText },
   reject_leave: { label: "Rejected Leave", color: "bg-red-500", icon: FileText },
+  leave_approve: { label: "Approved Leave", color: "bg-green-500", icon: FileText },
+  leave_reject: { label: "Rejected Leave", color: "bg-red-500", icon: FileText },
+  submit_leave: { label: "Submitted Leave", color: "bg-blue-500", icon: FileText },
+  // Penalty actions
   waive_penalty: { label: "Waived Penalty", color: "bg-purple-500", icon: Shield },
+  calculate_daily_violations: { label: "Calculated Penalties", color: "bg-orange-500", icon: Shield },
+  // Attendance actions
   manual_attendance: { label: "Manual Attendance", color: "bg-orange-500", icon: FileText },
+  clock_in: { label: "Clock In", color: "bg-green-500", icon: FileText },
+  clock_out: { label: "Clock Out", color: "bg-blue-500", icon: FileText },
+  // Settings actions
   update_settings: { label: "Updated Settings", color: "bg-indigo-500", icon: Shield },
+  update_company_settings: { label: "Updated Settings", color: "bg-indigo-500", icon: Shield },
+  // Notification actions
   send_notification: { label: "Sent Notification", color: "bg-cyan-500", icon: AlertCircle },
+  // Profile actions
+  update_own_profile: { label: "Updated Profile", color: "bg-yellow-500", icon: User },
+  update_profile: { label: "Updated Profile", color: "bg-yellow-500", icon: User },
+  register_profile_photo: { label: "Uploaded Photo", color: "bg-blue-500", icon: User },
+  generate_profile_photo_upload_url: { label: "Photo Upload", color: "bg-gray-500", icon: User },
+  // Notification list actions
+  list_employee_notifications: { label: "Viewed Notifications", color: "bg-gray-400", icon: AlertCircle },
+  mark_notification_read: { label: "Read Notification", color: "bg-gray-400", icon: AlertCircle },
+  // Auth actions
+  login: { label: "Logged In", color: "bg-green-500", icon: User },
+  logout: { label: "Logged Out", color: "bg-gray-500", icon: User },
 };
 
 const getActionConfig = (action: string) => {
   const normalized = action.toLowerCase().replace(/ /g, "_");
-  return actionConfig[normalized] || { label: action, color: "bg-gray-500", icon: FileText };
+  return actionConfig[normalized] || { label: formatActionLabel(action), color: "bg-gray-500", icon: FileText };
+};
+
+// Format action string into readable label
+const formatActionLabel = (action: string): string => {
+  return action
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 export function AuditLogList({ logs, loading = false }: AuditLogListProps) {
@@ -109,6 +140,15 @@ export function AuditLogList({ logs, loading = false }: AuditLogListProps) {
                             <span className="text-xs text-muted-foreground">
                               {log.targetUserId}
                             </span>
+                          </div>
+                        ) : log.resource ? (
+                          <div className="flex flex-col">
+                            <span className="text-sm">{log.resource}</span>
+                            {log.resourceId && (
+                              <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                                {log.resourceId}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>

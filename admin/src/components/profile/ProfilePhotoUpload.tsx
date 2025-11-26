@@ -29,9 +29,9 @@ export function ProfilePhotoUpload({
       return;
     }
 
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert("File size must be less than 5MB");
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size must be less than 10MB");
       return;
     }
 
@@ -105,7 +105,7 @@ export function ProfilePhotoUpload({
       )}
 
       <p className="text-xs text-muted-foreground">
-        JPEG, PNG, or WebP. Max 5MB.
+        JPEG, PNG, or WebP. Max 10MB.
       </p>
     </div>
   );

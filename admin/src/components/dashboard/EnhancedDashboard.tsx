@@ -32,6 +32,10 @@ export function EnhancedDashboard() {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
+  // Get start and end of today for filtering
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
   const {
     data: dashboardData,
     loading: dashboardLoading,
@@ -39,20 +43,25 @@ export function EnhancedDashboard() {
     refresh: refreshDashboard
   } = useDashboardSummary();
 
+  // Only fetch pending leave requests for dashboard
   const {
     records: leaves,
     loading: leavesLoading
-  } = useLeaves();
+  } = useLeaves({ status: "pending" });
 
   const {
     submitLeaveDecision
   } = useLeaveApproval();
 
+  // Only fetch today's attendance records for dashboard
   const {
     records: attendanceRecords,
     loading: attendanceLoading,
     refresh: refreshAttendance
-  } = useAttendanceRecords();
+  } = useAttendanceRecords({
+    startDate: todayStart,
+    endDate: todayEnd
+  });
 
   const {
     data: trendsData,
@@ -89,15 +98,15 @@ export function EnhancedDashboard() {
     ]);
   };
 
-  // Calculate attendance rate
-  const attendanceRate = dashboardData.attendance.total > 0
-    ? Math.round((dashboardData.attendance.present / dashboardData.attendance.total) * 100)
+  // Calculate attendance rate based on total employees
+  const attendanceRate = dashboardData.totalEmployees > 0
+    ? Math.round((dashboardData.attendance.present / dashboardData.totalEmployees) * 100)
     : 0;
 
   // Note: Trend calculations removed - would require additional historical data queries
   // which could slow down the dashboard. Consider implementing with cached analytics data.
 
-  // Transform leave data for the LeaveRequests component
+  // Transform pending leave requests for the LeaveRequests component
   const leaveRequestsData = leaves.map(leave => ({
     id: leave.id,
     employee: {
@@ -107,44 +116,49 @@ export function EnhancedDashboard() {
       department: "Not Specified",
       avatar: undefined
     },
-    type: ((leave.type || leave.leaveType || 'other').toLowerCase().replace(/_/g, '')) as any,
+    type: ((leave.leaveType || 'other').toLowerCase().replace(/_/g, '')) as any,
     startDate: leave.startDate || new Date(),
     endDate: leave.endDate || new Date(),
-    reason: leave.reason || leave.notes || "",
-    status: leave.status,
+    reason: leave.notes || "",
+    status: leave.status as "pending" | "approved" | "rejected",
     requestedAt: leave.appliedAt || new Date(),
     attachments: 0
   }));
 
-  // Transform attendance records for the AttendanceTable component
-  const checkInRecords = attendanceRecords.flatMap(record => {
-    const records: any[] = [];
+  // Transform today's attendance records into individual check entries, sorted by time (most recent first)
+  const checkInRecords = attendanceRecords
+    .flatMap(record => {
+      const entries: any[] = [];
 
-    if (record.checks && record.checks.length > 0) {
-      record.checks.forEach((check, index) => {
-        if (check.timestamp) {
-          const checkNum = index + 1;
-          records.push({
-            id: `${record.id}-check${checkNum}`,
-            employee: {
-              id: record.userId,
-              name: record.userName || "Unknown",
-              email: record.userEmail || "",
-              department: "Not Specified",
-              avatar: undefined
-            },
-            checkType: `check${checkNum}` as "check1" | "check2" | "check3",
-            status: (check.status || "missed") as any,
-            timestamp: check.timestamp,
-            location: undefined,
-            isMocked: false
-          });
-        }
-      });
-    }
+      if (record.checks && record.checks.length > 0) {
+        record.checks.forEach((check, index) => {
+          if (check.timestamp) {
+            const checkNum = index + 1;
+            entries.push({
+              id: `${record.id}-check${checkNum}`,
+              employee: {
+                id: record.userId,
+                name: record.userName || "Unknown",
+                email: record.userEmail || "",
+                department: "Not Specified",
+                avatar: undefined
+              },
+              checkType: `check${checkNum}` as "check1" | "check2" | "check3",
+              status: (check.status || "missed") as any,
+              timestamp: check.timestamp,
+              location: undefined,
+              isMocked: false
+            });
+          }
+        });
+      }
 
-    return records;
-  });
+      return entries;
+    })
+    // Sort by timestamp descending (most recent first)
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    // Limit to most recent 20 entries
+    .slice(0, 20);
 
   if (dashboardLoading) {
     return (
@@ -171,7 +185,7 @@ export function EnhancedDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <MetricCard
           title="Total Employees"
-          value={dashboardData.attendance.total}
+          value={dashboardData.totalEmployees}
           icon={<Users className="h-5 w-5" />}
           color="blue"
           changeLabel="Active workforce"
@@ -189,9 +203,7 @@ export function EnhancedDashboard() {
           title="Attendance Rate"
           value={`${attendanceRate}%`}
           icon={<TrendingUp className="h-5 w-5" />}
-          trend={attendanceRate > 85 ? "up" : "down"}
           color={attendanceRate > 85 ? "green" : "yellow"}
-          changeLabel="Target: 90%"
         />
 
         <MetricCard
@@ -204,7 +216,7 @@ export function EnhancedDashboard() {
 
         <MetricCard
           title="Active Violations"
-          value={dashboardData.recentViolations.filter(v => v.penaltyTriggered).length}
+          value={dashboardData.activeViolations}
           icon={<AlertCircle className="h-5 w-5" />}
           color="red"
           changeLabel="violations recorded"
