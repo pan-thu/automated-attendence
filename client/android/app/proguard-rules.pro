@@ -10,6 +10,11 @@
 -keep class com.google.firebase.** { *; }
 -keep class com.google.android.gms.** { *; }
 
+# Play Core library (deferred components) - not used but referenced by Flutter
+-dontwarn com.google.android.play.core.splitcompat.SplitCompatApplication
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
+
 # Keep native methods
 -keepclassmembers class * {
     native <methods>;

@@ -63,3 +63,8 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Play Feature Delivery (replaces deprecated play:core for deferred components)
+    implementation("com.google.android.play:feature-delivery:2.1.0")
+}
