@@ -80,7 +80,7 @@ export function Sidebar() {
         isCollapsed ? "justify-center px-4" : "gap-2 px-6"
       )}>
         <Image
-          src="/logo.svg"
+          src="/logo-dark.svg"
           alt="AttenDesk"
           width={32}
           height={32}

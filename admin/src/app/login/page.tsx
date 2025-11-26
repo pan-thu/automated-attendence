@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, Shield, AlertCircle } from "lucide-react";
@@ -80,8 +81,14 @@ function LoginContent() {
       <div className="w-full max-w-[448px] space-y-6">
         {/* Logo and Brand */}
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-gray-900 to-gray-700 text-white shadow-xl">
-            <Shield className="h-10 w-10" />
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
+            <Image
+              src="/logo-dark.svg"
+              alt="AttenDesk"
+              width={80}
+              height={80}
+              priority
+            />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">AttenDesk</h1>
           <p className="mt-2 text-sm text-gray-600">Admin Dashboard</p>
@@ -234,8 +241,13 @@ export default function LoginPage() {
     <Suspense fallback={
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-gray-900 to-gray-700 text-white shadow-xl animate-pulse">
-            <Shield className="h-10 w-10" />
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center animate-pulse">
+            <Image
+              src="/logo-dark.svg"
+              alt="AttenDesk"
+              width={80}
+              height={80}
+            />
           </div>
           <p className="text-sm text-gray-600">Loading...</p>
         </div>
