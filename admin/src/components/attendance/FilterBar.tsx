@@ -22,7 +22,9 @@ import {
   CheckCircle,
   XCircle,
   LogOut,
-  CalendarOff
+  CalendarOff,
+  UserX,
+  CircleDot
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,9 +44,10 @@ interface FilterBarProps {
   isLoading?: boolean;
   employees?: Array<{ id: string; name: string }>;
   summary?: {
-    onTime: number;
+    present: number;
+    absent: number;
+    halfDay: number;
     late: number;
-    missed: number;
     earlyLeave: number;
     onLeave: number;
   };
@@ -60,9 +63,13 @@ const quickFilters = [
 
 const statusOptions = [
   { value: "all", label: "All Status" },
-  { value: "on_time", label: "On-Time", color: "bg-green-100 text-green-700" },
+  { value: "present", label: "Present", color: "bg-green-100 text-green-700" },
+  { value: "absent", label: "Absent", color: "bg-red-100 text-red-700" },
+  { value: "half_day", label: "Half-Day", color: "bg-purple-100 text-purple-700" },
   { value: "late", label: "Late", color: "bg-yellow-100 text-yellow-700" },
-  { value: "missed", label: "Missed", color: "bg-red-100 text-red-700" }
+  { value: "early_leave", label: "Early Leave", color: "bg-orange-100 text-orange-700" },
+  { value: "on_leave", label: "On Leave", color: "bg-blue-100 text-blue-700" },
+  { value: "pending", label: "Pending", color: "bg-gray-100 text-gray-700" }
 ];
 
 const sourceOptions = [
@@ -108,15 +115,29 @@ export function FilterBar({
 
   return (
     <div className="space-y-4">
-      {/* Summary Stats - Check Status */}
+      {/* Summary Stats */}
       {summary && (
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-6 gap-3">
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-green-600">On-Time</span>
+              <span className="text-xs text-green-600">Present</span>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </div>
-            <p className="text-2xl font-bold text-green-700 mt-1">{summary.onTime}</p>
+            <p className="text-2xl font-bold text-green-700 mt-1">{summary.present}</p>
+          </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-red-600">Absent</span>
+              <UserX className="h-4 w-4 text-red-600" />
+            </div>
+            <p className="text-2xl font-bold text-red-700 mt-1">{summary.absent}</p>
+          </div>
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-purple-600">Half-Day</span>
+              <CircleDot className="h-4 w-4 text-purple-600" />
+            </div>
+            <p className="text-2xl font-bold text-purple-700 mt-1">{summary.halfDay}</p>
           </div>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
             <div className="flex items-center justify-between">
@@ -138,13 +159,6 @@ export function FilterBar({
               <CalendarOff className="h-4 w-4 text-blue-600" />
             </div>
             <p className="text-2xl font-bold text-blue-700 mt-1">{summary.onLeave}</p>
-          </div>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-red-600">Missed</span>
-              <XCircle className="h-4 w-4 text-red-600" />
-            </div>
-            <p className="text-2xl font-bold text-red-700 mt-1">{summary.missed}</p>
           </div>
         </div>
       )}

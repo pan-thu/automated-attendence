@@ -63,6 +63,38 @@ export default function AttendancePage() {
   const { submitManualAttendance, loading: manualSubmitting, error: manualError, setError: setManualError } =
     useManualAttendance();
 
+  // Helper to determine display status (includes pending logic)
+  const getDisplayStatus = (record: any): "present" | "absent" | "half_day" | "late" | "early_leave" | "on_leave" | "pending" => {
+    const hasCheckIn = !!record.checks?.[0]?.timestamp;
+    const hasCheckOut = !!record.checks?.[2]?.timestamp;
+    const checkInStatus = record.checks?.[0]?.status;
+    const checkOutStatus = record.checks?.[2]?.status;
+
+    // On leave takes priority
+    if (record.status === "on_leave") return "on_leave";
+
+    // If only check-in exists (no check-out), it's pending
+    if (hasCheckIn && !hasCheckOut) return "pending";
+
+    // Absent - no check-in at all
+    if (!hasCheckIn && record.status === "absent") return "absent";
+
+    // Half day
+    if (record.status === "half_day") return "half_day";
+
+    // Early leave - checked out early
+    if (checkOutStatus === "early") return "early_leave";
+
+    // Late arrival
+    if (checkInStatus === "late") return "late";
+
+    // Present (on time)
+    if (hasCheckIn && hasCheckOut) return "present";
+
+    // Default fallback
+    return record.status || "pending";
+  };
+
   // Transform records to match new interface
   const transformedRecords = useMemo(() => {
     if (!records) return [];
@@ -75,18 +107,10 @@ export default function AttendancePage() {
           return false;
         }
 
-        // Filter by check status instead of attendance status
+        // Filter by status
         if (filters.status !== "all") {
-          const checkStatus = record.checks?.[0]?.status;
-          const hasCheckIn = !!record.checks?.[0]?.timestamp;
-
-          if (filters.status === "on_time" && checkStatus !== "on_time") {
-            return false;
-          }
-          if (filters.status === "late" && checkStatus !== "late") {
-            return false;
-          }
-          if (filters.status === "missed" && hasCheckIn) {
+          const displayStatus = getDisplayStatus(record);
+          if (filters.status !== displayStatus) {
             return false;
           }
         }
@@ -103,66 +127,72 @@ export default function AttendancePage() {
 
         return true;
       })
-      .map((record) => ({
-        id: record.id,
-        date: record.attendanceDate || new Date(),
-        employee: {
-          uid: record.userId,
-          name: record.userName || "Unknown",
-          email: record.userEmail || "",
-          employeeId: record.userId.slice(0, 8).toUpperCase(),
-          department: "Engineering", // Mock data
-          avatar: undefined
-        },
-        checks: {
-          checkIn: {
-            time: record.checks?.[0]?.timestamp || null,
-            status: record.checks?.[0]?.status as "on_time" | "late" | null || null
+      .map((record) => {
+        const displayStatus = getDisplayStatus(record);
+        return {
+          id: record.id,
+          date: record.attendanceDate || new Date(),
+          employee: {
+            uid: record.userId,
+            name: record.userName || "Unknown",
+            email: record.userEmail || "",
+            employeeId: record.userId.slice(0, 8).toUpperCase(),
+            department: "Engineering", // Mock data
+            avatar: undefined
           },
-          break: undefined, // Not in current data model
-          checkOut: {
-            time: record.checks?.[2]?.timestamp || null,
-            status: record.checks?.[2]?.status as "on_time" | "early" | null || null
-          }
-        },
-        status: record.status as "present" | "late" | "half_day" | "absent" | "on_leave",
-        workDuration: undefined,
-        source: record.isManualEntry ? "manual" as const : "app" as const,
-        notes: record.notes || undefined,
-        modifiedBy: undefined,
-        modifiedAt: undefined
-      }));
+          checks: {
+            checkIn: {
+              time: record.checks?.[0]?.timestamp || null,
+              status: record.checks?.[0]?.status as "on_time" | "late" | null || null
+            },
+            break: undefined, // Not in current data model
+            checkOut: {
+              time: record.checks?.[2]?.timestamp || null,
+              status: record.checks?.[2]?.status as "on_time" | "early" | null || null
+            }
+          },
+          status: displayStatus,
+          workDuration: undefined,
+          source: record.isManualEntry ? "manual" as const : "app" as const,
+          notes: record.notes || undefined,
+          modifiedBy: undefined,
+          modifiedAt: undefined
+        };
+      });
   }, [records, filters]);
 
-  // Calculate summary - count check statuses
+  // Calculate summary - count by display status (excludes pending from cards)
   const summary = useMemo(() => {
     const stats = {
-      onTime: 0,
+      present: 0,
+      absent: 0,
+      halfDay: 0,
       late: 0,
-      missed: 0,
       earlyLeave: 0,
       onLeave: 0
     };
 
     transformedRecords.forEach((record) => {
-      // Count on leave separately
-      if (record.status === "on_leave") {
-        stats.onLeave++;
-        return;
-      }
-
-      // Count based on check-in status
-      if (record.checks.checkIn.status === "on_time") {
-        stats.onTime++;
-      } else if (record.checks.checkIn.status === "late") {
-        stats.late++;
-      } else if (!record.checks.checkIn.time) {
-        stats.missed++;
-      }
-
-      // Count early leave based on checkout status
-      if (record.checks.checkOut?.status === "early") {
-        stats.earlyLeave++;
+      switch (record.status) {
+        case "present":
+          stats.present++;
+          break;
+        case "absent":
+          stats.absent++;
+          break;
+        case "half_day":
+          stats.halfDay++;
+          break;
+        case "late":
+          stats.late++;
+          break;
+        case "early_leave":
+          stats.earlyLeave++;
+          break;
+        case "on_leave":
+          stats.onLeave++;
+          break;
+        // pending is not counted in summary cards
       }
     });
 
@@ -364,9 +394,10 @@ export default function AttendancePage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="present">Present</SelectItem>
-                        <SelectItem value="late">Late</SelectItem>
-                        <SelectItem value="half_day">Half Day</SelectItem>
                         <SelectItem value="absent">Absent</SelectItem>
+                        <SelectItem value="half_day">Half Day</SelectItem>
+                        <SelectItem value="late">Late</SelectItem>
+                        <SelectItem value="early_leave">Early Leave</SelectItem>
                         <SelectItem value="on_leave">On Leave</SelectItem>
                       </SelectContent>
                     </Select>

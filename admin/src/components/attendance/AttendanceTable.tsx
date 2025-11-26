@@ -66,7 +66,7 @@ interface AttendanceRecord {
       location?: { latitude: number; longitude: number };
     };
   };
-  status: "present" | "late" | "half_day" | "absent" | "on_leave";
+  status: "present" | "absent" | "half_day" | "late" | "early_leave" | "on_leave" | "pending";
   workDuration?: number;
   source: "app" | "manual" | "system";
   notes?: string;
@@ -85,26 +85,34 @@ interface AttendanceTableProps {
   onExportRecord: (record: AttendanceRecord) => void;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string }> = {
   present: {
     label: "Present",
     color: "bg-green-100 text-green-700 border-green-200"
-  },
-  late: {
-    label: "Late",
-    color: "bg-yellow-100 text-yellow-700 border-yellow-200"
-  },
-  half_day: {
-    label: "Half Day",
-    color: "bg-orange-100 text-orange-700 border-orange-200"
   },
   absent: {
     label: "Absent",
     color: "bg-red-100 text-red-700 border-red-200"
   },
+  half_day: {
+    label: "Half Day",
+    color: "bg-purple-100 text-purple-700 border-purple-200"
+  },
+  late: {
+    label: "Late",
+    color: "bg-yellow-100 text-yellow-700 border-yellow-200"
+  },
+  early_leave: {
+    label: "Early Leave",
+    color: "bg-orange-100 text-orange-700 border-orange-200"
+  },
   on_leave: {
     label: "On Leave",
     color: "bg-blue-100 text-blue-700 border-blue-200"
+  },
+  pending: {
+    label: "Pending",
+    color: "bg-gray-100 text-gray-700 border-gray-200"
   }
 };
 

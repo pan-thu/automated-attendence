@@ -83,11 +83,11 @@ export interface ToggleUserStatusPayload {
 export type AttendanceStatus =
   | "present"
   | "absent"
-  | "half_day_absent"
+  | "half_day"
   | "on_leave"
   | "late"
   | "early_leave"
-  | "missed";
+  | "pending";
 
 export interface AttendanceRecordSummary {
   id: string;
