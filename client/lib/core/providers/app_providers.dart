@@ -15,6 +15,7 @@ import '../services/push_notification_service.dart';
 import '../services/telemetry_service.dart';
 import '../../design_system/theme.dart' as app_theme;
 import '../../features/onboarding/controllers/onboarding_controller.dart';
+import '../../features/notifications/controllers/notification_controller.dart';
 
 Future<void> configureAppProviders({required AppEnvironment environment}) async {
   // Placeholder for async service initialization.
@@ -58,6 +59,13 @@ class AppProviders extends StatelessWidget {
       Provider<HolidayRepositoryBase>(create: (_) => HolidayRepository()),
       Provider<LeaveRepositoryBase>(create: (_) => LeaveRepository()),
       Provider<NotificationRepositoryBase>(create: (_) => NotificationRepository()),
+      ChangeNotifierProxyProvider<NotificationRepositoryBase, NotificationController>(
+        create: (context) => NotificationController(
+          repository: context.read<NotificationRepositoryBase>(),
+        ),
+        update: (context, repository, previous) =>
+            previous ?? NotificationController(repository: repository),
+      ),
       Provider<PenaltyRepositoryBase>(create: (_) => PenaltyRepository()),
       Provider<CompanySettingsRepository>(create: (_) => CompanySettingsRepository()),
       Provider<PushNotificationService>(create: (_) => PushNotificationService()),

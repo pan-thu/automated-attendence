@@ -9,12 +9,44 @@ import '../../design_system/spacing.dart';
 class AppBottomNavigation extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTabChanged;
+  final bool hasUnreadNotifications;
 
   const AppBottomNavigation({
     super.key,
     required this.currentIndex,
     required this.onTabChanged,
+    this.hasUnreadNotifications = false,
   });
+
+  /// Build notification icon with optional red dot badge
+  Widget _buildNotificationIcon({required bool isActive}) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(
+          isActive ? Icons.notifications : Icons.notifications_outlined,
+          size: iconSizeBottomNav,
+        ),
+        if (hasUnreadNotifications)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: statusAbsent,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: backgroundPrimary,
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,37 +60,37 @@ class AppBottomNavigation extends StatelessWidget {
       selectedFontSize: 12,
       unselectedFontSize: 12,
       elevation: 8,
-      items: const [
+      items: [
         // Tab 0: Home
-        BottomNavigationBarItem(
+        const BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined, size: iconSizeBottomNav),
           activeIcon: Icon(Icons.home, size: iconSizeBottomNav),
           label: 'Home',
         ),
 
         // Tab 1: Attendance
-        BottomNavigationBarItem(
+        const BottomNavigationBarItem(
           icon: Icon(Icons.calendar_today_outlined, size: iconSizeBottomNav),
           activeIcon: Icon(Icons.calendar_today, size: iconSizeBottomNav),
           label: 'Attendance',
         ),
 
-        // Tab 2: Updates/Notifications
+        // Tab 2: Updates/Notifications (with badge)
         BottomNavigationBarItem(
-          icon: Icon(Icons.notifications_outlined, size: iconSizeBottomNav),
-          activeIcon: Icon(Icons.notifications, size: iconSizeBottomNav),
+          icon: _buildNotificationIcon(isActive: false),
+          activeIcon: _buildNotificationIcon(isActive: true),
           label: 'Updates',
         ),
 
         // Tab 3: Resources
-        BottomNavigationBarItem(
+        const BottomNavigationBarItem(
           icon: Icon(Icons.apps_outlined, size: iconSizeBottomNav),
           activeIcon: Icon(Icons.apps, size: iconSizeBottomNav),
           label: 'Resources',
         ),
 
         // Tab 4: Profile/Settings
-        BottomNavigationBarItem(
+        const BottomNavigationBarItem(
           icon: Icon(Icons.person_outline, size: iconSizeBottomNav),
           activeIcon: Icon(Icons.person, size: iconSizeBottomNav),
           label: 'Profile',

@@ -15,17 +15,35 @@ import '../widgets/notification_card.dart';
 import '../widgets/notification_search_bar.dart';
 import '../widgets/read_status_toggle.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({required this.repository, super.key});
 
   final NotificationRepositoryBase repository;
 
   @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh notifications when screen is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = context.read<NotificationController>();
+      if (!controller.hasInitialised) {
+        controller.initialise();
+      } else {
+        // Refresh to get latest notifications
+        controller.refresh();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<NotificationController>(
-      create: (_) => NotificationController(repository: repository)..initialise(),
-      child: const _NotificationsView(),
-    );
+    // Use global NotificationController from provider
+    return const _NotificationsView();
   }
 }
 

@@ -52,7 +52,7 @@ import {
 } from './services/notifications';
 import { getHolidays as getHolidaysService } from './services/holidays';
 import { registerDeviceToken as registerDeviceTokenService } from './services/deviceTokens';
-import { handleClockIn as handleClockInService } from './services/clockInUtils';
+import { handleClockIn as handleClockInService, finalizeAttendance as finalizeAttendanceService } from './services/clockInUtils';
 import {
   fetchEmployeeProfile,
   fetchEmployeeDashboard,
@@ -1193,8 +1193,9 @@ export const scheduledPenaltyAutomation = onSchedule(
 );
 
 /**
- * Daily penalty calculation - runs after all check windows close
- * Creates penalties immediately for each violation (late, early_leave, absent, half_day_absent)
+ * Daily attendance finalization and penalty calculation - runs after all check windows close
+ * 1. Finalizes attendance: Creates absent records for no-shows, marks missed checks
+ * 2. Creates penalties for each violation (late, early_leave, absent, half_day_absent)
  */
 export const scheduledDailyPenaltyCalculation = onSchedule(
   {
@@ -1208,7 +1209,7 @@ export const scheduledDailyPenaltyCalculation = onSchedule(
 
     // Import timezone utilities
     const { convertToCompanyTimezone, formatInCompanyTimezone } = await import('./utils/timezoneUtils');
-    const { isWeekend } = await import('./utils/dateUtils');
+    const { isWeekend, isCompanyHoliday } = await import('./utils/dateUtils');
 
     // Get today's date in company timezone
     const companyDate = await convertToCompanyTimezone(now);
@@ -1218,12 +1219,45 @@ export const scheduledDailyPenaltyCalculation = onSchedule(
       return;
     }
 
+    // Skip holidays
+    if (await isCompanyHoliday(companyDate)) {
+      return;
+    }
+
     // Get today's date string
     const dateKey = await formatInCompanyTimezone(companyDate, 'yyyy-MM-dd');
 
-    // Calculate daily penalties
+    // Step 1: Finalize attendance - create absent records for no-shows, mark missed checks
+    await finalizeAttendanceService({ date: dateKey });
+
+    // Step 2: Calculate daily penalties based on finalized attendance
     await calculateDailyViolationsService({ date: dateKey });
   }
+);
+
+/**
+ * Manual trigger for attendance finalization (admin only)
+ * Creates absent records for no-shows and marks missed checks
+ */
+export const finalizeAttendance = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAdminV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data);
+    const date = assertString(payload.date, 'date');
+
+    const result = await finalizeAttendanceService({ date });
+
+    await recordAuditLog({
+      action: 'finalize_attendance',
+      resource: 'ATTENDANCE_RECORDS',
+      resourceId: date,
+      status: 'success',
+      performedBy: requireAuthUidV2(request),
+      metadata: { result },
+    });
+
+    return result;
+  }, 'finalizeAttendance')
 );
 
 /**

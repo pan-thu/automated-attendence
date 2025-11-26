@@ -131,11 +131,12 @@ export function EnhancedDashboard() {
       const entries: any[] = [];
 
       if (record.checks && record.checks.length > 0) {
-        record.checks.forEach((check, index) => {
+        record.checks.forEach((check) => {
           if (check.timestamp) {
-            const checkNum = index + 1;
+            // Use the actual check identifier (check1, check2, check3) from the data
+            const checkKey = check.check as "check1" | "check2" | "check3";
             entries.push({
-              id: `${record.id}-check${checkNum}`,
+              id: `${record.id}-${checkKey}`,
               employee: {
                 id: record.userId,
                 name: record.userName || "Unknown",
@@ -143,7 +144,7 @@ export function EnhancedDashboard() {
                 department: "Not Specified",
                 avatar: undefined
               },
-              checkType: `check${checkNum}` as "check1" | "check2" | "check3",
+              checkType: checkKey,
               status: (check.status || "missed") as any,
               timestamp: check.timestamp,
               location: undefined,

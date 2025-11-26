@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'app_bottom_navigation.dart';
+import '../notifications/controllers/notification_controller.dart';
 
 /// Main scaffold widget with bottom navigation
 ///
 /// Wraps all main tab screens with persistent bottom navigation
 /// Based on spec in docs/client-overhaul/00-navigation-architecture.md
-class MainScaffold extends StatelessWidget {
+class MainScaffold extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainScaffold({
@@ -14,16 +16,33 @@ class MainScaffold extends StatelessWidget {
     required this.navigationShell,
   });
 
+  @override
+  State<MainScaffold> createState() => _MainScaffoldState();
+}
+
+class _MainScaffoldState extends State<MainScaffold> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize notification controller to fetch unread count
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notificationController = context.read<NotificationController>();
+      if (!notificationController.hasInitialised) {
+        notificationController.initialise();
+      }
+    });
+  }
+
   void _onTabTapped(int index) {
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       index,
-      initialLocation: index == navigationShell.currentIndex,
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
 
   Future<bool> _onWillPop(BuildContext context) async {
     // If not on home tab, go to home tab
-    if (navigationShell.currentIndex != 0) {
+    if (widget.navigationShell.currentIndex != 0) {
       _onTabTapped(0);
       return false;
     }
@@ -52,6 +71,10 @@ class MainScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Watch notification controller for unread count changes
+    final notificationController = context.watch<NotificationController>();
+    final hasUnread = notificationController.unreadCount > 0;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -62,10 +85,11 @@ class MainScaffold extends StatelessWidget {
         }
       },
       child: Scaffold(
-        body: navigationShell,
+        body: widget.navigationShell,
         bottomNavigationBar: AppBottomNavigation(
-          currentIndex: navigationShell.currentIndex,
+          currentIndex: widget.navigationShell.currentIndex,
           onTabChanged: _onTabTapped,
+          hasUnreadNotifications: hasUnread,
         ),
       ),
     );
