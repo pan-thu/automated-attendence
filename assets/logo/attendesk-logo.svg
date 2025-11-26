@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50"/>
+      <stop offset="100%" style="stop-color:#388E3C"/>
+    </linearGradient>
+    <linearGradient id="clockGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF"/>
+      <stop offset="100%" style="stop-color:#E8F5E9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGradient)"/>
+
+  <!-- Inner clock face -->
+  <circle cx="256" cy="256" r="180" fill="url(#clockGradient)"/>
+
+  <!-- Clock hour markers -->
+  <g fill="#4CAF50">
+    <!-- 12 o'clock -->
+    <rect x="248" y="92" width="16" height="32" rx="4"/>
+    <!-- 3 o'clock -->
+    <rect x="388" y="248" width="32" height="16" rx="4"/>
+    <!-- 6 o'clock -->
+    <rect x="248" y="388" width="16" height="32" rx="4"/>
+    <!-- 9 o'clock -->
+    <rect x="92" y="248" width="32" height="16" rx="4"/>
+  </g>
+
+  <!-- Small hour markers -->
+  <g fill="#81C784">
+    <!-- 1 o'clock -->
+    <circle cx="330" cy="126" r="8"/>
+    <!-- 2 o'clock -->
+    <circle cx="386" cy="182" r="8"/>
+    <!-- 4 o'clock -->
+    <circle cx="386" cy="330" r="8"/>
+    <!-- 5 o'clock -->
+    <circle cx="330" cy="386" r="8"/>
+    <!-- 7 o'clock -->
+    <circle cx="182" cy="386" r="8"/>
+    <!-- 8 o'clock -->
+    <circle cx="126" cy="330" r="8"/>
+    <!-- 10 o'clock -->
+    <circle cx="126" cy="182" r="8"/>
+    <!-- 11 o'clock -->
+    <circle cx="182" cy="126" r="8"/>
+  </g>
+
+  <!-- Center dot -->
+  <circle cx="256" cy="256" r="20" fill="#388E3C"/>
+
+  <!-- Clock hands forming checkmark shape -->
+  <!-- Hour hand (short, pointing to ~10) -->
+  <rect x="252" y="176" width="8" height="84" rx="4" fill="#388E3C" transform="rotate(-60 256 256)"/>
+
+  <!-- Minute hand forming checkmark - long part going up-right -->
+  <rect x="252" y="136" width="8" height="124" rx="4" fill="#4CAF50" transform="rotate(45 256 256)"/>
+
+  <!-- Checkmark accent in corner -->
+  <g transform="translate(340, 340)">
+    <circle cx="40" cy="40" r="56" fill="#388E3C"/>
+    <path d="M20 42 L35 57 L62 26" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

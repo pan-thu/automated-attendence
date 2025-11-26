@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -78,11 +79,15 @@ export function Sidebar() {
         "flex items-center border-b border-zinc-800 py-5 transition-all duration-300",
         isCollapsed ? "justify-center px-4" : "gap-2 px-6"
       )}>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 shrink-0">
-          <ClipboardCheck className="h-5 w-5 text-white" />
-        </div>
+        <Image
+          src="/logo.svg"
+          alt="AttenDesk"
+          width={32}
+          height={32}
+          className="shrink-0"
+        />
         {!isCollapsed && (
-          <span className="text-lg font-semibold text-white whitespace-nowrap">AttendDesk</span>
+          <span className="text-lg font-semibold text-white whitespace-nowrap">AttenDesk</span>
         )}
       </div>
 

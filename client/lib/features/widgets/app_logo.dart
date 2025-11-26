@@ -5,37 +5,37 @@ import '../../design_system/typography.dart' as app_typography;
 
 /// App logo widget for branding
 ///
-/// Displays "AttenDesk" with clock icon
-/// Based on spec in docs/client-overhaul/01-login.md
+/// Displays "AttenDesk" with the app logo
 class AppLogo extends StatelessWidget {
   final double size;
   final bool showSubtitle;
+  final bool iconOnly;
 
   const AppLogo({
     super.key,
     this.size = 48.0,
     this.showSubtitle = false,
+    this.iconOnly = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (iconOnly) {
+      return Image.asset(
+        'assets/images/app-icon.png',
+        width: size,
+        height: size,
+      );
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Logo icon (using clock icon for now)
-        // TODO: Replace with actual logo asset when available
-        Container(
+        // Logo icon
+        Image.asset(
+          'assets/images/app-icon.png',
           width: size,
           height: size,
-          decoration: BoxDecoration(
-            color: primaryGreen,
-            borderRadius: BorderRadius.circular(radiusMedium),
-          ),
-          child: Icon(
-            Icons.access_time,
-            size: size * 0.6,
-            color: Colors.white,
-          ),
         ),
         const SizedBox(height: gapSmall),
 

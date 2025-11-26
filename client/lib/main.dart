@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 
 import 'core/config/app_environment.dart';
 import 'core/providers/app_providers.dart';
+import 'core/utils/error_handler.dart';
+import 'features/widgets/connection_error_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -74,7 +76,7 @@ class AppBootstrap extends StatefulWidget {
 }
 
 class _AppBootstrapState extends State<AppBootstrap> {
-  late final Future<void> _initialization;
+  late Future<void> _initialization;
 
   @override
   void initState() {
@@ -87,6 +89,12 @@ class _AppBootstrapState extends State<AppBootstrap> {
     await FirebaseMessaging.instance.setAutoInitEnabled(true);
   }
 
+  void _retry() {
+    setState(() {
+      _initialization = _bootstrap();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<void>(
@@ -94,6 +102,19 @@ class _AppBootstrapState extends State<AppBootstrap> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const MaterialApp(home: SplashScreen());
+        }
+
+        if (snapshot.hasError) {
+          final error = snapshot.error;
+          final isNetwork = ErrorHandler.isNetworkError(error);
+
+          return MaterialApp(
+            home: ConnectionErrorScreen(
+              onRetry: _retry,
+              title: isNetwork ? 'Connection Error' : 'Something Went Wrong',
+              message: ErrorHandler.getUserFriendlyMessage(error),
+            ),
+          );
         }
 
         return AppProviders(environment: widget.environment);

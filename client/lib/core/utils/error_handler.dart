@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -34,15 +37,29 @@ class AppException implements Exception {
 class ErrorHandler {
   /// Converts any error into a user-friendly message
   static String getUserFriendlyMessage(dynamic error) {
-    if (error is FirebaseFunctionsException) {
+    if (error is SocketException) {
+      return 'No internet connection. Please check your network and try again.';
+    } else if (error is TimeoutException) {
+      return 'Connection timed out. Please check your internet and try again.';
+    } else if (error is HandshakeException) {
+      return 'Secure connection failed. Please check your network settings.';
+    } else if (error is FirebaseFunctionsException) {
       return _handleFunctionsException(error);
     } else if (error is FirebaseAuthException) {
       return _handleAuthException(error);
     } else if (error is FirebaseException) {
       return _handleFirebaseException(error);
     } else if (error is Exception) {
+      final message = error.toString().toLowerCase();
+      if (_isNetworkErrorMessage(message)) {
+        return 'No internet connection. Please check your network and try again.';
+      }
       return error.toString().replaceAll('Exception: ', '');
     } else {
+      final message = error.toString().toLowerCase();
+      if (_isNetworkErrorMessage(message)) {
+        return 'No internet connection. Please check your network and try again.';
+      }
       return error.toString();
     }
   }
@@ -166,6 +183,9 @@ class ErrorHandler {
 
   /// Checks if an error is a network-related error
   static bool isNetworkError(dynamic error) {
+    if (error is SocketException) return true;
+    if (error is TimeoutException) return true;
+    if (error is HandshakeException) return true;
     if (error is FirebaseFunctionsException) {
       return error.code == 'unavailable' || error.code == 'deadline-exceeded';
     }
@@ -175,11 +195,18 @@ class ErrorHandler {
     if (error is FirebaseException) {
       return error.code == 'unavailable';
     }
-    final message = error.toString().toLowerCase();
+    return _isNetworkErrorMessage(error.toString().toLowerCase());
+  }
+
+  /// Helper to check if error message indicates network issues
+  static bool _isNetworkErrorMessage(String message) {
     return message.contains('network') ||
         message.contains('connection') ||
         message.contains('timeout') ||
-        message.contains('unreachable');
+        message.contains('unreachable') ||
+        message.contains('socket') ||
+        message.contains('host') ||
+        message.contains('failed host lookup');
   }
 
   /// Checks if an error is an authentication error requiring re-login
