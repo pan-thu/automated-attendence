@@ -39,19 +39,17 @@ interface PenaltyFiltersProps {
   isLoading?: boolean;
   employees?: Array<{ id: string; name: string }>;
   stats?: {
-    pending: number;
-    acknowledged: number;
+    active: number;
     waived: number;
     paid: number;
     totalAmount: number;
-    pendingAmount: number;
+    activeAmount: number;
   };
 }
 
 const statusOptions = [
   { value: "all", label: "All Status", icon: null },
-  { value: "pending", label: "Pending", icon: Clock, color: "text-yellow-600" },
-  { value: "acknowledged", label: "Acknowledged", icon: CheckCircle, color: "text-blue-600" },
+  { value: "active", label: "Active", icon: Clock, color: "text-yellow-600" },
   { value: "waived", label: "Waived", icon: Shield, color: "text-green-600" },
   { value: "paid", label: "Paid", icon: DollarSign, color: "text-gray-600" }
 ];
@@ -91,27 +89,16 @@ export function PenaltyFilters({
     <div className="space-y-4">
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <button
-            onClick={() => handleQuickFilter("pending")}
+            onClick={() => handleQuickFilter("active")}
             className="text-left p-3 rounded-lg bg-yellow-50 border border-yellow-200 hover:bg-yellow-100 transition-colors"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs text-yellow-600">Pending</span>
+              <span className="text-xs text-yellow-600">Active</span>
               <Clock className="h-4 w-4 text-yellow-600" />
             </div>
-            <p className="text-2xl font-bold text-yellow-700 mt-1">{stats.pending}</p>
-          </button>
-
-          <button
-            onClick={() => handleQuickFilter("acknowledged")}
-            className="text-left p-3 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-blue-600">Acknowledged</span>
-              <CheckCircle className="h-4 w-4 text-blue-600" />
-            </div>
-            <p className="text-2xl font-bold text-blue-700 mt-1">{stats.acknowledged}</p>
+            <p className="text-2xl font-bold text-yellow-700 mt-1">{stats.active}</p>
           </button>
 
           <button
@@ -138,11 +125,11 @@ export function PenaltyFilters({
 
           <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-orange-600">Pending Amt</span>
+              <span className="text-xs text-orange-600">Active Amt</span>
               <AlertCircle className="h-4 w-4 text-orange-600" />
             </div>
             <p className="text-lg font-bold text-orange-700 mt-1">
-              ${stats.pendingAmount.toFixed(0)}
+              ${stats.activeAmount.toFixed(0)}
             </p>
           </div>
 

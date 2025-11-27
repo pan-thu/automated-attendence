@@ -25,7 +25,7 @@ interface Penalty {
   reason: string;
   violationDate: Date;
   issuedDate: Date;
-  status: "pending" | "acknowledged" | "waived" | "paid" | "active";
+  status: "active" | "waived" | "paid";
   violationType: "absent" | "half_day_absent" | "half-absent" | "late" | "early_leave" | "early-leave";
   acknowledgedAt?: Date;
   waivedAt?: Date;
@@ -47,20 +47,10 @@ interface PenaltiesCardProps {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  pending: {
-    label: "Pending",
-    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    icon: Clock
-  },
   active: {
     label: "Active",
-    color: "bg-red-100 text-red-700 border-red-200",
-    icon: AlertTriangle
-  },
-  acknowledged: {
-    label: "Acknowledged",
-    color: "bg-blue-100 text-blue-700 border-blue-200",
-    icon: CheckCircle
+    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    icon: Clock
   },
   waived: {
     label: "Waived",
@@ -113,7 +103,7 @@ export function PenaltiesCard({
   const warnings = penalties.filter(p => p.isWarning === true);
   const actualFines = penalties.filter(p => p.isWarning !== true);
 
-  const activePenalties = actualFines.filter(p => p.status === "pending" || p.status === "active");
+  const activePenalties = actualFines.filter(p => p.status === "active");
   const totalActive = activePenalties.reduce((sum, p) => sum + p.amount, 0);
   const waivedPenalties = penalties.filter(p => p.status === "waived");
   const totalWaived = waivedPenalties.reduce((sum, p) => sum + p.amount, 0);
@@ -177,7 +167,7 @@ export function PenaltiesCard({
               <h4 className="text-sm font-medium text-muted-foreground">Recent Penalties</h4>
               {recentPenalties.map((penalty) => {
                 const isExpanded = expandedPenalty === penalty.id;
-                const statusCfg = statusConfig[penalty.status] || statusConfig.pending;
+                const statusCfg = statusConfig[penalty.status] || statusConfig.active;
                 const StatusIcon = statusCfg.icon;
                 const violationConfig = violationTypeConfig[penalty.violationType] || { label: penalty.violationType, color: "text-gray-600" };
 
@@ -187,7 +177,7 @@ export function PenaltiesCard({
                     className={cn(
                       "rounded-lg border p-3 transition-all",
                       penalty.isWarning && "border-orange-200 bg-orange-50/50",
-                      !penalty.isWarning && (penalty.status === "pending" || penalty.status === "active") && "border-red-200 bg-red-50/50",
+                      !penalty.isWarning && penalty.status === "active" && "border-red-200 bg-red-50/50",
                       penalty.status === "waived" && "border-green-200 bg-green-50/50",
                       isExpanded && "shadow-md"
                     )}
@@ -263,7 +253,7 @@ export function PenaltiesCard({
                             </>
                           )}
                         </div>
-                        {(penalty.status === "pending" || penalty.status === "active") && onWaivePenalty && (
+                        {penalty.status === "active" && onWaivePenalty && (
                           <Button
                             size="sm"
                             variant="outline"

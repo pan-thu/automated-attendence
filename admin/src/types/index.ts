@@ -194,7 +194,7 @@ export interface AttendanceReportFilters {
   department?: string;
 }
 
-export type PenaltyStatus = "active" | "waived" | "disputed" | "paid";
+export type PenaltyStatus = "active" | "waived" | "paid";
 
 export interface PenaltyRecord {
   id: string;

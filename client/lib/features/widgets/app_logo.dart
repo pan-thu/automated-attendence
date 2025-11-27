@@ -10,33 +10,53 @@ class AppLogo extends StatelessWidget {
   final double size;
   final bool showSubtitle;
   final bool iconOnly;
+  final bool circularBackground;
 
   const AppLogo({
     super.key,
     this.size = 48.0,
     this.showSubtitle = false,
     this.iconOnly = false,
+    this.circularBackground = false,
   });
+
+  Widget _buildLogo() {
+    final logoImage = Image.asset(
+      'assets/images/app-icon.png',
+      width: size * 0.6,
+      height: size * 0.6,
+    );
+
+    if (circularBackground) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(
+          color: Colors.black,
+          shape: BoxShape.circle,
+        ),
+        child: Center(child: logoImage),
+      );
+    }
+
+    return Image.asset(
+      'assets/images/app-icon.png',
+      width: size,
+      height: size,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     if (iconOnly) {
-      return Image.asset(
-        'assets/images/app-icon.png',
-        width: size,
-        height: size,
-      );
+      return _buildLogo();
     }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Logo icon
-        Image.asset(
-          'assets/images/app-icon.png',
-          width: size,
-          height: size,
-        ),
+        _buildLogo(),
         const SizedBox(height: gapSmall),
 
         // App name

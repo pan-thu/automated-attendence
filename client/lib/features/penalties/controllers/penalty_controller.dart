@@ -173,7 +173,6 @@ class PenaltyController extends ChangeNotifier {
     final updated = item.copyWith(
       acknowledged: true,
       acknowledgedAt: DateTime.now(),
-      status: 'acknowledged',
     );
     _items[index] = updated;
     notifyListeners();

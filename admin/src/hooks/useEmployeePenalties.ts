@@ -12,7 +12,7 @@ interface Penalty {
   reason: string;
   violationDate: Date;
   issuedDate: Date;
-  status: "pending" | "acknowledged" | "waived" | "paid" | "active";
+  status: "active" | "waived" | "paid";
   violationType: "absent" | "half_day_absent" | "half-absent" | "late" | "early_leave" | "early-leave";
   acknowledgedAt?: Date;
   waivedAt?: Date;
@@ -75,7 +75,7 @@ export function useEmployeePenalties(employeeId: string) {
           reason: data.reason || data.violationType || "Violation",
           violationDate,
           issuedDate,
-          status: data.status || "pending",
+          status: data.status || "active",
           violationType: mappedViolationType || "late",
           acknowledgedAt: parseTimestamp(data.acknowledgedAt) || undefined,
           waivedAt: parseTimestamp(data.waivedAt) || undefined,

@@ -126,12 +126,10 @@ class PenaltyCard extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'active':
         return errorBackground;
-      case 'resolved':
-        return successBackground;
       case 'waived':
         return infoBackground;
-      case 'disputed':
-        return warningBackground;
+      case 'paid':
+        return successBackground;
       default:
         return textSecondary;
     }

@@ -65,7 +65,7 @@ class AttendanceStatsCard extends StatelessWidget {
             color: const Color(0xFF9C27B0), // Purple
             count: halfDay,
             total: totalDays,
-            label: 'HALF\nDAY',
+            label: 'HALF DAY',
           ),
         ],
       ),

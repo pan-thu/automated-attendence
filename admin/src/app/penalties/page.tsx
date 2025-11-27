@@ -95,10 +95,7 @@ export default function PenaltiesPage() {
           violationDates: (penalty as any).violationDates?.map((d: any) => new Date(d)) || [],
           amount: penalty.amount || 0,
           currency: "USD",
-          status: penalty.status === "active" ? "pending" :
-                  penalty.status === "waived" ? "waived" :
-                  penalty.status === "disputed" ? "acknowledged" :
-                  penalty.status === "paid" ? "paid" : "pending" as any,
+          status: penalty.status as "active" | "waived" | "paid",
           issuedAt: penalty.dateIncurred || new Date(),
           dueDate: (penalty as any).dueDate || undefined,
           acknowledgedAt: (penalty as any).acknowledgedAt,
@@ -115,29 +112,26 @@ export default function PenaltiesPage() {
   }, [records, employees, filters]);
 
   // Separate penalties by status
-  const pendingPenalties = transformedPenalties.filter(p => p.status === "pending");
-  const acknowledgedPenalties = transformedPenalties.filter(p => p.status === "acknowledged");
+  const activePenalties = transformedPenalties.filter(p => p.status === "active");
   const waivedPenalties = transformedPenalties.filter(p => p.status === "waived");
   const paidPenalties = transformedPenalties.filter(p => p.status === "paid");
 
   // Calculate stats
   const stats = useMemo(() => {
-    const pending = pendingPenalties.length;
-    const acknowledged = acknowledgedPenalties.length;
+    const active = activePenalties.length;
     const waived = waivedPenalties.length;
     const paid = paidPenalties.length;
     const totalAmount = transformedPenalties.reduce((sum, p) => sum + p.amount, 0);
-    const pendingAmount = pendingPenalties.reduce((sum, p) => sum + p.amount, 0);
+    const activeAmount = activePenalties.reduce((sum, p) => sum + p.amount, 0);
 
     return {
-      pending,
-      acknowledged,
+      active,
       waived,
       paid,
       totalAmount,
-      pendingAmount
+      activeAmount
     };
-  }, [pendingPenalties, acknowledgedPenalties, waivedPenalties, paidPenalties, transformedPenalties]);
+  }, [activePenalties, waivedPenalties, paidPenalties, transformedPenalties]);
 
   const handleWaive = async (id: string, reason: string) => {
     setWaiveSubmitting(true);
@@ -167,10 +161,8 @@ export default function PenaltiesPage() {
 
   const getPenaltiesByTab = () => {
     switch (activeTab) {
-      case "pending":
-        return pendingPenalties;
-      case "acknowledged":
-        return acknowledgedPenalties;
+      case "active":
+        return activePenalties;
       case "waived":
         return waivedPenalties;
       case "paid":
@@ -204,15 +196,12 @@ export default function PenaltiesPage() {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full max-w-[500px] grid-cols-5">
+            <TabsList className="grid w-full max-w-[400px] grid-cols-4">
               <TabsTrigger value="all">
                 All ({transformedPenalties.length})
               </TabsTrigger>
-              <TabsTrigger value="pending">
-                Pending ({pendingPenalties.length})
-              </TabsTrigger>
-              <TabsTrigger value="acknowledged">
-                Ack'd ({acknowledgedPenalties.length})
+              <TabsTrigger value="active">
+                Active ({activePenalties.length})
               </TabsTrigger>
               <TabsTrigger value="waived">
                 Waived ({waivedPenalties.length})

@@ -4,19 +4,28 @@ import 'package:intl/intl.dart';
 import '../../../design_system/colors.dart';
 import '../../../design_system/spacing.dart';
 import '../../../design_system/typography.dart' as app_typography;
+import '../../../core/services/company_settings_repository.dart';
 import '../../../core/services/leave_repository.dart';
+import '../../../models/leave_models.dart';
+import '../../settings/models/company_settings.dart';
 
 /// Submit leave screen for creating new leave requests
 ///
 /// Features:
 /// - Side-by-side date pickers with calendar view
 /// - Reason text input
+/// - Attachment upload for required leave types
 /// - Submit button with loading state
 /// Redesigned to match submit_leave.png mockup
 class SubmitLeaveScreen extends StatefulWidget {
   final LeaveRepositoryBase repository;
+  final CompanySettingsRepository settingsRepository;
 
-  const SubmitLeaveScreen({required this.repository, super.key});
+  const SubmitLeaveScreen({
+    required this.repository,
+    required this.settingsRepository,
+    super.key,
+  });
 
   @override
   State<SubmitLeaveScreen> createState() => _SubmitLeaveScreenState();
@@ -30,6 +39,39 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
   DateTime _viewingMonth = DateTime.now();
   bool _isLoading = false;
   String _selectedLeaveType = 'casual'; // casual, sick, vacation
+
+  // Company settings and attachment state
+  CompanySettings? _companySettings;
+  bool _isLoadingSettings = true;
+  AttachmentMetadata? _attachment;
+  bool _isUploadingAttachment = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCompanySettings();
+  }
+
+  Future<void> _loadCompanySettings() async {
+    try {
+      final settings = await widget.settingsRepository.fetchSettings();
+      if (mounted) {
+        setState(() {
+          _companySettings = settings;
+          _isLoadingSettings = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingSettings = false);
+      }
+    }
+  }
+
+  bool get _requiresAttachment {
+    if (_companySettings == null) return false;
+    return _companySettings!.requiresAttachment(_selectedLeaveType);
+  }
 
   @override
   void dispose() {
@@ -57,6 +99,12 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
       return;
     }
 
+    // Validate attachment if required
+    if (_requiresAttachment && _attachment == null) {
+      _showError('Supporting document is required for this leave type');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -65,6 +113,7 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
         startDate: _startDate!,
         endDate: _endDate!,
         reason: _reasonController.text,
+        attachmentId: _attachment?.attachmentId,
       );
 
       if (mounted) {
@@ -80,6 +129,31 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _pickAttachment() async {
+    if (_isUploadingAttachment) return;
+
+    setState(() => _isUploadingAttachment = true);
+
+    try {
+      final metadata = await widget.repository.pickAndUploadAttachment();
+      if (metadata != null && mounted) {
+        setState(() => _attachment = metadata);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('Failed to upload attachment: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAttachment = false);
+      }
+    }
+  }
+
+  void _removeAttachment() {
+    setState(() => _attachment = null);
   }
 
   void _showError(String message) {
@@ -98,6 +172,12 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
         backgroundColor: successBackground,
       ),
     );
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   @override
@@ -274,6 +354,152 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
                         },
                       ),
                     ),
+
+                    // Attachment section (shown when required or when attachment exists)
+                    if (_requiresAttachment || _attachment != null) ...[
+                      const SizedBox(height: space6),
+                      Row(
+                        children: [
+                          Text(
+                            'Supporting Document',
+                            style: app_typography.labelLarge.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: textPrimary,
+                            ),
+                          ),
+                          if (_requiresAttachment) ...[
+                            const SizedBox(width: space2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: paddingSmall,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: errorBackground.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(radiusSmall),
+                              ),
+                              child: Text(
+                                'Required',
+                                style: app_typography.labelSmall.copyWith(
+                                  color: errorBackground,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: space3),
+                      if (_attachment != null)
+                        // Show uploaded attachment
+                        Container(
+                          padding: const EdgeInsets.all(paddingMedium),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8E8E8),
+                            borderRadius: BorderRadius.circular(radiusLarge * 1.5),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(paddingSmall),
+                                decoration: BoxDecoration(
+                                  color: successBackground.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(radiusMedium),
+                                ),
+                                child: Icon(
+                                  Icons.description,
+                                  color: successBackground,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: gapMedium),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Document uploaded',
+                                      style: app_typography.bodyMedium.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatFileSize(_attachment!.sizeBytes),
+                                      style: app_typography.bodySmall.copyWith(
+                                        color: textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: _removeAttachment,
+                                icon: Icon(
+                                  Icons.close,
+                                  color: textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        // Upload button
+                        InkWell(
+                          onTap: _isUploadingAttachment ? null : _pickAttachment,
+                          borderRadius: BorderRadius.circular(radiusLarge * 1.5),
+                          child: Container(
+                            padding: const EdgeInsets.all(paddingLarge),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8E8E8),
+                              borderRadius: BorderRadius.circular(radiusLarge * 1.5),
+                              border: Border.all(
+                                color: _requiresAttachment
+                                    ? borderColor.withOpacity(0.5)
+                                    : Colors.transparent,
+                                style: BorderStyle.solid,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_isUploadingAttachment)
+                                  const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    Icons.cloud_upload_outlined,
+                                    color: textSecondary,
+                                  ),
+                                const SizedBox(width: gapSmall),
+                                Text(
+                                  _isUploadingAttachment
+                                      ? 'Uploading...'
+                                      : 'Tap to upload document',
+                                  style: app_typography.bodyMedium.copyWith(
+                                    color: textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (_companySettings != null &&
+                          _companySettings!.allowedLeaveAttachmentTypes.isNotEmpty) ...[
+                        const SizedBox(height: space2),
+                        Text(
+                          'Allowed: ${_companySettings!.allowedLeaveAttachmentTypes.join(", ")} (max ${_companySettings!.maxLeaveAttachmentSizeMb.toStringAsFixed(0)}MB)',
+                          style: app_typography.labelSmall.copyWith(
+                            color: textSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ],
                 ),
               ),
@@ -281,7 +507,12 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
 
             // Submit button at bottom
             Container(
-              padding: const EdgeInsets.all(paddingLarge),
+              padding: EdgeInsets.only(
+                left: paddingLarge,
+                right: paddingLarge,
+                top: paddingLarge,
+                bottom: paddingLarge + MediaQuery.of(context).padding.bottom,
+              ),
               decoration: BoxDecoration(
                 color: backgroundPrimary,
                 boxShadow: [

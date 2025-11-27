@@ -25,7 +25,6 @@ class PenaltyFilters extends StatelessWidget {
           ButtonSegment(value: PenaltyStatusFilter.active, label: Text('Active'), icon: Icon(Icons.warning_amber_rounded)),
           ButtonSegment(value: PenaltyStatusFilter.waived, label: Text('Waived'), icon: Icon(Icons.redeem)),
           ButtonSegment(value: PenaltyStatusFilter.paid, label: Text('Paid'), icon: Icon(Icons.check_circle_outline)),
-          ButtonSegment(value: PenaltyStatusFilter.disputed, label: Text('Disputed'), icon: Icon(Icons.question_mark)),
         ],
         selected: <PenaltyStatusFilter>{filter},
         onSelectionChanged: isLoading

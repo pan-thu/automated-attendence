@@ -109,7 +109,7 @@ class _LoginViewState extends State<_LoginView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // App Logo
-              const AppLogo(size: 64, showSubtitle: true),
+              const AppLogo(size: 100, showSubtitle: true, circularBackground: true),
               const SizedBox(height: space12),
 
               // Welcome heading

@@ -198,7 +198,12 @@ class _LeaveViewState extends State<_LeaveView> {
 
           // Request Leave button at bottom
           Container(
-            padding: const EdgeInsets.all(paddingLarge),
+            padding: EdgeInsets.only(
+              left: paddingLarge,
+              right: paddingLarge,
+              top: paddingLarge,
+              bottom: paddingLarge + MediaQuery.of(context).padding.bottom,
+            ),
             decoration: BoxDecoration(
               color: backgroundPrimary,
               boxShadow: [

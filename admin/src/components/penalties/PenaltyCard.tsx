@@ -37,7 +37,7 @@ interface Penalty {
   violationDates: Date[];
   amount: number;
   currency: string;
-  status: "pending" | "acknowledged" | "waived" | "paid";
+  status: "active" | "waived" | "paid";
   issuedAt: Date;
   dueDate?: Date;
   acknowledgedAt?: Date;
@@ -68,8 +68,7 @@ const violationTypeConfig = {
 };
 
 const statusConfig = {
-  pending: { label: "Pending", color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: Clock },
-  acknowledged: { label: "Acknowledged", color: "bg-blue-100 text-blue-700 border-blue-200", icon: CheckCircle },
+  active: { label: "Active", color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: Clock },
   waived: { label: "Waived", color: "bg-green-100 text-green-700 border-green-200", icon: Shield },
   paid: { label: "Paid", color: "bg-gray-100 text-gray-700 border-gray-200", icon: CheckCircle }
 };
@@ -91,8 +90,8 @@ export function PenaltyCard({
   const ViolationIcon = violationConfig.icon;
 
   const daysUntilDue = penalty.dueDate ? differenceInDays(penalty.dueDate, new Date()) : null;
-  const isOverdue = daysUntilDue !== null && daysUntilDue < 0 && penalty.status === "pending";
-  const isUrgent = daysUntilDue !== null && daysUntilDue <= 3 && daysUntilDue >= 0 && penalty.status === "pending";
+  const isOverdue = daysUntilDue !== null && daysUntilDue < 0 && penalty.status === "active";
+  const isUrgent = daysUntilDue !== null && daysUntilDue <= 3 && daysUntilDue >= 0 && penalty.status === "active";
 
   const handleWaive = () => {
     if (onWaive && waiverReason.trim()) {
@@ -255,15 +254,6 @@ export function PenaltyCard({
             </div>
 
             {/* Status-specific Information */}
-            {penalty.status === "acknowledged" && penalty.acknowledgedAt && (
-              <div className="space-y-1 p-2 bg-blue-50 rounded-md">
-                <p className="text-sm font-medium text-blue-900">Acknowledged</p>
-                <p className="text-xs text-blue-700">
-                  By {penalty.acknowledgedBy || "Employee"} on {format(penalty.acknowledgedAt, "MMM dd, yyyy")}
-                </p>
-              </div>
-            )}
-
             {penalty.status === "waived" && penalty.waivedAt && (
               <div className="space-y-1 p-2 bg-green-50 rounded-md">
                 <p className="text-sm font-medium text-green-900">Waived</p>
@@ -285,8 +275,8 @@ export function PenaltyCard({
               </div>
             )}
 
-            {/* Action Inputs (for pending/acknowledged penalties) */}
-            {(penalty.status === "pending" || penalty.status === "acknowledged") && (
+            {/* Action Inputs (for active penalties) */}
+            {penalty.status === "active" && (
               <>
                 {/* Waiver Section */}
                 {onWaive && (

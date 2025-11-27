@@ -181,7 +181,10 @@ class AppRouter {
         GoRoute(
           name: AppRoutePaths.submitLeave,
           path: AppRoutePaths.submitLeave,
-          builder: (context, state) => SubmitLeaveScreen(repository: _leaveRepository),
+          builder: (context, state) => SubmitLeaveScreen(
+            repository: _leaveRepository,
+            settingsRepository: _settingsRepository,
+          ),
         ),
       ],
     );

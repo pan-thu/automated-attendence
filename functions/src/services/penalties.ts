@@ -304,8 +304,7 @@ export interface PenaltySummaryResult {
   byStatus: {
     active: { count: number; amount: number };
     waived: { count: number; amount: number };
-    resolved: { count: number; amount: number };
-    disputed: { count: number; amount: number };
+    paid: { count: number; amount: number };
   };
 }
 
@@ -523,8 +522,7 @@ export const getPenaltySummary = async (input: GetPenaltySummaryInput): Promise<
     byStatus: {
       active: { count: 0, amount: 0 },
       waived: { count: 0, amount: 0 },
-      resolved: { count: 0, amount: 0 },
-      disputed: { count: 0, amount: 0 },
+      paid: { count: 0, amount: 0 },
     },
   };
 
@@ -537,10 +535,8 @@ export const getPenaltySummary = async (input: GetPenaltySummaryInput): Promise<
     let statusKey: keyof typeof summary.byStatus = 'active';
     if (status === 'waived') {
       statusKey = 'waived';
-    } else if (status === 'paid' || status === 'resolved') {
-      statusKey = 'resolved';
-    } else if (status === 'disputed') {
-      statusKey = 'disputed';
+    } else if (status === 'paid') {
+      statusKey = 'paid';
     }
 
     summary.byStatus[statusKey].count++;

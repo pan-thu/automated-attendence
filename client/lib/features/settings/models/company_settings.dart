@@ -7,6 +7,9 @@ class CompanySettings {
     required this.geoFencingEnabled,
     required this.timezone,
     required this.penaltyRules,
+    required this.leaveAttachmentRequiredTypes,
+    required this.allowedLeaveAttachmentTypes,
+    required this.maxLeaveAttachmentSizeMb,
   });
 
   final String? companyName;
@@ -16,6 +19,12 @@ class CompanySettings {
   final bool geoFencingEnabled;
   final String? timezone;
   final Map<String, PenaltyRule> penaltyRules;
+  final List<String> leaveAttachmentRequiredTypes;
+  final List<String> allowedLeaveAttachmentTypes;
+  final double maxLeaveAttachmentSizeMb;
+
+  bool requiresAttachment(String leaveType) =>
+      leaveAttachmentRequiredTypes.contains(leaveType.toLowerCase());
 
   factory CompanySettings.fromJson(Map<String, dynamic> json) {
     final rawTimeWindows = Map<String, dynamic>.from(json['timeWindows'] as Map? ?? {});
@@ -30,6 +39,9 @@ class CompanySettings {
       penaltyRules[key] = PenaltyRule.fromJson(Map<String, dynamic>.from(value));
     });
 
+    final rawRequiredTypes = json['leaveAttachmentRequiredTypes'] as List? ?? [];
+    final rawAllowedTypes = json['allowedLeaveAttachmentTypes'] as List? ?? [];
+
     return CompanySettings(
       companyName: json['companyName'] as String?,
       geofenceRadiusMeters: (json['workplaceRadius'] as num?)?.toDouble(),
@@ -38,6 +50,9 @@ class CompanySettings {
       geoFencingEnabled: json['geoFencingEnabled'] as bool? ?? true,
       timezone: json['timezone'] as String?,
       penaltyRules: penaltyRules,
+      leaveAttachmentRequiredTypes: rawRequiredTypes.map((e) => (e as String).toLowerCase()).toList(),
+      allowedLeaveAttachmentTypes: rawAllowedTypes.map((e) => e as String).toList(),
+      maxLeaveAttachmentSizeMb: (json['maxLeaveAttachmentSizeMb'] as num?)?.toDouble() ?? 5.0,
     );
   }
 }

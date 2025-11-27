@@ -209,7 +209,6 @@ enum PenaltyStatusFilter {
   active,
   waived,
   paid,
-  disputed,
 }
 
 extension on PenaltyStatusFilter {
@@ -223,8 +222,6 @@ extension on PenaltyStatusFilter {
         return 'waived';
       case PenaltyStatusFilter.paid:
         return 'paid';
-      case PenaltyStatusFilter.disputed:
-        return 'disputed';
     }
   }
 }
@@ -245,8 +242,7 @@ class PenaltySummary {
       byStatus: PenaltyStatusBreakdown(
         active: _parseStatusCount(byStatusData['active']),
         waived: _parseStatusCount(byStatusData['waived']),
-        resolved: _parseStatusCount(byStatusData['resolved']),
-        disputed: _parseStatusCount(byStatusData['disputed']),
+        paid: _parseStatusCount(byStatusData['paid']),
       ),
     );
   }
@@ -271,14 +267,12 @@ class PenaltyStatusBreakdown {
   PenaltyStatusBreakdown({
     required this.active,
     required this.waived,
-    required this.resolved,
-    required this.disputed,
+    required this.paid,
   });
 
   final PenaltyStatusCount active;
   final PenaltyStatusCount waived;
-  final PenaltyStatusCount resolved;
-  final PenaltyStatusCount disputed;
+  final PenaltyStatusCount paid;
 }
 
 class PenaltyStatusCount {
