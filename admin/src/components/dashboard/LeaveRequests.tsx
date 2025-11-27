@@ -34,7 +34,7 @@ interface LeaveRequest {
     avatar?: string;
     department: string;
   };
-  type: "annual" | "sick" | "medical" | "maternity" | "paternity" | "unpaid" | "other";
+  type: "full" | "medical" | "maternity";
   startDate: Date;
   endDate: Date;
   reason: string;
@@ -52,15 +52,8 @@ interface LeaveRequestsProps {
 
 const leaveTypeConfig: Record<string, { label: string; color: string }> = {
   full: { label: "Full Leave", color: "bg-blue-100 text-blue-700" },
-  annual: { label: "Annual", color: "bg-blue-100 text-blue-700" },
-  casual: { label: "Casual", color: "bg-teal-100 text-teal-700" },
-  sick: { label: "Sick", color: "bg-red-100 text-red-700" },
   medical: { label: "Medical", color: "bg-purple-100 text-purple-700" },
   maternity: { label: "Maternity", color: "bg-pink-100 text-pink-700" },
-  paternity: { label: "Paternity", color: "bg-indigo-100 text-indigo-700" },
-  vacation: { label: "Vacation", color: "bg-cyan-100 text-cyan-700" },
-  unpaid: { label: "Unpaid", color: "bg-gray-100 text-gray-700" },
-  other: { label: "Other", color: "bg-yellow-100 text-yellow-700" },
 };
 
 const defaultLeaveTypeConfig = { label: "Leave", color: "bg-gray-100 text-gray-700" };

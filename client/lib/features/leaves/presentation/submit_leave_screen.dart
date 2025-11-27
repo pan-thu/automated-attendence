@@ -38,7 +38,7 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
   DateTime? _endDate;
   DateTime _viewingMonth = DateTime.now();
   bool _isLoading = false;
-  String _selectedLeaveType = 'casual'; // casual, sick, vacation
+  String _selectedLeaveType = 'full'; // full, medical, maternity
 
   // Company settings and attachment state
   CompanySettings? _companySettings;
@@ -69,8 +69,8 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
   }
 
   bool get _requiresAttachment {
-    if (_companySettings == null) return false;
-    return _companySettings!.requiresAttachment(_selectedLeaveType);
+    // Hardcoded: medical and maternity leave types require supporting documents
+    return _selectedLeaveType == 'medical' || _selectedLeaveType == 'maternity';
   }
 
   @override
@@ -221,21 +221,21 @@ class _SubmitLeaveScreenState extends State<SubmitLeaveScreen> {
                     Row(
                       children: [
                         _LeaveTypeOption(
-                          label: 'Casual',
-                          isSelected: _selectedLeaveType == 'casual',
-                          onTap: () => setState(() => _selectedLeaveType = 'casual'),
+                          label: 'Full',
+                          isSelected: _selectedLeaveType == 'full',
+                          onTap: () => setState(() => _selectedLeaveType = 'full'),
                         ),
                         const SizedBox(width: gapMedium),
                         _LeaveTypeOption(
                           label: 'Medical',
-                          isSelected: _selectedLeaveType == 'sick',
-                          onTap: () => setState(() => _selectedLeaveType = 'sick'),
+                          isSelected: _selectedLeaveType == 'medical',
+                          onTap: () => setState(() => _selectedLeaveType = 'medical'),
                         ),
                         const SizedBox(width: gapMedium),
                         _LeaveTypeOption(
                           label: 'Maternity',
-                          isSelected: _selectedLeaveType == 'vacation',
-                          onTap: () => setState(() => _selectedLeaveType = 'vacation'),
+                          isSelected: _selectedLeaveType == 'maternity',
+                          onTap: () => setState(() => _selectedLeaveType = 'maternity'),
                         ),
                       ],
                     ),

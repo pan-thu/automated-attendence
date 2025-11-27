@@ -9,9 +9,9 @@ import '../../../core/services/leave_repository.dart';
 /// Leave balance summary card
 ///
 /// Shows breakdown by leave type using pie charts:
-/// - Casual Leave (Full leave)
-/// - Medical Leave (Sick leave)
-/// - Maternity Leave (Vacation leave)
+/// - Full Leave
+/// - Medical Leave
+/// - Maternity Leave
 class LeaveBalanceCard extends StatelessWidget {
   final LeaveBalance balance;
 
@@ -32,34 +32,34 @@ class LeaveBalanceCard extends StatelessWidget {
           ? Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (balance.breakdown!.casual != null)
+                if (balance.breakdown!.full != null)
                   Expanded(
                     child: _LeaveTypePieChart(
-                      label: 'Casual',
-                      remaining: balance.breakdown!.casual!.remaining,
-                      used: balance.breakdown!.casual!.used,
-                      total: balance.breakdown!.casual!.total,
+                      label: 'Full',
+                      remaining: balance.breakdown!.full!.remaining,
+                      used: balance.breakdown!.full!.used,
+                      total: balance.breakdown!.full!.total,
                     ),
                   ),
-                if (balance.breakdown!.sick != null) ...[
+                if (balance.breakdown!.medical != null) ...[
                   const SizedBox(width: gapMedium),
                   Expanded(
                     child: _LeaveTypePieChart(
                       label: 'Medical',
-                      remaining: balance.breakdown!.sick!.remaining,
-                      used: balance.breakdown!.sick!.used,
-                      total: balance.breakdown!.sick!.total,
+                      remaining: balance.breakdown!.medical!.remaining,
+                      used: balance.breakdown!.medical!.used,
+                      total: balance.breakdown!.medical!.total,
                     ),
                   ),
                 ],
-                if (balance.breakdown!.vacation != null) ...[
+                if (balance.breakdown!.maternity != null) ...[
                   const SizedBox(width: gapMedium),
                   Expanded(
                     child: _LeaveTypePieChart(
                       label: 'Maternity',
-                      remaining: balance.breakdown!.vacation!.remaining,
-                      used: balance.breakdown!.vacation!.used,
-                      total: balance.breakdown!.vacation!.total,
+                      remaining: balance.breakdown!.maternity!.remaining,
+                      used: balance.breakdown!.maternity!.used,
+                      total: balance.breakdown!.maternity!.total,
                     ),
                   ),
                 ],

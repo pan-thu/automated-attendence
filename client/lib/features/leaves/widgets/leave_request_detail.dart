@@ -91,7 +91,7 @@ class LeaveDetailSheet extends StatelessWidget {
     if (date == null) {
       return 'Unknown';
     }
-    return DateFormat.yMMMd().add_jm().format(date);
+    return DateFormat.yMMMd().add_jm().format(date.toLocal());
   }
 
   Future<void> _confirmCancellation(BuildContext context) async {

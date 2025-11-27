@@ -93,18 +93,19 @@ class FeedbackDialog extends StatelessWidget {
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black54,
-      builder: (context) => dialog,
-    );
-
-    // Auto-dismiss if duration is set
-    if (dialog.autoDismissDuration != null) {
-      Future.delayed(dialog.autoDismissDuration!, () {
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          dialog.onDismiss?.call();
+      builder: (dialogContext) {
+        // Auto-dismiss if duration is set - use dialog's own context
+        if (dialog.autoDismissDuration != null) {
+          Future.delayed(dialog.autoDismissDuration!, () {
+            if (dialogContext.mounted) {
+              Navigator.of(dialogContext).pop();
+              dialog.onDismiss?.call();
+            }
+          });
         }
-      });
-    }
+        return dialog;
+      },
+    );
   }
 
   Color _getBackgroundColor() {

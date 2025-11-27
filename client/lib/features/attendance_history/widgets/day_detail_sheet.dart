@@ -180,7 +180,7 @@ class _ChecksCard extends StatelessWidget {
                     Text('Status: ${check.status ?? 'Unknown'}'),
                     if (check.timestamp != null)
                       Text(
-                        'Time: ${DateFormat.Hm().format(DateTime.parse(check.timestamp!))}',
+                        'Time: ${DateFormat.Hm().format(DateTime.parse(check.timestamp!).toLocal())}',
                       ),
                     if (check.geofenceStatus != null)
                       Text('Geofence: ${check.geofenceStatus}'),

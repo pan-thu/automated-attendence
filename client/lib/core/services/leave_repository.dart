@@ -274,28 +274,28 @@ class LeaveBalance {
 
 class LeaveBreakdown {
   LeaveBreakdown({
-    this.sick,
-    this.casual,
-    this.vacation,
+    this.full,
+    this.medical,
+    this.maternity,
   });
 
   factory LeaveBreakdown.fromJson(Map<String, dynamic> json) {
     return LeaveBreakdown(
-      sick: json['sick'] != null
-          ? LeaveTypeBalance.fromJson(Map<String, dynamic>.from(json['sick'] as Map))
+      full: json['full'] != null
+          ? LeaveTypeBalance.fromJson(Map<String, dynamic>.from(json['full'] as Map))
           : null,
-      casual: json['casual'] != null
-          ? LeaveTypeBalance.fromJson(Map<String, dynamic>.from(json['casual'] as Map))
+      medical: json['medical'] != null
+          ? LeaveTypeBalance.fromJson(Map<String, dynamic>.from(json['medical'] as Map))
           : null,
-      vacation: json['vacation'] != null
-          ? LeaveTypeBalance.fromJson(Map<String, dynamic>.from(json['vacation'] as Map))
+      maternity: json['maternity'] != null
+          ? LeaveTypeBalance.fromJson(Map<String, dynamic>.from(json['maternity'] as Map))
           : null,
     );
   }
 
-  final LeaveTypeBalance? sick;
-  final LeaveTypeBalance? casual;
-  final LeaveTypeBalance? vacation;
+  final LeaveTypeBalance? full;
+  final LeaveTypeBalance? medical;
+  final LeaveTypeBalance? maternity;
 }
 
 class LeaveTypeBalance {

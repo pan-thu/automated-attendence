@@ -140,7 +140,7 @@ class _NotificationTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(item.sentAt != null ? formatter.format(item.sentAt!) : 'Unknown'),
+            Text(item.sentAt != null ? formatter.format(item.sentAt!.toLocal()) : 'Unknown'),
             if (!item.isRead)
               TextButton(
                 onPressed: onMarkAsRead,

@@ -75,9 +75,7 @@ export interface LeaveRequestItem {
 
 const leaveTypeFieldMap: Record<string, string> = {
   full: 'fullLeaveBalance',
-  half: 'halfLeaveBalance',
   medical: 'medicalLeaveBalance',
-  sick: 'medicalLeaveBalance', // sick maps to medical leave balance
   maternity: 'maternityLeaveBalance',
 };
 
@@ -422,14 +420,8 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
   const balanceField = leaveTypeFieldMap[leaveTypeLower];
 
   if (balanceField) {
-    // Get leave balances from user document
-    const leaveBalances = (userSnap.get('leaveBalances') as Record<string, number> | undefined) ?? {};
-
-    // Find the balance with case-insensitive matching
-    const balanceKey = Object.keys(leaveBalances).find(
-      (key) => key.toLowerCase() === balanceField.toLowerCase()
-    );
-    const currentBalance = balanceKey ? (leaveBalances[balanceKey] ?? 0) : 0;
+    // Get leave balance directly from user document (stored at root level)
+    const currentBalance = (userSnap.get(balanceField) as number) ?? 0;
 
     if (totalDays > currentBalance) {
       throw new functions.https.HttpsError(
@@ -439,9 +431,8 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
     }
   }
 
-  const companySettings = await getCompanySettings();
-  const requiredAttachmentTypes = companySettings.leaveAttachmentRequiredTypes ?? [];
-  const requiresAttachment = requiredAttachmentTypes.includes(leaveType.toLowerCase());
+  // Hardcoded: medical and maternity leave types require supporting documents
+  const requiresAttachment = leaveTypeLower === 'medical' || leaveTypeLower === 'maternity';
 
   let attachmentMetadata: Awaited<ReturnType<typeof getAttachmentById>> | null = null;
 
@@ -660,9 +651,9 @@ export interface LeaveBalanceResult {
   remaining: number;
   year: number;
   breakdown?: {
-    sick?: { total: number; used: number; remaining: number };
-    casual?: { total: number; used: number; remaining: number };
-    vacation?: { total: number; used: number; remaining: number };
+    full?: { total: number; used: number; remaining: number };
+    medical?: { total: number; used: number; remaining: number };
+    maternity?: { total: number; used: number; remaining: number };
   };
 }
 
@@ -707,9 +698,9 @@ export const getLeaveBalance = async (input: GetLeaveBalanceInput): Promise<Leav
 
   // Calculate used days
   let usedDays = 0;
-  let sickUsed = 0;
-  let casualUsed = 0;
-  let vacationUsed = 0;
+  let fullUsed = 0;
+  let medicalUsed = 0;
+  let maternityUsed = 0;
 
   leavesSnapshot.forEach((doc) => {
     const leave = doc.data();
@@ -722,13 +713,13 @@ export const getLeaveBalance = async (input: GetLeaveBalanceInput): Promise<Leav
     usedDays += days;
 
     // Track by type
-    const leaveType = (leave.leaveType as string)?.toLowerCase() ?? 'casual';
-    if (leaveType.includes('sick') || leaveType.includes('medical')) {
-      sickUsed += days;
-    } else if (leaveType.includes('vacation')) {
-      vacationUsed += days;
+    const leaveType = (leave.leaveType as string)?.toLowerCase() ?? 'full';
+    if (leaveType === 'medical') {
+      medicalUsed += days;
+    } else if (leaveType === 'maternity') {
+      maternityUsed += days;
     } else {
-      casualUsed += days;
+      fullUsed += days;
     }
   });
 
@@ -740,20 +731,20 @@ export const getLeaveBalance = async (input: GetLeaveBalanceInput): Promise<Leav
     remaining: Math.max(0, remaining),
     year: currentYear,
     breakdown: {
-      sick: {
-        total: medicalLeaveBalance,
-        used: sickUsed,
-        remaining: Math.max(0, medicalLeaveBalance - sickUsed),
-      },
-      casual: {
+      full: {
         total: fullLeaveBalance,
-        used: casualUsed,
-        remaining: Math.max(0, fullLeaveBalance - casualUsed),
+        used: fullUsed,
+        remaining: Math.max(0, fullLeaveBalance - fullUsed),
       },
-      vacation: {
+      medical: {
+        total: medicalLeaveBalance,
+        used: medicalUsed,
+        remaining: Math.max(0, medicalLeaveBalance - medicalUsed),
+      },
+      maternity: {
         total: maternityLeaveBalance,
-        used: vacationUsed,
-        remaining: Math.max(0, maternityLeaveBalance - vacationUsed),
+        used: maternityUsed,
+        remaining: Math.max(0, maternityLeaveBalance - maternityUsed),
       },
     },
   };

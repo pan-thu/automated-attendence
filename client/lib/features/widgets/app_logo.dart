@@ -31,9 +31,9 @@ class AppLogo extends StatelessWidget {
       return Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Colors.black,
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(size * 0.2),
         ),
         child: Center(child: logoImage),
       );

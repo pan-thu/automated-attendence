@@ -30,7 +30,7 @@ interface LeaveRequest {
   userEmail: string;
   department?: string;
   avatar?: string;
-  leaveType: "annual" | "sick" | "medical" | "maternity" | "paternity" | "unpaid" | "other";
+  leaveType: "full" | "medical" | "maternity";
   startDate: Date;
   endDate: Date;
   totalDays: number;
@@ -53,15 +53,8 @@ interface LeaveRequestCardProps {
 
 const leaveTypeConfig: Record<string, { label: string; color: string; icon: typeof Calendar }> = {
   full: { label: "Full Leave", color: "bg-blue-100 text-blue-700", icon: Calendar },
-  annual: { label: "Annual Leave", color: "bg-blue-100 text-blue-700", icon: Calendar },
-  casual: { label: "Casual Leave", color: "bg-teal-100 text-teal-700", icon: Calendar },
-  sick: { label: "Sick Leave", color: "bg-red-100 text-red-700", icon: AlertCircle },
   medical: { label: "Medical Leave", color: "bg-orange-100 text-orange-700", icon: AlertCircle },
   maternity: { label: "Maternity Leave", color: "bg-pink-100 text-pink-700", icon: User },
-  paternity: { label: "Paternity Leave", color: "bg-indigo-100 text-indigo-700", icon: User },
-  vacation: { label: "Vacation Leave", color: "bg-cyan-100 text-cyan-700", icon: Calendar },
-  unpaid: { label: "Unpaid Leave", color: "bg-gray-100 text-gray-700", icon: XCircle },
-  other: { label: "Other Leave", color: "bg-yellow-100 text-yellow-700", icon: FileText }
 };
 
 const defaultLeaveConfig = { label: "Leave", color: "bg-gray-100 text-gray-700", icon: Calendar };

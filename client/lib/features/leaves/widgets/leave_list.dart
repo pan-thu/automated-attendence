@@ -95,7 +95,7 @@ class LeaveList extends StatelessWidget {
     if (submittedAt == null) {
       return 'Submitted: unknown';
     }
-    return 'Submitted: ${DateFormat.yMMMd().add_Hm().format(submittedAt)}';
+    return 'Submitted: ${DateFormat.yMMMd().add_Hm().format(submittedAt.toLocal())}';
   }
 
   Future<void> _openDetail(BuildContext context, LeaveListItem item) async {

@@ -248,7 +248,7 @@ class _CheckTimeCell extends StatelessWidget {
       children: [
         if (hasTime)
           Text(
-            timeFormat.format(check!.timestamp!),
+            timeFormat.format(check!.timestamp!.toLocal()),
             style: app_typography.bodyMedium.copyWith(
               color: isLate ? const Color(0xFFFFA726) : textPrimary,
               fontWeight: FontWeight.w500,

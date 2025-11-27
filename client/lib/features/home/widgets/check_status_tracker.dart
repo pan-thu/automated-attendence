@@ -88,7 +88,7 @@ class _CheckItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timeFormat = DateFormat('HH:mm');
-    final timeStr = check?.timestamp != null ? timeFormat.format(check!.timestamp!) : '--:--';
+    final timeStr = check?.timestamp != null ? timeFormat.format(check!.timestamp!.toLocal()) : '--:--';
     final isCompleted = check != null;
 
     return Expanded(
