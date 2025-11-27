@@ -32,7 +32,7 @@ const parseTimestamp = (value: unknown): Date | null => {
 
 const normalizeStatus = (value: unknown): PenaltyStatus => {
   if (typeof value === "string") {
-    if (value === "waived" || value === "disputed" || value === "paid" || value === "active") {
+    if (value === "active" || value === "waived" || value === "paid") {
       return value;
     }
   }

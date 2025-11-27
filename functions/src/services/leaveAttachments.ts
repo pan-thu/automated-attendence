@@ -342,6 +342,57 @@ export const assertAttachmentReady = (attachment: LeaveAttachmentRecord): void =
   }
 };
 
+export interface GetLeaveAttachmentDownloadUrlInput {
+  attachmentId: string;
+}
+
+export interface GetLeaveAttachmentDownloadUrlResult {
+  downloadUrl: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number | null;
+  expiresAt: string;
+}
+
+const DOWNLOAD_URL_TTL_SECONDS = 15 * 60; // 15 minutes
+
+export const getLeaveAttachmentDownloadUrl = async (
+  input: GetLeaveAttachmentDownloadUrlInput
+): Promise<GetLeaveAttachmentDownloadUrlResult> => {
+  const { attachmentId } = input;
+
+  const attachment = await getAttachmentById(attachmentId);
+
+  if (attachment.status !== 'attached' && attachment.status !== 'ready') {
+    throw new functions.https.HttpsError('failed-precondition', 'Attachment is not available for download.');
+  }
+
+  const bucketName = attachment.bucket ?? admin.storage().bucket().name;
+  const bucket = admin.storage().bucket(bucketName);
+  const file = bucket.file(attachment.storagePath);
+
+  const [exists] = await file.exists();
+  if (!exists) {
+    throw new functions.https.HttpsError('not-found', 'Attachment file not found in storage.');
+  }
+
+  const expiresAt = Date.now() + DOWNLOAD_URL_TTL_SECONDS * 1000;
+  const [downloadUrl] = await file.getSignedUrl({
+    version: 'v4',
+    action: 'read',
+    expires: expiresAt,
+    responseDisposition: `attachment; filename="${attachment.originalFileName}"`,
+  });
+
+  return {
+    downloadUrl,
+    fileName: attachment.originalFileName,
+    mimeType: attachment.mimeType,
+    sizeBytes: attachment.sizeBytes,
+    expiresAt: new Date(expiresAt).toISOString(),
+  };
+};
+
 export const attachAttachmentToLeave = async ({
   attachment,
   leaveRequestId,

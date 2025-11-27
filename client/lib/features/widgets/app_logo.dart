@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../design_system/colors.dart';
 import '../../design_system/spacing.dart';
 import '../../design_system/typography.dart' as app_typography;
@@ -21,26 +22,9 @@ class AppLogo extends StatelessWidget {
   });
 
   Widget _buildLogo() {
-    final logoImage = Image.asset(
-      'assets/images/app-icon.png',
-      width: size * 0.6,
-      height: size * 0.6,
-    );
-
-    if (circularBackground) {
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(size * 0.2),
-        ),
-        child: Center(child: logoImage),
-      );
-    }
-
-    return Image.asset(
-      'assets/images/app-icon.png',
+    // Use logo.svg which has the black background built in
+    return SvgPicture.asset(
+      'assets/images/logo.svg',
       width: size,
       height: size,
     );

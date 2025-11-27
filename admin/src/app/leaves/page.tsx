@@ -14,12 +14,15 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { LeaveRequestCard } from "@/components/leaves/LeaveRequestCard";
 import { LeaveRequestCardSkeleton } from "@/components/leaves/LeaveRequestCardSkeleton";
 import { LeaveFilters } from "@/components/leaves/LeaveFilters";
-import { Calendar, FileText, Users, TrendingUp } from "lucide-react";
+import { Calendar, FileText, Users, TrendingUp, Download, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFirebaseApp } from "@/lib/firebase/config";
 
 export default function LeavesPage() {
   const [detailsDialog, setDetailsDialog] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("pending");
+  const [downloadingAttachment, setDownloadingAttachment] = useState<string | null>(null);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -99,17 +102,34 @@ export default function LeavesPage() {
           reason: record.notes || "",
           status: record.status as any,
           appliedAt: record.appliedAt || new Date(),
-          attachments: (record as any).attachments?.map((a: any) => ({
-            id: a.id,
-            name: a.fileName || "Document",
-            url: a.url || ""
-          })),
+          attachmentId: record.attachmentId || undefined,
           reviewedBy: (record as any).reviewedBy,
           reviewedAt: (record as any).reviewedAt,
           reviewerNotes: record.reviewerNotes || undefined,
         };
       });
   }, [records, filters, employeeMap]);
+
+  const handleDownloadAttachment = async (attachmentId: string) => {
+    try {
+      setDownloadingAttachment(attachmentId);
+      const app = getFirebaseApp();
+      const functions = getFunctions(app);
+      const getDownloadUrl = httpsCallable<{ attachmentId: string }, { downloadUrl: string; fileName: string }>(
+        functions,
+        "getLeaveAttachmentDownloadUrl"
+      );
+
+      const result = await getDownloadUrl({ attachmentId });
+
+      // Open download URL in new tab
+      window.open(result.data.downloadUrl, "_blank");
+    } catch (err) {
+      console.error("Failed to download attachment", err);
+    } finally {
+      setDownloadingAttachment(null);
+    }
+  };
 
   // Separate records by status
   const pendingRecords = transformedRecords.filter(r => r.status === "pending");
@@ -236,7 +256,9 @@ export default function LeavesPage() {
                       onApprove={activeTab === "pending" ? handleApprove : undefined}
                       onReject={activeTab === "pending" ? handleReject : undefined}
                       onViewDetails={handleViewDetails}
+                      onDownloadAttachment={handleDownloadAttachment}
                       isProcessing={processing}
+                      isDownloading={downloadingAttachment === request.attachmentId}
                     />
                   ))}
                 </div>
@@ -314,25 +336,28 @@ export default function LeavesPage() {
                     </p>
                   </div>
 
-                  {/* Attachments */}
-                  {detailsDialog.attachments && detailsDialog.attachments.length > 0 && (
+                  {/* Attachment */}
+                  {detailsDialog.attachmentId && (
                     <div>
-                      <p className="text-sm font-medium mb-2">Attachments</p>
-                      <div className="space-y-2">
-                        {detailsDialog.attachments.map((att: any) => (
-                          <div key={att.id} className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <a
-                              href={att.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline"
-                            >
-                              {att.name}
-                            </a>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-sm font-medium mb-2">Attachment</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadAttachment(detailsDialog.attachmentId)}
+                        disabled={downloadingAttachment === detailsDialog.attachmentId}
+                      >
+                        {downloadingAttachment === detailsDialog.attachmentId ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Downloading...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download Document
+                          </>
+                        )}
+                      </Button>
                     </div>
                   )}
 

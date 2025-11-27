@@ -99,9 +99,58 @@ export default function AttendancePage() {
   const transformedRecords = useMemo(() => {
     if (!records) return [];
 
+    // Helper to get date range based on quickFilter
+    const getDateRange = () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endOfToday = new Date(today);
+      endOfToday.setHours(23, 59, 59, 999);
+
+      switch (filters.quickFilter) {
+        case "today":
+          return { start: today, end: endOfToday };
+        case "week": {
+          const startOfWeek = new Date(today);
+          startOfWeek.setDate(today.getDate() - today.getDay());
+          return { start: startOfWeek, end: endOfToday };
+        }
+        case "month": {
+          const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+          return { start: startOfMonth, end: endOfToday };
+        }
+        case "custom":
+          return {
+            start: filters.dateRange.start,
+            end: filters.dateRange.end
+          };
+        default:
+          return { start: today, end: endOfToday };
+      }
+    };
+
+    const dateRange = getDateRange();
+
     return records
       .filter((record) => {
-        // Apply filters
+        // Apply date filter based on quickFilter
+        if (record.attendanceDate) {
+          const recordDate = new Date(record.attendanceDate);
+          recordDate.setHours(0, 0, 0, 0);
+
+          if (dateRange.start) {
+            const startDate = new Date(dateRange.start);
+            startDate.setHours(0, 0, 0, 0);
+            if (recordDate < startDate) return false;
+          }
+
+          if (dateRange.end) {
+            const endDate = new Date(dateRange.end);
+            endDate.setHours(23, 59, 59, 999);
+            if (recordDate > endDate) return false;
+          }
+        }
+
+        // Apply search filter
         if (filters.search && !record.userName?.toLowerCase().includes(filters.search.toLowerCase()) &&
             !record.userEmail?.toLowerCase().includes(filters.search.toLowerCase())) {
           return false;

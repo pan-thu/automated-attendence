@@ -135,6 +135,7 @@ export interface LeaveRequestSummary {
   appliedAt: Date | null;
   notes?: string | null; // Maps to 'reason' field in Firestore
   reviewerNotes?: string | null;
+  attachmentId?: string | null;
 }
 
 export interface LeaveFilter {

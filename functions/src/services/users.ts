@@ -29,6 +29,14 @@ export const DEFAULT_LEAVE_KEYS = [
   'maternityLeaveBalance',
 ] as const;
 
+// Map leave policy keys to user document field names
+const leavePolicyToFieldMap: Record<string, string> = {
+  full: 'fullLeaveBalance',
+  half: 'halfLeaveBalance',
+  medical: 'medicalLeaveBalance',
+  maternity: 'maternityLeaveBalance',
+};
+
 export const createEmployee = async (input: CreateEmployeeInput, performedBy: string) => {
   const { email, password, fullName, department, position, phoneNumber, leaveBalances } = input;
 
@@ -49,10 +57,11 @@ export const createEmployee = async (input: CreateEmployeeInput, performedBy: st
   const companySettings = await getCompanySettings();
   const leavePolicy = companySettings?.leavePolicy ?? {};
 
-  // Build initial leave balances from company settings (default to 0 if not configured)
+  // Build initial leave balances from company settings, mapping to proper field names
   const initialLeaveBalances: Record<string, number> = {};
-  for (const key of Object.keys(leavePolicy)) {
-    initialLeaveBalances[key] = leavePolicy[key] ?? 0;
+  for (const [key, value] of Object.entries(leavePolicy)) {
+    const fieldName = leavePolicyToFieldMap[key.toLowerCase()] ?? `${key}LeaveBalance`;
+    initialLeaveBalances[fieldName] = value ?? 0;
   }
 
   const userDoc = firestore.collection(USERS_COLLECTION).doc(uid);
@@ -91,7 +100,9 @@ export const updateEmployee = async (input: UpdateEmployeeInput) => {
   if (leaveBalances) {
     for (const [key, value] of Object.entries(leaveBalances)) {
       if (typeof value === 'number' && value >= 0) {
-        updates[key] = value;
+        // Map policy keys to proper field names
+        const fieldName = leavePolicyToFieldMap[key.toLowerCase()] ?? key;
+        updates[fieldName] = value;
       }
     }
   }

@@ -18,7 +18,9 @@ import {
   ChevronDown,
   ChevronUp,
   Building,
-  Mail
+  Mail,
+  Download,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -37,7 +39,7 @@ interface LeaveRequest {
   reason: string;
   status: "pending" | "approved" | "rejected" | "cancelled";
   appliedAt: Date;
-  attachments?: Array<{ id: string; name: string; url: string }>;
+  attachmentId?: string;
   reviewedBy?: string;
   reviewedAt?: Date;
   reviewerNotes?: string;
@@ -48,7 +50,9 @@ interface LeaveRequestCardProps {
   onApprove?: (id: string, notes: string) => void;
   onReject?: (id: string, notes: string) => void;
   onViewDetails?: (request: LeaveRequest) => void;
+  onDownloadAttachment?: (attachmentId: string) => void;
   isProcessing?: boolean;
+  isDownloading?: boolean;
 }
 
 const leaveTypeConfig: Record<string, { label: string; color: string; icon: typeof Calendar }> = {
@@ -71,7 +75,9 @@ export function LeaveRequestCard({
   onApprove,
   onReject,
   onViewDetails,
-  isProcessing = false
+  onDownloadAttachment,
+  isProcessing = false,
+  isDownloading = false
 }: LeaveRequestCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [reviewNotes, setReviewNotes] = useState("");
@@ -158,13 +164,29 @@ export function LeaveRequestCard({
           </p>
         </div>
 
-        {/* Attachments */}
-        {request.attachments && request.attachments.length > 0 && (
+        {/* Attachment */}
+        {request.attachmentId && (
           <div className="flex items-center gap-2">
             <Paperclip className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {request.attachments.length} attachment{request.attachments.length > 1 ? 's' : ''}
-            </span>
+            <span className="text-sm text-muted-foreground">1 attachment</span>
+            {onDownloadAttachment && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownloadAttachment(request.attachmentId!);
+                }}
+                disabled={isDownloading}
+              >
+                {isDownloading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
+              </Button>
+            )}
           </div>
         )}
 

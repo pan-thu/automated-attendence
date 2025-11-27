@@ -196,7 +196,8 @@ export const handleLeaveApproval = async (input: LeaveApprovalInput) => {
     if (action === 'approve') {
       // Update user balance
       if (balanceField && userSnap) {
-        const currentBalance = (userSnap.get(balanceField) as number) ?? 0;
+        // Support both new field names and legacy keys for backwards compatibility
+        const currentBalance = (userSnap.get(balanceField) as number) ?? (leaveType ? (userSnap.get(leaveType) as number) : undefined) ?? 0;
         const updatedBalance = Math.max(currentBalance - totalDays, 0);
 
         tx.update(userSnap.ref, {
@@ -420,8 +421,8 @@ export const submitLeaveRequest = async (input: SubmitLeaveRequestInput) => {
   const balanceField = leaveTypeFieldMap[leaveTypeLower];
 
   if (balanceField) {
-    // Get leave balance directly from user document (stored at root level)
-    const currentBalance = (userSnap.get(balanceField) as number) ?? 0;
+    // Get leave balance - support both new field names and legacy keys for backwards compatibility
+    const currentBalance = (userSnap.get(balanceField) as number) ?? (userSnap.get(leaveTypeLower) as number) ?? 0;
 
     if (totalDays > currentBalance) {
       throw new functions.https.HttpsError(
@@ -539,7 +540,8 @@ export const cancelLeaveRequest = async (input: CancelLeaveRequestInput) => {
           throw new functions.https.HttpsError('not-found', 'User not found.');
         }
 
-        const currentBalance = (userSnap.get(balanceField) as number) ?? 0;
+        // Support both new field names and legacy keys for backwards compatibility
+        const currentBalance = (userSnap.get(balanceField) as number) ?? (leaveType ? (userSnap.get(leaveType) as number) : undefined) ?? 0;
         const restoredBalance = currentBalance + (data.totalDays as number);
 
         tx.update(userRef, {
@@ -677,9 +679,10 @@ export const getLeaveBalance = async (input: GetLeaveBalanceInput): Promise<Leav
   }
 
   const userData = userSnap.data();
-  const fullLeaveBalance = (userData?.fullLeaveBalance as number) ?? 0;
-  const medicalLeaveBalance = (userData?.medicalLeaveBalance as number) ?? 0;
-  const maternityLeaveBalance = (userData?.maternityLeaveBalance as number) ?? 0;
+  // Support both new field names (fullLeaveBalance) and legacy keys (full) for backwards compatibility
+  const fullLeaveBalance = (userData?.fullLeaveBalance as number) ?? (userData?.full as number) ?? 0;
+  const medicalLeaveBalance = (userData?.medicalLeaveBalance as number) ?? (userData?.medical as number) ?? 0;
+  const maternityLeaveBalance = (userData?.maternityLeaveBalance as number) ?? (userData?.maternity as number) ?? 0;
 
   // Calculate total available from user balances
   const totalAvailable = fullLeaveBalance + medicalLeaveBalance + maternityLeaveBalance;

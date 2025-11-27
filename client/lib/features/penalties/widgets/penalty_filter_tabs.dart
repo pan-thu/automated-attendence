@@ -49,11 +49,6 @@ class PenaltyFilterTabs extends StatelessWidget {
             isSelected: selectedTab == 'paid',
             onTap: () => onTabSelected('paid'),
           ),
-          _TabItem(
-            label: 'Disputed',
-            isSelected: selectedTab == 'disputed',
-            onTap: () => onTabSelected('disputed'),
-          ),
         ],
       ),
     );

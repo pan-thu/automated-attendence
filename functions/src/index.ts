@@ -26,6 +26,7 @@ import {
 import {
   generateLeaveAttachmentUploadUrl as generateLeaveAttachmentUploadUrlService,
   registerLeaveAttachment as registerLeaveAttachmentService,
+  getLeaveAttachmentDownloadUrl as getLeaveAttachmentDownloadUrlService,
 } from './services/leaveAttachments';
 import { updateCompanySettings as updateCompanySettingsService } from './services/settings';
 import {
@@ -973,6 +974,21 @@ export const registerLeaveAttachment = onCall(
   }, 'registerLeaveAttachment')
 );
 
+export const getLeaveAttachmentDownloadUrl = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAuthenticatedV2(request);
+    const payload = assertPayload<Record<string, unknown>>(request.data ?? {});
+
+    const attachmentId = assertString(payload.attachmentId, 'attachmentId');
+
+    const result = await getLeaveAttachmentDownloadUrlService({
+      attachmentId,
+    });
+
+    return result;
+  }, 'getLeaveAttachmentDownloadUrl')
+);
+
 export const listEmployeeNotifications = onCall(
   wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
     assertEmployeeV2(request);
@@ -1196,23 +1212,45 @@ export const scheduledPenaltyAutomation = onSchedule(
  * Daily attendance finalization and penalty calculation - runs after all check windows close
  * 1. Finalizes attendance: Creates absent records for no-shows, marks missed checks
  * 2. Creates penalties for each violation (late, early_leave, absent, half_day_absent)
+ *
+ * Schedule: Runs every hour and checks if it's the right time in company timezone.
+ * This allows the schedule to work regardless of the configured timezone.
+ * Finalization runs when it's between 18:00-19:00 in company timezone (after check-out window).
  */
 export const scheduledDailyPenaltyCalculation = onSchedule(
   {
-    // Run at 11 PM UTC daily - adjust based on company timezone
-    // This should run after all check-out windows have closed
-    schedule: '0 23 * * *',
+    // Run every hour at minute 30
+    schedule: '30 * * * *',
     timeZone: 'UTC',
   },
   async () => {
     const now = new Date();
 
-    // Import timezone utilities
+    // Import timezone utilities and settings
     const { convertToCompanyTimezone, formatInCompanyTimezone } = await import('./utils/timezoneUtils');
     const { isWeekend, isCompanyHoliday } = await import('./utils/dateUtils');
+    const { getCompanySettings } = await import('./services/settings');
 
-    // Get today's date in company timezone
+    // Get company settings to check time windows
+    const settings = await getCompanySettings();
+    const check3Window = settings.timeWindows?.check3;
+
+    // Get current time in company timezone
     const companyDate = await convertToCompanyTimezone(now);
+    const companyHour = companyDate.getHours();
+
+    // Determine the finalization hour (1 hour after check-out window ends)
+    // Default: check-out ends at 17:30, so finalize at 18:xx
+    let finalizationHour = 18;
+    if (check3Window?.end) {
+      const [endHour] = check3Window.end.split(':').map(Number);
+      finalizationHour = endHour + 1; // 1 hour after check-out window ends
+    }
+
+    // Only run during the finalization hour (e.g., 18:00-18:59)
+    if (companyHour !== finalizationHour) {
+      return;
+    }
 
     // Skip weekends
     if (isWeekend(companyDate)) {
@@ -1227,11 +1265,42 @@ export const scheduledDailyPenaltyCalculation = onSchedule(
     // Get today's date string
     const dateKey = await formatInCompanyTimezone(companyDate, 'yyyy-MM-dd');
 
-    // Step 1: Finalize attendance - create absent records for no-shows, mark missed checks
-    await finalizeAttendanceService({ date: dateKey });
+    // Check if finalization already ran today (prevent duplicate runs)
+    const db = admin.firestore();
+    const flagDoc = await db.collection('SYSTEM_FLAGS').doc(`finalization_${dateKey}`).get();
+    if (flagDoc.exists) {
+      return; // Already processed today
+    }
 
-    // Step 2: Calculate daily penalties based on finalized attendance
-    await calculateDailyViolationsService({ date: dateKey });
+    // Mark as processing to prevent duplicate runs
+    await db.collection('SYSTEM_FLAGS').doc(`finalization_${dateKey}`).set({
+      startedAt: FieldValue.serverTimestamp(),
+      status: 'processing',
+    });
+
+    try {
+      // Step 1: Finalize attendance - create absent records for no-shows, mark missed checks
+      const finalizeResult = await finalizeAttendanceService({ date: dateKey });
+
+      // Step 2: Calculate daily penalties based on finalized attendance
+      const penaltyResult = await calculateDailyViolationsService({ date: dateKey });
+
+      // Update flag with success
+      await db.collection('SYSTEM_FLAGS').doc(`finalization_${dateKey}`).update({
+        completedAt: FieldValue.serverTimestamp(),
+        status: 'completed',
+        finalizeResult,
+        penaltyResult,
+      });
+    } catch (error) {
+      // Update flag with error
+      await db.collection('SYSTEM_FLAGS').doc(`finalization_${dateKey}`).update({
+        completedAt: FieldValue.serverTimestamp(),
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
   }
 );
 

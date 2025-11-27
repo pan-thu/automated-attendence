@@ -37,7 +37,6 @@ class StatusBadge extends StatelessWidget {
         return statusLeave.withValues(alpha: 0.1);
       case StatusType.paid:
         return penaltyPaid.withValues(alpha: 0.1);
-      case StatusType.disputed:
       case StatusType.halfDay:
         return penaltyDisputed.withValues(alpha: 0.1);
     }
@@ -61,7 +60,6 @@ class StatusBadge extends StatelessWidget {
         return statusLeave;
       case StatusType.paid:
         return penaltyPaid;
-      case StatusType.disputed:
       case StatusType.halfDay:
         return penaltyDisputed;
     }
@@ -131,7 +129,6 @@ enum StatusType {
   active,
   waived,
   paid,
-  disputed,
 
   // Attendance statuses
   present,

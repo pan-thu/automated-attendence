@@ -96,6 +96,7 @@ export function useLeaves(initialFilters?: LeaveFilter) {
             appliedAt: parseTimestamp(data.submittedAt),
             notes: (data.reason as string | undefined) ?? null,
             reviewerNotes: (data.reviewerNotes as string | undefined) ?? null,
+            attachmentId: (data.attachmentId as string | undefined) ?? null,
           } satisfies LeaveRequestSummary;
         });
 

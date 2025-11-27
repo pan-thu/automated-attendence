@@ -35,19 +35,22 @@ const normalizeStatus = (value: unknown): string => {
 };
 
 const extractChecks = (data: Record<string, unknown>): AttendanceRecordSummary["checks"] => {
+  // Always return array with 3 entries to maintain consistent indexing
+  // checks[0] = check1 (checkIn), checks[1] = check2 (break), checks[2] = check3 (checkOut)
   const checks: AttendanceRecordSummary["checks"] = [];
   ["check1", "check2", "check3"].forEach((key) => {
     const status = data[`${key}_status`] as string | undefined;
     const timestamp = data[`${key}_timestamp`];
-    if (status || timestamp) {
-      checks.push({
-        check: key,
-        status: status ?? null,
-        timestamp: parseTimestamp(timestamp),
-      });
-    }
+    // Always push an entry to maintain index alignment
+    checks.push({
+      check: key,
+      status: status ?? null,
+      timestamp: parseTimestamp(timestamp),
+    });
   });
-  return checks.length > 0 ? checks : undefined;
+  // Return undefined only if no checks have any data
+  const hasAnyData = checks.some(c => c.status || c.timestamp);
+  return hasAnyData ? checks : undefined;
 };
 
 export function useAttendanceRecords(initialFilters?: AttendanceFilter) {
