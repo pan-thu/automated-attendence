@@ -215,6 +215,7 @@ export function EnhancedDashboard() {
           value={`${attendanceRate}%`}
           icon={<TrendingUp className="h-5 w-5" />}
           color={attendanceRate > 85 ? "green" : "yellow"}
+          changeLabel="of employees present"
         />
 
         <MetricCard

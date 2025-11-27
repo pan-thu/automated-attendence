@@ -117,10 +117,10 @@ export function PenaltyCard({
       isUrgent && "border-orange-400 border-2"
     )}>
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-2">
           {/* Employee Info */}
-          <div className="flex items-start gap-3">
-            <Avatar className="h-10 w-10">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <Avatar className="h-10 w-10 flex-shrink-0">
               <AvatarImage
                 src={penalty.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(penalty.userName)}&background=random`}
                 alt={penalty.userName}
@@ -129,16 +129,16 @@ export function PenaltyCard({
                 {penalty.userName.split(" ").map(n => n[0]).join("").toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <p className="font-medium">{penalty.userName}</p>
+            <div className="min-w-0">
+              <p className="font-medium truncate">{penalty.userName}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Mail className="h-3 w-3" />
-                <span>{penalty.userEmail}</span>
+                <Mail className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{penalty.userEmail}</span>
                 {penalty.department && (
                   <>
-                    <span>•</span>
-                    <Building className="h-3 w-3" />
-                    <span>{penalty.department}</span>
+                    <span className="flex-shrink-0">•</span>
+                    <Building className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{penalty.department}</span>
                   </>
                 )}
               </div>
@@ -146,7 +146,7 @@ export function PenaltyCard({
           </div>
 
           {/* Status and Urgency Badges */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {isOverdue && (
               <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">
                 Overdue

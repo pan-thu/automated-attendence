@@ -29,11 +29,26 @@ const TEST_USERS = {
   INACTIVE_EMPLOYEE: 'TEST_EMP_INACTIVE',
 };
 
-// Helper to create a date at specific time in local timezone (UTC+7)
-function createDate(year: number, month: number, day: number, hour: number = 0, minute: number = 0): Date {
-  // Create date in UTC, adjusted for Bangkok timezone (UTC+7)
-  const date = new Date(Date.UTC(year, month - 1, day, hour - 7, minute));
-  return date;
+// Bangkok timezone offset (UTC+7)
+const BANGKOK_OFFSET_HOURS = 7;
+
+// Helper to get current date in Bangkok timezone
+function getBangkokDate(): Date {
+  const now = new Date();
+  // Add Bangkok offset to get Bangkok time
+  const bangkokTime = new Date(now.getTime() + BANGKOK_OFFSET_HOURS * 60 * 60 * 1000);
+  return bangkokTime;
+}
+
+// Helper to create a date at specific time in Bangkok timezone
+// Returns a Date that represents the given Bangkok time
+function createBangkokDate(year: number, month: number, day: number, hour: number = 0, minute: number = 0): Date {
+  // Create the date as if it's in Bangkok timezone
+  // Then convert to UTC by subtracting the offset
+  const bangkokDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+  // Subtract Bangkok offset to get UTC time
+  const utcTime = bangkokDate.getTime() - BANGKOK_OFFSET_HOURS * 60 * 60 * 1000;
+  return new Date(utcTime);
 }
 
 // Helper to create Firestore Timestamp
@@ -41,25 +56,36 @@ function toTimestamp(date: Date): Timestamp {
   return Timestamp.fromDate(date);
 }
 
-// Get dates for test data
+// Helper to add time to a base date (base date is already in UTC representing Bangkok midnight)
+function addBangkokTime(baseDate: Date, hour: number, minute: number = 0): Date {
+  // baseDate represents Bangkok midnight in UTC
+  // Add the hours and minutes to get the desired Bangkok time
+  const result = new Date(baseDate.getTime());
+  result.setUTCHours(result.getUTCHours() + hour);
+  result.setUTCMinutes(result.getUTCMinutes() + minute);
+  return result;
+}
+
+// Get dates for test data (all in Bangkok timezone)
 function getTestDates() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth() + 1;
+  const bangkokNow = getBangkokDate();
+  const year = bangkokNow.getUTCFullYear();
+  const month = bangkokNow.getUTCMonth() + 1;
+  const day = bangkokNow.getUTCDate();
 
   return {
     // Past dates for historical records
-    fiveDaysAgo: createDate(year, month, today.getDate() - 5),
-    fourDaysAgo: createDate(year, month, today.getDate() - 4),
-    threeDaysAgo: createDate(year, month, today.getDate() - 3),
-    twoDaysAgo: createDate(year, month, today.getDate() - 2),
-    yesterday: createDate(year, month, today.getDate() - 1),
-    today: createDate(year, month, today.getDate()),
+    fiveDaysAgo: createBangkokDate(year, month, day - 5),
+    fourDaysAgo: createBangkokDate(year, month, day - 4),
+    threeDaysAgo: createBangkokDate(year, month, day - 3),
+    twoDaysAgo: createBangkokDate(year, month, day - 2),
+    yesterday: createBangkokDate(year, month, day - 1),
+    today: createBangkokDate(year, month, day),
     // Future dates for leave requests
-    tomorrow: createDate(year, month, today.getDate() + 1),
-    inThreeDays: createDate(year, month, today.getDate() + 3),
-    inFiveDays: createDate(year, month, today.getDate() + 5),
-    inSevenDays: createDate(year, month, today.getDate() + 7),
+    tomorrow: createBangkokDate(year, month, day + 1),
+    inThreeDays: createBangkokDate(year, month, day + 3),
+    inFiveDays: createBangkokDate(year, month, day + 5),
+    inSevenDays: createBangkokDate(year, month, day + 7),
   };
 }
 
@@ -188,10 +214,17 @@ async function seedAttendanceRecords() {
   const dates = getTestDates();
   const testLocation = new admin.firestore.GeoPoint(13.7563, 100.5018); // Bangkok
 
+  // Helper to format date for document ID (YYYY-MM-DD in Bangkok time)
+  const formatDateId = (date: Date): string => {
+    // Add Bangkok offset to get the Bangkok date
+    const bangkokDate = new Date(date.getTime() + BANGKOK_OFFSET_HOURS * 60 * 60 * 1000);
+    return bangkokDate.toISOString().split('T')[0];
+  };
+
   const records = [
     // Employee 1 - Mix of on-time, late, and partial days
     {
-      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${dates.fiveDaysAgo.toISOString().split('T')[0]}`,
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${formatDateId(dates.fiveDaysAgo)}`,
       data: {
         userId: TEST_USERS.EMPLOYEE_1,
         userName: 'Alice Test Employee',
@@ -199,20 +232,20 @@ async function seedAttendanceRecords() {
         attendanceDate: toTimestamp(dates.fiveDaysAgo),
         status: 'present',
         check1_status: 'on_time',
-        check1_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 8, 30)),
+        check1_timestamp: toTimestamp(addBangkokTime(dates.fiveDaysAgo, 8, 30)),
         check1_location: testLocation,
         check2_status: 'on_time',
-        check2_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 12, 0)),
+        check2_timestamp: toTimestamp(addBangkokTime(dates.fiveDaysAgo, 12, 0)),
         check2_location: testLocation,
         check3_status: 'on_time',
-        check3_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 17, 30)),
+        check3_timestamp: toTimestamp(addBangkokTime(dates.fiveDaysAgo, 17, 30)),
         check3_location: testLocation,
         isManualEntry: false,
         updatedAt: FieldValue.serverTimestamp(),
       },
     },
     {
-      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${dates.fourDaysAgo.toISOString().split('T')[0]}`,
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${formatDateId(dates.fourDaysAgo)}`,
       data: {
         userId: TEST_USERS.EMPLOYEE_1,
         userName: 'Alice Test Employee',
@@ -220,20 +253,20 @@ async function seedAttendanceRecords() {
         attendanceDate: toTimestamp(dates.fourDaysAgo),
         status: 'late',
         check1_status: 'late',
-        check1_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 9, 45)), // Late arrival
+        check1_timestamp: toTimestamp(addBangkokTime(dates.fourDaysAgo, 9, 45)), // Late arrival
         check1_location: testLocation,
         check2_status: 'on_time',
-        check2_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 12, 5)),
+        check2_timestamp: toTimestamp(addBangkokTime(dates.fourDaysAgo, 12, 5)),
         check2_location: testLocation,
         check3_status: 'on_time',
-        check3_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 17, 35)),
+        check3_timestamp: toTimestamp(addBangkokTime(dates.fourDaysAgo, 17, 35)),
         check3_location: testLocation,
         isManualEntry: false,
         updatedAt: FieldValue.serverTimestamp(),
       },
     },
     {
-      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${dates.threeDaysAgo.toISOString().split('T')[0]}`,
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${formatDateId(dates.threeDaysAgo)}`,
       data: {
         userId: TEST_USERS.EMPLOYEE_1,
         userName: 'Alice Test Employee',
@@ -241,10 +274,10 @@ async function seedAttendanceRecords() {
         attendanceDate: toTimestamp(dates.threeDaysAgo),
         status: 'half_day_absent',
         check1_status: 'on_time',
-        check1_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 8, 30)),
+        check1_timestamp: toTimestamp(addBangkokTime(dates.threeDaysAgo, 8, 30)),
         check1_location: testLocation,
         check2_status: 'on_time',
-        check2_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 12, 10)),
+        check2_timestamp: toTimestamp(addBangkokTime(dates.threeDaysAgo, 12, 10)),
         check2_location: testLocation,
         // No check3 - left early
         isManualEntry: false,
@@ -254,7 +287,7 @@ async function seedAttendanceRecords() {
     },
     // Employee 2 - Mix of records including absence
     {
-      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_2}_${dates.fiveDaysAgo.toISOString().split('T')[0]}`,
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_2}_${formatDateId(dates.fiveDaysAgo)}`,
       data: {
         userId: TEST_USERS.EMPLOYEE_2,
         userName: 'Bob Test Employee',
@@ -262,20 +295,20 @@ async function seedAttendanceRecords() {
         attendanceDate: toTimestamp(dates.fiveDaysAgo),
         status: 'present',
         check1_status: 'on_time',
-        check1_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 8, 15)),
+        check1_timestamp: toTimestamp(addBangkokTime(dates.fiveDaysAgo, 8, 15)),
         check1_location: testLocation,
         check2_status: 'on_time',
-        check2_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 12, 0)),
+        check2_timestamp: toTimestamp(addBangkokTime(dates.fiveDaysAgo, 12, 0)),
         check2_location: testLocation,
         check3_status: 'on_time',
-        check3_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 17, 45)),
+        check3_timestamp: toTimestamp(addBangkokTime(dates.fiveDaysAgo, 17, 45)),
         check3_location: testLocation,
         isManualEntry: false,
         updatedAt: FieldValue.serverTimestamp(),
       },
     },
     {
-      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_2}_${dates.fourDaysAgo.toISOString().split('T')[0]}`,
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_2}_${formatDateId(dates.fourDaysAgo)}`,
       data: {
         userId: TEST_USERS.EMPLOYEE_2,
         userName: 'Bob Test Employee',
@@ -283,13 +316,13 @@ async function seedAttendanceRecords() {
         attendanceDate: toTimestamp(dates.fourDaysAgo),
         status: 'late',
         check1_status: 'late',
-        check1_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 10, 30)), // Very late
+        check1_timestamp: toTimestamp(addBangkokTime(dates.fourDaysAgo, 10, 30)), // Very late
         check1_location: testLocation,
         check2_status: 'late',
-        check2_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 13, 15)),
+        check2_timestamp: toTimestamp(addBangkokTime(dates.fourDaysAgo, 13, 15)),
         check2_location: testLocation,
         check3_status: 'on_time',
-        check3_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 18, 0)),
+        check3_timestamp: toTimestamp(addBangkokTime(dates.fourDaysAgo, 18, 0)),
         check3_location: testLocation,
         isManualEntry: false,
         updatedAt: FieldValue.serverTimestamp(),
@@ -298,7 +331,7 @@ async function seedAttendanceRecords() {
     // Employee 2 - threeDaysAgo is ABSENT (no record - handled by penalty)
     // Employee 3 - Good attendance record
     {
-      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${dates.fiveDaysAgo.toISOString().split('T')[0]}`,
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${formatDateId(dates.fiveDaysAgo)}`,
       data: {
         userId: TEST_USERS.EMPLOYEE_3,
         userName: 'Carol Test Employee',
@@ -306,20 +339,20 @@ async function seedAttendanceRecords() {
         attendanceDate: toTimestamp(dates.fiveDaysAgo),
         status: 'present',
         check1_status: 'on_time',
-        check1_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 8, 0)),
+        check1_timestamp: toTimestamp(addBangkokTime(dates.fiveDaysAgo, 8, 0)),
         check1_location: testLocation,
         check2_status: 'on_time',
-        check2_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 12, 0)),
+        check2_timestamp: toTimestamp(addBangkokTime(dates.fiveDaysAgo, 12, 0)),
         check2_location: testLocation,
         check3_status: 'on_time',
-        check3_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 17, 30)),
+        check3_timestamp: toTimestamp(addBangkokTime(dates.fiveDaysAgo, 17, 30)),
         check3_location: testLocation,
         isManualEntry: false,
         updatedAt: FieldValue.serverTimestamp(),
       },
     },
     {
-      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${dates.fourDaysAgo.toISOString().split('T')[0]}`,
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${formatDateId(dates.fourDaysAgo)}`,
       data: {
         userId: TEST_USERS.EMPLOYEE_3,
         userName: 'Carol Test Employee',
@@ -327,20 +360,20 @@ async function seedAttendanceRecords() {
         attendanceDate: toTimestamp(dates.fourDaysAgo),
         status: 'present',
         check1_status: 'on_time',
-        check1_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 8, 5)),
+        check1_timestamp: toTimestamp(addBangkokTime(dates.fourDaysAgo, 8, 5)),
         check1_location: testLocation,
         check2_status: 'on_time',
-        check2_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 12, 0)),
+        check2_timestamp: toTimestamp(addBangkokTime(dates.fourDaysAgo, 12, 0)),
         check2_location: testLocation,
         check3_status: 'on_time',
-        check3_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 17, 30)),
+        check3_timestamp: toTimestamp(addBangkokTime(dates.fourDaysAgo, 17, 30)),
         check3_location: testLocation,
         isManualEntry: false,
         updatedAt: FieldValue.serverTimestamp(),
       },
     },
     {
-      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${dates.threeDaysAgo.toISOString().split('T')[0]}`,
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${formatDateId(dates.threeDaysAgo)}`,
       data: {
         userId: TEST_USERS.EMPLOYEE_3,
         userName: 'Carol Test Employee',
@@ -348,13 +381,75 @@ async function seedAttendanceRecords() {
         attendanceDate: toTimestamp(dates.threeDaysAgo),
         status: 'present',
         check1_status: 'on_time',
-        check1_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 8, 10)),
+        check1_timestamp: toTimestamp(addBangkokTime(dates.threeDaysAgo, 8, 10)),
         check1_location: testLocation,
         check2_status: 'on_time',
-        check2_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 12, 5)),
+        check2_timestamp: toTimestamp(addBangkokTime(dates.threeDaysAgo, 12, 5)),
         check2_location: testLocation,
         check3_status: 'on_time',
-        check3_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 17, 35)),
+        check3_timestamp: toTimestamp(addBangkokTime(dates.threeDaysAgo, 17, 35)),
+        check3_location: testLocation,
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    // TODAY's records - for "Today" filter testing
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${formatDateId(dates.today)}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        userName: 'Alice Test Employee',
+        userEmail: 'test.employee1@attendesk.test',
+        attendanceDate: toTimestamp(dates.today),
+        status: 'present',
+        check1_status: 'on_time',
+        check1_timestamp: toTimestamp(addBangkokTime(dates.today, 8, 25)),
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(addBangkokTime(dates.today, 12, 5)),
+        check2_location: testLocation,
+        check3_status: 'on_time',
+        check3_timestamp: toTimestamp(addBangkokTime(dates.today, 17, 30)),
+        check3_location: testLocation,
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_2}_${formatDateId(dates.today)}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        userName: 'Bob Test Employee',
+        userEmail: 'test.employee2@attendesk.test',
+        attendanceDate: toTimestamp(dates.today),
+        status: 'late',
+        check1_status: 'late',
+        check1_timestamp: toTimestamp(addBangkokTime(dates.today, 9, 45)),
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(addBangkokTime(dates.today, 12, 10)),
+        check2_location: testLocation,
+        // No check3 yet - still at work
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${formatDateId(dates.today)}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_3,
+        userName: 'Carol Test Employee',
+        userEmail: 'test.employee3@attendesk.test',
+        attendanceDate: toTimestamp(dates.today),
+        status: 'present',
+        check1_status: 'on_time',
+        check1_timestamp: toTimestamp(addBangkokTime(dates.today, 8, 0)),
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(addBangkokTime(dates.today, 12, 0)),
+        check2_location: testLocation,
+        check3_status: 'on_time',
+        check3_timestamp: toTimestamp(addBangkokTime(dates.today, 17, 30)),
         check3_location: testLocation,
         isManualEntry: false,
         updatedAt: FieldValue.serverTimestamp(),
@@ -388,9 +483,9 @@ async function seedLeaveRequests() {
         endDate: toTimestamp(dates.inFiveDays),
         totalDays: 3,
         status: 'pending',
-        notes: 'Family vacation - planned trip',
+        reason: 'Family vacation - planned trip',
         attachmentId: null,
-        appliedAt: toTimestamp(dates.yesterday),
+        submittedAt: toTimestamp(dates.yesterday),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       },
@@ -406,9 +501,9 @@ async function seedLeaveRequests() {
         endDate: toTimestamp(dates.tomorrow),
         totalDays: 1,
         status: 'pending',
-        notes: 'Doctor appointment - follow-up checkup',
+        reason: 'Doctor appointment - follow-up checkup',
         attachmentId: 'TEST_ATTACHMENT_001', // Has attachment
-        appliedAt: toTimestamp(dates.today),
+        submittedAt: toTimestamp(dates.today),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       },
@@ -424,9 +519,9 @@ async function seedLeaveRequests() {
         endDate: toTimestamp(dates.inSevenDays),
         totalDays: 0.5,
         status: 'pending',
-        notes: 'Personal errand in the morning',
+        reason: 'Personal errand in the morning',
         attachmentId: null,
-        appliedAt: toTimestamp(dates.today),
+        submittedAt: toTimestamp(dates.today),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       },
@@ -443,11 +538,11 @@ async function seedLeaveRequests() {
         endDate: toTimestamp(dates.fourDaysAgo),
         totalDays: 2,
         status: 'approved',
-        notes: 'Annual leave',
+        reason: 'Annual leave',
         attachmentId: null,
-        appliedAt: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate() - 3)),
+        submittedAt: toTimestamp(createBangkokDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate() - 3)),
         reviewedBy: TEST_USERS.ADMIN,
-        reviewedAt: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate() - 2)),
+        reviewedAt: toTimestamp(createBangkokDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate() - 2)),
         reviewerNotes: 'Approved. Enjoy your time off!',
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -464,9 +559,9 @@ async function seedLeaveRequests() {
         endDate: toTimestamp(dates.twoDaysAgo),
         totalDays: 1,
         status: 'approved',
-        notes: 'Sick leave - flu symptoms',
+        reason: 'Sick leave - flu symptoms',
         attachmentId: 'TEST_ATTACHMENT_002',
-        appliedAt: toTimestamp(dates.threeDaysAgo),
+        submittedAt: toTimestamp(dates.threeDaysAgo),
         reviewedBy: TEST_USERS.ADMIN,
         reviewedAt: toTimestamp(dates.threeDaysAgo),
         reviewerNotes: 'Get well soon!',
@@ -486,9 +581,9 @@ async function seedLeaveRequests() {
         endDate: toTimestamp(dates.today),
         totalDays: 2,
         status: 'rejected',
-        notes: 'Need time off for personal matters',
+        reason: 'Need time off for personal matters',
         attachmentId: null,
-        appliedAt: toTimestamp(dates.fourDaysAgo),
+        submittedAt: toTimestamp(dates.fourDaysAgo),
         reviewedBy: TEST_USERS.ADMIN,
         reviewedAt: toTimestamp(dates.threeDaysAgo),
         reviewerNotes: 'Rejected due to critical project deadline. Please reschedule.',
@@ -609,7 +704,7 @@ async function seedPenalties() {
         violationType: 'absent',
         amount: 200,
         status: 'paid',
-        dateIncurred: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate() - 10)),
+        dateIncurred: toTimestamp(createBangkokDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate() - 10)),
         notes: 'Unexcused absence',
         waivedAt: null,
         waivedReason: null,

@@ -196,7 +196,11 @@ export default function AttendancePage() {
               time: record.checks?.[0]?.timestamp || null,
               status: record.checks?.[0]?.status as "on_time" | "late" | null || null
             },
-            break: undefined, // Not in current data model
+            break: record.checks?.[1]?.timestamp ? {
+              out: record.checks[1].timestamp,
+              in: null, // Current data model only has single break timestamp
+              duration: undefined
+            } : undefined,
             checkOut: {
               time: record.checks?.[2]?.timestamp || null,
               status: record.checks?.[2]?.status as "on_time" | "early" | null || null
