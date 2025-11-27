@@ -1,0 +1,852 @@
+/**
+ * Test Data Seeding Script
+ *
+ * Creates isolated test data for testing purposes.
+ * All test users have IDs prefixed with "TEST_" for easy identification and cleanup.
+ *
+ * Usage:
+ *   npx ts-node -r tsconfig-paths/register src/scripts/seedTestData.ts
+ *
+ * Or deploy and call the seedTestData cloud function from Firebase console.
+ */
+
+import * as admin from 'firebase-admin';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+
+// Initialize Firebase Admin if not already initialized
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+const db = admin.firestore();
+
+// Test user IDs - clearly prefixed for identification
+const TEST_USERS = {
+  ADMIN: 'TEST_ADMIN_001',
+  EMPLOYEE_1: 'TEST_EMP_001',
+  EMPLOYEE_2: 'TEST_EMP_002',
+  EMPLOYEE_3: 'TEST_EMP_003',
+  INACTIVE_EMPLOYEE: 'TEST_EMP_INACTIVE',
+};
+
+// Helper to create a date at specific time in local timezone (UTC+7)
+function createDate(year: number, month: number, day: number, hour: number = 0, minute: number = 0): Date {
+  // Create date in UTC, adjusted for Bangkok timezone (UTC+7)
+  const date = new Date(Date.UTC(year, month - 1, day, hour - 7, minute));
+  return date;
+}
+
+// Helper to create Firestore Timestamp
+function toTimestamp(date: Date): Timestamp {
+  return Timestamp.fromDate(date);
+}
+
+// Get dates for test data
+function getTestDates() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+
+  return {
+    // Past dates for historical records
+    fiveDaysAgo: createDate(year, month, today.getDate() - 5),
+    fourDaysAgo: createDate(year, month, today.getDate() - 4),
+    threeDaysAgo: createDate(year, month, today.getDate() - 3),
+    twoDaysAgo: createDate(year, month, today.getDate() - 2),
+    yesterday: createDate(year, month, today.getDate() - 1),
+    today: createDate(year, month, today.getDate()),
+    // Future dates for leave requests
+    tomorrow: createDate(year, month, today.getDate() + 1),
+    inThreeDays: createDate(year, month, today.getDate() + 3),
+    inFiveDays: createDate(year, month, today.getDate() + 5),
+    inSevenDays: createDate(year, month, today.getDate() + 7),
+  };
+}
+
+async function seedUsers() {
+  console.log('Seeding test users...');
+
+  const users = [
+    {
+      id: TEST_USERS.ADMIN,
+      data: {
+        userId: TEST_USERS.ADMIN,
+        email: 'test.admin@attendesk.test',
+        fullName: 'Test Admin User',
+        role: 'admin',
+        department: 'Management',
+        position: 'System Administrator',
+        isActive: true,
+        phoneNumber: '+66800000001',
+        photoURL: null,
+        fullLeaveBalance: 15,
+        halfLeaveBalance: 10,
+        medicalLeaveBalance: 30,
+        maternityLeaveBalance: 90,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: 'SYSTEM_SEED',
+      },
+    },
+    {
+      id: TEST_USERS.EMPLOYEE_1,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        email: 'test.employee1@attendesk.test',
+        fullName: 'Alice Test Employee',
+        role: 'employee',
+        department: 'Engineering',
+        position: 'Software Developer',
+        isActive: true,
+        phoneNumber: '+66800000002',
+        photoURL: null,
+        fullLeaveBalance: 10,
+        halfLeaveBalance: 12,
+        medicalLeaveBalance: 30,
+        maternityLeaveBalance: 90,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: TEST_USERS.ADMIN,
+      },
+    },
+    {
+      id: TEST_USERS.EMPLOYEE_2,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        email: 'test.employee2@attendesk.test',
+        fullName: 'Bob Test Employee',
+        role: 'employee',
+        department: 'Marketing',
+        position: 'Marketing Specialist',
+        isActive: true,
+        phoneNumber: '+66800000003',
+        photoURL: null,
+        fullLeaveBalance: 8,
+        halfLeaveBalance: 10,
+        medicalLeaveBalance: 30,
+        maternityLeaveBalance: 0,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: TEST_USERS.ADMIN,
+      },
+    },
+    {
+      id: TEST_USERS.EMPLOYEE_3,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_3,
+        email: 'test.employee3@attendesk.test',
+        fullName: 'Carol Test Employee',
+        role: 'employee',
+        department: 'HR',
+        position: 'HR Coordinator',
+        isActive: true,
+        phoneNumber: '+66800000004',
+        photoURL: null,
+        fullLeaveBalance: 12,
+        halfLeaveBalance: 8,
+        medicalLeaveBalance: 30,
+        maternityLeaveBalance: 90,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: TEST_USERS.ADMIN,
+      },
+    },
+    {
+      id: TEST_USERS.INACTIVE_EMPLOYEE,
+      data: {
+        userId: TEST_USERS.INACTIVE_EMPLOYEE,
+        email: 'test.inactive@attendesk.test',
+        fullName: 'David Inactive Employee',
+        role: 'employee',
+        department: 'Engineering',
+        position: 'Former Developer',
+        isActive: false,
+        phoneNumber: '+66800000005',
+        photoURL: null,
+        fullLeaveBalance: 0,
+        halfLeaveBalance: 0,
+        medicalLeaveBalance: 0,
+        maternityLeaveBalance: 0,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        createdBy: TEST_USERS.ADMIN,
+      },
+    },
+  ];
+
+  const batch = db.batch();
+  for (const user of users) {
+    batch.set(db.collection('USERS').doc(user.id), user.data);
+  }
+  await batch.commit();
+  console.log(`Created ${users.length} test users`);
+}
+
+async function seedAttendanceRecords() {
+  console.log('Seeding attendance records...');
+
+  const dates = getTestDates();
+  const testLocation = new admin.firestore.GeoPoint(13.7563, 100.5018); // Bangkok
+
+  const records = [
+    // Employee 1 - Mix of on-time, late, and partial days
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${dates.fiveDaysAgo.toISOString().split('T')[0]}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        userName: 'Alice Test Employee',
+        userEmail: 'test.employee1@attendesk.test',
+        attendanceDate: toTimestamp(dates.fiveDaysAgo),
+        status: 'present',
+        check1_status: 'on_time',
+        check1_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 8, 30)),
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 12, 0)),
+        check2_location: testLocation,
+        check3_status: 'on_time',
+        check3_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 17, 30)),
+        check3_location: testLocation,
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${dates.fourDaysAgo.toISOString().split('T')[0]}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        userName: 'Alice Test Employee',
+        userEmail: 'test.employee1@attendesk.test',
+        attendanceDate: toTimestamp(dates.fourDaysAgo),
+        status: 'late',
+        check1_status: 'late',
+        check1_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 9, 45)), // Late arrival
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 12, 5)),
+        check2_location: testLocation,
+        check3_status: 'on_time',
+        check3_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 17, 35)),
+        check3_location: testLocation,
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_1}_${dates.threeDaysAgo.toISOString().split('T')[0]}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        userName: 'Alice Test Employee',
+        userEmail: 'test.employee1@attendesk.test',
+        attendanceDate: toTimestamp(dates.threeDaysAgo),
+        status: 'half_day_absent',
+        check1_status: 'on_time',
+        check1_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 8, 30)),
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 12, 10)),
+        check2_location: testLocation,
+        // No check3 - left early
+        isManualEntry: false,
+        notes: 'Left early - personal emergency',
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    // Employee 2 - Mix of records including absence
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_2}_${dates.fiveDaysAgo.toISOString().split('T')[0]}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        userName: 'Bob Test Employee',
+        userEmail: 'test.employee2@attendesk.test',
+        attendanceDate: toTimestamp(dates.fiveDaysAgo),
+        status: 'present',
+        check1_status: 'on_time',
+        check1_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 8, 15)),
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 12, 0)),
+        check2_location: testLocation,
+        check3_status: 'on_time',
+        check3_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 17, 45)),
+        check3_location: testLocation,
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_2}_${dates.fourDaysAgo.toISOString().split('T')[0]}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        userName: 'Bob Test Employee',
+        userEmail: 'test.employee2@attendesk.test',
+        attendanceDate: toTimestamp(dates.fourDaysAgo),
+        status: 'late',
+        check1_status: 'late',
+        check1_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 10, 30)), // Very late
+        check1_location: testLocation,
+        check2_status: 'late',
+        check2_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 13, 15)),
+        check2_location: testLocation,
+        check3_status: 'on_time',
+        check3_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 18, 0)),
+        check3_location: testLocation,
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    // Employee 2 - threeDaysAgo is ABSENT (no record - handled by penalty)
+    // Employee 3 - Good attendance record
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${dates.fiveDaysAgo.toISOString().split('T')[0]}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_3,
+        userName: 'Carol Test Employee',
+        userEmail: 'test.employee3@attendesk.test',
+        attendanceDate: toTimestamp(dates.fiveDaysAgo),
+        status: 'present',
+        check1_status: 'on_time',
+        check1_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 8, 0)),
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 12, 0)),
+        check2_location: testLocation,
+        check3_status: 'on_time',
+        check3_timestamp: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate(), 17, 30)),
+        check3_location: testLocation,
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${dates.fourDaysAgo.toISOString().split('T')[0]}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_3,
+        userName: 'Carol Test Employee',
+        userEmail: 'test.employee3@attendesk.test',
+        attendanceDate: toTimestamp(dates.fourDaysAgo),
+        status: 'present',
+        check1_status: 'on_time',
+        check1_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 8, 5)),
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 12, 0)),
+        check2_location: testLocation,
+        check3_status: 'on_time',
+        check3_timestamp: toTimestamp(createDate(dates.fourDaysAgo.getFullYear(), dates.fourDaysAgo.getMonth() + 1, dates.fourDaysAgo.getDate(), 17, 30)),
+        check3_location: testLocation,
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: `TEST_ATT_${TEST_USERS.EMPLOYEE_3}_${dates.threeDaysAgo.toISOString().split('T')[0]}`,
+      data: {
+        userId: TEST_USERS.EMPLOYEE_3,
+        userName: 'Carol Test Employee',
+        userEmail: 'test.employee3@attendesk.test',
+        attendanceDate: toTimestamp(dates.threeDaysAgo),
+        status: 'present',
+        check1_status: 'on_time',
+        check1_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 8, 10)),
+        check1_location: testLocation,
+        check2_status: 'on_time',
+        check2_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 12, 5)),
+        check2_location: testLocation,
+        check3_status: 'on_time',
+        check3_timestamp: toTimestamp(createDate(dates.threeDaysAgo.getFullYear(), dates.threeDaysAgo.getMonth() + 1, dates.threeDaysAgo.getDate(), 17, 35)),
+        check3_location: testLocation,
+        isManualEntry: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+  ];
+
+  const batch = db.batch();
+  for (const record of records) {
+    batch.set(db.collection('ATTENDANCE_RECORDS').doc(record.id), record.data);
+  }
+  await batch.commit();
+  console.log(`Created ${records.length} attendance records`);
+}
+
+async function seedLeaveRequests() {
+  console.log('Seeding leave requests...');
+
+  const dates = getTestDates();
+
+  const leaves = [
+    // Pending leave requests (for approve/reject tests)
+    {
+      id: 'TEST_LEAVE_PENDING_001',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        userName: 'Alice Test Employee',
+        userEmail: 'test.employee1@attendesk.test',
+        leaveType: 'full',
+        startDate: toTimestamp(dates.inThreeDays),
+        endDate: toTimestamp(dates.inFiveDays),
+        totalDays: 3,
+        status: 'pending',
+        notes: 'Family vacation - planned trip',
+        attachmentId: null,
+        appliedAt: toTimestamp(dates.yesterday),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: 'TEST_LEAVE_PENDING_002',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        userName: 'Bob Test Employee',
+        userEmail: 'test.employee2@attendesk.test',
+        leaveType: 'medical',
+        startDate: toTimestamp(dates.tomorrow),
+        endDate: toTimestamp(dates.tomorrow),
+        totalDays: 1,
+        status: 'pending',
+        notes: 'Doctor appointment - follow-up checkup',
+        attachmentId: 'TEST_ATTACHMENT_001', // Has attachment
+        appliedAt: toTimestamp(dates.today),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: 'TEST_LEAVE_PENDING_003',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_3,
+        userName: 'Carol Test Employee',
+        userEmail: 'test.employee3@attendesk.test',
+        leaveType: 'half',
+        startDate: toTimestamp(dates.inSevenDays),
+        endDate: toTimestamp(dates.inSevenDays),
+        totalDays: 0.5,
+        status: 'pending',
+        notes: 'Personal errand in the morning',
+        attachmentId: null,
+        appliedAt: toTimestamp(dates.today),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    // Approved leave (for reports and history)
+    {
+      id: 'TEST_LEAVE_APPROVED_001',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        userName: 'Alice Test Employee',
+        userEmail: 'test.employee1@attendesk.test',
+        leaveType: 'full',
+        startDate: toTimestamp(dates.fiveDaysAgo),
+        endDate: toTimestamp(dates.fourDaysAgo),
+        totalDays: 2,
+        status: 'approved',
+        notes: 'Annual leave',
+        attachmentId: null,
+        appliedAt: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate() - 3)),
+        reviewedBy: TEST_USERS.ADMIN,
+        reviewedAt: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate() - 2)),
+        reviewerNotes: 'Approved. Enjoy your time off!',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: 'TEST_LEAVE_APPROVED_002',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_3,
+        userName: 'Carol Test Employee',
+        userEmail: 'test.employee3@attendesk.test',
+        leaveType: 'medical',
+        startDate: toTimestamp(dates.twoDaysAgo),
+        endDate: toTimestamp(dates.twoDaysAgo),
+        totalDays: 1,
+        status: 'approved',
+        notes: 'Sick leave - flu symptoms',
+        attachmentId: 'TEST_ATTACHMENT_002',
+        appliedAt: toTimestamp(dates.threeDaysAgo),
+        reviewedBy: TEST_USERS.ADMIN,
+        reviewedAt: toTimestamp(dates.threeDaysAgo),
+        reviewerNotes: 'Get well soon!',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    // Rejected leave (for history)
+    {
+      id: 'TEST_LEAVE_REJECTED_001',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        userName: 'Bob Test Employee',
+        userEmail: 'test.employee2@attendesk.test',
+        leaveType: 'full',
+        startDate: toTimestamp(dates.yesterday),
+        endDate: toTimestamp(dates.today),
+        totalDays: 2,
+        status: 'rejected',
+        notes: 'Need time off for personal matters',
+        attachmentId: null,
+        appliedAt: toTimestamp(dates.fourDaysAgo),
+        reviewedBy: TEST_USERS.ADMIN,
+        reviewedAt: toTimestamp(dates.threeDaysAgo),
+        reviewerNotes: 'Rejected due to critical project deadline. Please reschedule.',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+  ];
+
+  const batch = db.batch();
+  for (const leave of leaves) {
+    batch.set(db.collection('LEAVE_REQUESTS').doc(leave.id), leave.data);
+  }
+  await batch.commit();
+  console.log(`Created ${leaves.length} leave requests`);
+}
+
+async function seedPenalties() {
+  console.log('Seeding penalties...');
+
+  const dates = getTestDates();
+
+  const penalties = [
+    // Active penalties (for waive test)
+    {
+      id: 'TEST_PENALTY_ACTIVE_001',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        userName: 'Alice Test Employee',
+        userEmail: 'test.employee1@attendesk.test',
+        violationType: 'late_arrival',
+        amount: 0, // Warning only, threshold not exceeded
+        status: 'active',
+        dateIncurred: toTimestamp(dates.fourDaysAgo),
+        notes: 'Late arrival: 9:45 AM (grace period: 9:00 AM)',
+        waivedAt: null,
+        waivedReason: null,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: 'TEST_PENALTY_ACTIVE_002',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        userName: 'Alice Test Employee',
+        userEmail: 'test.employee1@attendesk.test',
+        violationType: 'early_departure',
+        amount: 0,
+        status: 'active',
+        dateIncurred: toTimestamp(dates.threeDaysAgo),
+        notes: 'Early departure without completing full day',
+        waivedAt: null,
+        waivedReason: null,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: 'TEST_PENALTY_ACTIVE_003',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        userName: 'Bob Test Employee',
+        userEmail: 'test.employee2@attendesk.test',
+        violationType: 'late_arrival',
+        amount: 100, // Fine applied (exceeded threshold)
+        status: 'active',
+        dateIncurred: toTimestamp(dates.fourDaysAgo),
+        notes: 'Late arrival: 10:30 AM (third late this month)',
+        waivedAt: null,
+        waivedReason: null,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    {
+      id: 'TEST_PENALTY_ACTIVE_004',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        userName: 'Bob Test Employee',
+        userEmail: 'test.employee2@attendesk.test',
+        violationType: 'absent',
+        amount: 200, // Absence fine
+        status: 'active',
+        dateIncurred: toTimestamp(dates.threeDaysAgo),
+        notes: 'Unexcused absence - no clock-in recorded',
+        waivedAt: null,
+        waivedReason: null,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    // Waived penalty (for idempotency test)
+    {
+      id: 'TEST_PENALTY_WAIVED_001',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_3,
+        userName: 'Carol Test Employee',
+        userEmail: 'test.employee3@attendesk.test',
+        violationType: 'late_arrival',
+        amount: 0,
+        status: 'waived',
+        dateIncurred: toTimestamp(dates.fiveDaysAgo),
+        notes: 'Late arrival due to traffic accident',
+        waivedAt: toTimestamp(dates.fourDaysAgo),
+        waivedReason: 'Traffic accident on main road - verified by news report',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    // Paid penalty (for history)
+    {
+      id: 'TEST_PENALTY_PAID_001',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        userName: 'Alice Test Employee',
+        userEmail: 'test.employee1@attendesk.test',
+        violationType: 'absent',
+        amount: 200,
+        status: 'paid',
+        dateIncurred: toTimestamp(createDate(dates.fiveDaysAgo.getFullYear(), dates.fiveDaysAgo.getMonth() + 1, dates.fiveDaysAgo.getDate() - 10)),
+        notes: 'Unexcused absence',
+        waivedAt: null,
+        waivedReason: null,
+        paidAt: toTimestamp(dates.fiveDaysAgo),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+  ];
+
+  const batch = db.batch();
+  for (const penalty of penalties) {
+    batch.set(db.collection('PENALTIES').doc(penalty.id), penalty.data);
+  }
+  await batch.commit();
+  console.log(`Created ${penalties.length} penalties`);
+}
+
+async function seedNotifications() {
+  console.log('Seeding notifications...');
+
+  const dates = getTestDates();
+
+  const notifications = [
+    {
+      id: 'TEST_NOTIF_001',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_1,
+        title: 'Leave Request Approved',
+        body: 'Your leave request for Nov 23-24 has been approved.',
+        type: 'leave_approved',
+        relatedId: 'TEST_LEAVE_APPROVED_001',
+        isRead: false,
+        createdAt: toTimestamp(dates.fourDaysAgo),
+      },
+    },
+    {
+      id: 'TEST_NOTIF_002',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        title: 'Leave Request Rejected',
+        body: 'Your leave request has been rejected. Please check the reviewer notes.',
+        type: 'leave_rejected',
+        relatedId: 'TEST_LEAVE_REJECTED_001',
+        isRead: true,
+        createdAt: toTimestamp(dates.threeDaysAgo),
+      },
+    },
+    {
+      id: 'TEST_NOTIF_003',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_2,
+        title: 'New Penalty',
+        body: 'A penalty has been recorded for late arrival.',
+        type: 'penalty_created',
+        relatedId: 'TEST_PENALTY_ACTIVE_003',
+        isRead: false,
+        createdAt: toTimestamp(dates.fourDaysAgo),
+      },
+    },
+    {
+      id: 'TEST_NOTIF_004',
+      data: {
+        userId: TEST_USERS.EMPLOYEE_3,
+        title: 'Penalty Waived',
+        body: 'Your penalty from Nov 23 has been waived.',
+        type: 'penalty_waived',
+        relatedId: 'TEST_PENALTY_WAIVED_001',
+        isRead: false,
+        createdAt: toTimestamp(dates.fourDaysAgo),
+      },
+    },
+  ];
+
+  const batch = db.batch();
+  for (const notif of notifications) {
+    batch.set(db.collection('NOTIFICATIONS').doc(notif.id), notif.data);
+  }
+  await batch.commit();
+  console.log(`Created ${notifications.length} notifications`);
+}
+
+async function seedAuditLogs() {
+  console.log('Seeding audit logs...');
+
+  const dates = getTestDates();
+
+  const auditLogs = [
+    {
+      id: 'TEST_AUDIT_001',
+      data: {
+        action: 'LEAVE_APPROVED',
+        performedBy: TEST_USERS.ADMIN,
+        performedByName: 'Test Admin User',
+        targetUserId: TEST_USERS.EMPLOYEE_1,
+        targetUserName: 'Alice Test Employee',
+        resourceType: 'leave_request',
+        resourceId: 'TEST_LEAVE_APPROVED_001',
+        details: {
+          leaveType: 'full',
+          totalDays: 2,
+          notes: 'Approved. Enjoy your time off!',
+        },
+        createdAt: toTimestamp(dates.fourDaysAgo),
+      },
+    },
+    {
+      id: 'TEST_AUDIT_002',
+      data: {
+        action: 'LEAVE_REJECTED',
+        performedBy: TEST_USERS.ADMIN,
+        performedByName: 'Test Admin User',
+        targetUserId: TEST_USERS.EMPLOYEE_2,
+        targetUserName: 'Bob Test Employee',
+        resourceType: 'leave_request',
+        resourceId: 'TEST_LEAVE_REJECTED_001',
+        details: {
+          leaveType: 'full',
+          totalDays: 2,
+          notes: 'Rejected due to critical project deadline.',
+        },
+        createdAt: toTimestamp(dates.threeDaysAgo),
+      },
+    },
+    {
+      id: 'TEST_AUDIT_003',
+      data: {
+        action: 'PENALTY_WAIVED',
+        performedBy: TEST_USERS.ADMIN,
+        performedByName: 'Test Admin User',
+        targetUserId: TEST_USERS.EMPLOYEE_3,
+        targetUserName: 'Carol Test Employee',
+        resourceType: 'penalty',
+        resourceId: 'TEST_PENALTY_WAIVED_001',
+        details: {
+          violationType: 'late_arrival',
+          waivedReason: 'Traffic accident on main road - verified by news report',
+        },
+        createdAt: toTimestamp(dates.fourDaysAgo),
+      },
+    },
+    {
+      id: 'TEST_AUDIT_004',
+      data: {
+        action: 'EMPLOYEE_CREATED',
+        performedBy: TEST_USERS.ADMIN,
+        performedByName: 'Test Admin User',
+        targetUserId: TEST_USERS.EMPLOYEE_1,
+        targetUserName: 'Alice Test Employee',
+        resourceType: 'user',
+        resourceId: TEST_USERS.EMPLOYEE_1,
+        details: {
+          department: 'Engineering',
+          position: 'Software Developer',
+        },
+        createdAt: toTimestamp(dates.fiveDaysAgo),
+      },
+    },
+  ];
+
+  const batch = db.batch();
+  for (const log of auditLogs) {
+    batch.set(db.collection('AUDIT_LOGS').doc(log.id), log.data);
+  }
+  await batch.commit();
+  console.log(`Created ${auditLogs.length} audit logs`);
+}
+
+async function cleanupTestData() {
+  console.log('Cleaning up existing test data...');
+
+  const collections = [
+    'USERS',
+    'ATTENDANCE_RECORDS',
+    'LEAVE_REQUESTS',
+    'PENALTIES',
+    'NOTIFICATIONS',
+    'AUDIT_LOGS',
+  ];
+
+  for (const collectionName of collections) {
+    const snapshot = await db
+      .collection(collectionName)
+      .where(admin.firestore.FieldPath.documentId(), '>=', 'TEST_')
+      .where(admin.firestore.FieldPath.documentId(), '<', 'TEST_\uf8ff')
+      .get();
+
+    if (!snapshot.empty) {
+      const batch = db.batch();
+      snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+      console.log(`Deleted ${snapshot.size} test documents from ${collectionName}`);
+    }
+  }
+}
+
+export async function seedTestData(cleanFirst: boolean = true) {
+  console.log('=== Starting Test Data Seeding ===\n');
+
+  try {
+    if (cleanFirst) {
+      await cleanupTestData();
+      console.log('');
+    }
+
+    await seedUsers();
+    await seedAttendanceRecords();
+    await seedLeaveRequests();
+    await seedPenalties();
+    await seedNotifications();
+    await seedAuditLogs();
+
+    console.log('\n=== Test Data Seeding Complete ===');
+    console.log('\nTest Users Created:');
+    console.log(`  Admin: ${TEST_USERS.ADMIN} (test.admin@attendesk.test)`);
+    console.log(`  Employee 1: ${TEST_USERS.EMPLOYEE_1} (test.employee1@attendesk.test)`);
+    console.log(`  Employee 2: ${TEST_USERS.EMPLOYEE_2} (test.employee2@attendesk.test)`);
+    console.log(`  Employee 3: ${TEST_USERS.EMPLOYEE_3} (test.employee3@attendesk.test)`);
+    console.log(`  Inactive: ${TEST_USERS.INACTIVE_EMPLOYEE} (test.inactive@attendesk.test)`);
+    console.log('\nNote: These are Firestore documents only. To login, create Firebase Auth users with these UIDs.');
+
+    return {
+      success: true,
+      users: TEST_USERS,
+    };
+  } catch (error) {
+    console.error('Error seeding test data:', error);
+    throw error;
+  }
+}
+
+// Run directly if executed as script
+if (require.main === module) {
+  seedTestData()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
+}

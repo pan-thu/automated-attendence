@@ -8,6 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ProtectedLayout } from "@/components/layout/protected-layout";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFirebaseApp } from "@/lib/firebase/config";
+import { Loader2, Database, Trash2 } from "lucide-react";
 
 const formatDateTime = (value: Date | null | undefined) => {
   if (!value) return "—";
@@ -17,6 +20,61 @@ const formatDateTime = (value: Date | null | undefined) => {
 export default function SettingsPage() {
   const { settings, loading, error } = useCompanySettings();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [seedingData, setSeedingData] = useState(false);
+  const [cleaningData, setCleaningData] = useState(false);
+  const [testDataMessage, setTestDataMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleSeedTestData = async () => {
+    try {
+      setSeedingData(true);
+      setTestDataMessage(null);
+      const app = getFirebaseApp();
+      const functions = getFunctions(app);
+      const seedTestData = httpsCallable<{ cleanFirst: boolean }, { success: boolean; users: Record<string, string> }>(
+        functions,
+        "seedTestData"
+      );
+      const result = await seedTestData({ cleanFirst: true });
+      setTestDataMessage({
+        type: "success",
+        text: `Test data seeded successfully! Created users: ${Object.keys(result.data.users).join(", ")}`,
+      });
+    } catch (err) {
+      console.error("Failed to seed test data", err);
+      setTestDataMessage({
+        type: "error",
+        text: `Failed to seed test data: ${err instanceof Error ? err.message : "Unknown error"}`,
+      });
+    } finally {
+      setSeedingData(false);
+    }
+  };
+
+  const handleCleanupTestData = async () => {
+    try {
+      setCleaningData(true);
+      setTestDataMessage(null);
+      const app = getFirebaseApp();
+      const functions = getFunctions(app);
+      const cleanupTestData = httpsCallable<object, { success: boolean; deletedCount: number }>(
+        functions,
+        "cleanupTestData"
+      );
+      const result = await cleanupTestData({});
+      setTestDataMessage({
+        type: "success",
+        text: `Test data cleaned up! Deleted ${result.data.deletedCount} documents.`,
+      });
+    } catch (err) {
+      console.error("Failed to cleanup test data", err);
+      setTestDataMessage({
+        type: "error",
+        text: `Failed to cleanup test data: ${err instanceof Error ? err.message : "Unknown error"}`,
+      });
+    } finally {
+      setCleaningData(false);
+    }
+  };
 
   const summaryRows = useMemo(() => {
     if (!settings) return [];
@@ -226,6 +284,79 @@ export default function SettingsPage() {
                 </div>
               </div>
             ) : null}
+          </section>
+
+          {/* Test Data Section - Temporary for testing */}
+          <section className="rounded-lg border border-dashed border-orange-300 bg-orange-50 p-6 shadow-sm">
+            <header className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-orange-800">Test Data Management</h2>
+                <p className="text-xs text-orange-600">
+                  Seed or cleanup test data for testing purposes. Test data IDs are prefixed with &quot;TEST_&quot;.
+                </p>
+              </div>
+            </header>
+
+            {testDataMessage && (
+              <div
+                className={`mt-4 rounded-md px-4 py-3 text-sm ${
+                  testDataMessage.type === "success"
+                    ? "border border-green-300 bg-green-50 text-green-800"
+                    : "border border-red-300 bg-red-50 text-red-800"
+                }`}
+              >
+                {testDataMessage.text}
+              </div>
+            )}
+
+            <div className="mt-4 flex gap-3">
+              <Button
+                onClick={handleSeedTestData}
+                disabled={seedingData || cleaningData}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {seedingData ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Seeding...
+                  </>
+                ) : (
+                  <>
+                    <Database className="mr-2 h-4 w-4" />
+                    Seed Test Data
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={handleCleanupTestData}
+                disabled={seedingData || cleaningData}
+                variant="outline"
+                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+              >
+                {cleaningData ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cleaning...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Cleanup Test Data
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="mt-4 text-xs text-orange-600">
+              <p className="font-medium">Test data includes:</p>
+              <ul className="mt-1 list-inside list-disc space-y-0.5">
+                <li>5 test users (1 admin, 3 employees, 1 inactive)</li>
+                <li>Attendance records across 5 days</li>
+                <li>6 leave requests (pending, approved, rejected)</li>
+                <li>6 penalties (active, waived, paid)</li>
+                <li>Notifications and audit logs</li>
+              </ul>
+            </div>
           </section>
         </div>
       </DashboardLayout>

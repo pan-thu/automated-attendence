@@ -1497,3 +1497,81 @@ export const recordTelemetryEvent = onCall(
     return { success: true };
   }, 'recordTelemetryEvent')
 );
+
+/**
+ * Seed test data for testing purposes (admin only)
+ * Creates isolated test users, attendance records, leaves, penalties, etc.
+ * All test data has IDs prefixed with "TEST_" for easy identification.
+ *
+ * WARNING: Only use in development/staging environments.
+ */
+export const seedTestData = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAdminV2(request);
+    const payload = request.data as Record<string, unknown> ?? {};
+
+    const cleanFirst = payload.cleanFirst !== false; // Default to true
+
+    const { seedTestData: seedTestDataService } = await import('./scripts/seedTestData');
+    const result = await seedTestDataService(cleanFirst);
+
+    await recordAuditLog({
+      action: 'seed_test_data',
+      resource: 'SYSTEM',
+      resourceId: 'test_data',
+      status: 'success',
+      performedBy: requireAuthUidV2(request),
+      metadata: { cleanFirst, users: result.users },
+    });
+
+    return result;
+  }, 'seedTestData')
+);
+
+/**
+ * Clean up test data (admin only)
+ * Removes all documents with IDs prefixed with "TEST_"
+ */
+export const cleanupTestData = onCall(
+  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
+    assertAdminV2(request);
+
+    const collections = [
+      'USERS',
+      'ATTENDANCE_RECORDS',
+      'LEAVE_REQUESTS',
+      'PENALTIES',
+      'NOTIFICATIONS',
+      'AUDIT_LOGS',
+    ];
+
+    const db = admin.firestore();
+    let totalDeleted = 0;
+
+    for (const collectionName of collections) {
+      const snapshot = await db
+        .collection(collectionName)
+        .where(admin.firestore.FieldPath.documentId(), '>=', 'TEST_')
+        .where(admin.firestore.FieldPath.documentId(), '<', 'TEST_\uf8ff')
+        .get();
+
+      if (!snapshot.empty) {
+        const batch = db.batch();
+        snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+        totalDeleted += snapshot.size;
+      }
+    }
+
+    await recordAuditLog({
+      action: 'cleanup_test_data',
+      resource: 'SYSTEM',
+      resourceId: 'test_data',
+      status: 'success',
+      performedBy: requireAuthUidV2(request),
+      metadata: { totalDeleted },
+    });
+
+    return { success: true, deletedCount: totalDeleted };
+  }, 'cleanupTestData')
+);
