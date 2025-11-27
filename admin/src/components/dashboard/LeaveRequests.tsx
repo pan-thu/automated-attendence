@@ -50,16 +50,20 @@ interface LeaveRequestsProps {
   onReject?: (id: string) => void;
 }
 
-const leaveTypeConfig = {
+const leaveTypeConfig: Record<string, { label: string; color: string }> = {
   full: { label: "Full Leave", color: "bg-blue-100 text-blue-700" },
   annual: { label: "Annual", color: "bg-blue-100 text-blue-700" },
+  casual: { label: "Casual", color: "bg-teal-100 text-teal-700" },
   sick: { label: "Sick", color: "bg-red-100 text-red-700" },
   medical: { label: "Medical", color: "bg-purple-100 text-purple-700" },
   maternity: { label: "Maternity", color: "bg-pink-100 text-pink-700" },
   paternity: { label: "Paternity", color: "bg-indigo-100 text-indigo-700" },
+  vacation: { label: "Vacation", color: "bg-cyan-100 text-cyan-700" },
   unpaid: { label: "Unpaid", color: "bg-gray-100 text-gray-700" },
   other: { label: "Other", color: "bg-yellow-100 text-yellow-700" },
 };
+
+const defaultLeaveTypeConfig = { label: "Leave", color: "bg-gray-100 text-gray-700" };
 
 const statusConfig = {
   pending: { icon: AlertCircle, color: "text-yellow-600" },
@@ -147,8 +151,8 @@ export function LeaveRequests({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">{request.employee.name}</p>
-                      <Badge variant="secondary" className={cn("text-xs", leaveTypeConfig[request.type].color)}>
-                        {leaveTypeConfig[request.type].label}
+                      <Badge variant="secondary" className={cn("text-xs", (leaveTypeConfig[request.type] || defaultLeaveTypeConfig).color)}>
+                        {(leaveTypeConfig[request.type] || defaultLeaveTypeConfig).label}
                       </Badge>
                       {request.attachments && request.attachments > 0 && (
                         <Badge variant="outline" className="text-xs">

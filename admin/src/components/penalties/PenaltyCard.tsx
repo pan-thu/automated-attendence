@@ -59,7 +59,7 @@ interface PenaltyCardProps {
   isProcessing?: boolean;
 }
 
-const violationTypeConfig = {
+const violationTypeConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   late: { label: "Late Arrival", color: "bg-yellow-100 text-yellow-700", icon: Clock },
   early_leave: { label: "Early Leave", color: "bg-orange-100 text-orange-700", icon: AlertCircle },
   absent: { label: "Absent", color: "bg-red-100 text-red-700", icon: XCircle },
@@ -67,11 +67,15 @@ const violationTypeConfig = {
   multiple: { label: "Multiple Violations", color: "bg-gray-100 text-gray-700", icon: AlertTriangle }
 };
 
-const statusConfig = {
+const defaultViolationConfig = { label: "Violation", color: "bg-gray-100 text-gray-700", icon: AlertTriangle };
+
+const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   active: { label: "Active", color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: Clock },
   waived: { label: "Waived", color: "bg-green-100 text-green-700 border-green-200", icon: Shield },
   paid: { label: "Paid", color: "bg-gray-100 text-gray-700 border-gray-200", icon: CheckCircle }
 };
+
+const defaultStatusConfig = { label: "Unknown", color: "bg-gray-100 text-gray-700 border-gray-200", icon: Clock };
 
 export function PenaltyCard({
   penalty,
@@ -84,8 +88,8 @@ export function PenaltyCard({
   const [waiverReason, setWaiverReason] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("payroll_deduction");
 
-  const violationConfig = violationTypeConfig[penalty.violationType];
-  const statusInfo = statusConfig[penalty.status];
+  const violationConfig = violationTypeConfig[penalty.violationType] || defaultViolationConfig;
+  const statusInfo = statusConfig[penalty.status] || defaultStatusConfig;
   const StatusIcon = statusInfo.icon;
   const ViolationIcon = violationConfig.icon;
 

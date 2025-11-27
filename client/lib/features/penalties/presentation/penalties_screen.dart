@@ -87,8 +87,7 @@ class _PenaltiesViewState extends State<_PenaltiesView> {
                         PenaltySummaryCard(
                           totalPenalties: (controller.summary?.byStatus.active.count ?? 0) +
                               (controller.summary?.byStatus.waived.count ?? 0) +
-                              (controller.summary?.byStatus.resolved.count ?? 0) +
-                              (controller.summary?.byStatus.disputed.count ?? 0),
+                              (controller.summary?.byStatus.paid.count ?? 0),
                           totalAmount: controller.summary?.totalAmount ?? 0.0,
                           activePenalties: controller.summary?.activeCount ?? 0,
                         ),
