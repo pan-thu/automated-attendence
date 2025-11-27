@@ -129,16 +129,18 @@ export default function AttendancePage() {
       })
       .map((record) => {
         const displayStatus = getDisplayStatus(record);
+        // Look up employee from employees list
+        const employee = employees.find(e => e.id === record.userId);
         return {
           id: record.id,
           date: record.attendanceDate || new Date(),
           employee: {
             uid: record.userId,
-            name: record.userName || "Unknown",
-            email: record.userEmail || "",
+            name: employee?.fullName || "Unknown",
+            email: employee?.email || "",
             employeeId: record.userId.slice(0, 8).toUpperCase(),
-            department: "Engineering", // Mock data
-            avatar: undefined
+            department: employee?.department || "",
+            avatar: employee?.photoURL || undefined
           },
           checks: {
             checkIn: {
@@ -159,7 +161,7 @@ export default function AttendancePage() {
           modifiedAt: undefined
         };
       });
-  }, [records, filters]);
+  }, [records, filters, employees]);
 
   // Calculate summary - count by display status (excludes pending from cards)
   const summary = useMemo(() => {

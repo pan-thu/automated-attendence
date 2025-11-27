@@ -25,6 +25,7 @@ import { useLeaveApproval } from "@/hooks/useLeaveApproval";
 import { useAttendanceRecords } from "@/hooks/useAttendanceRecords";
 import { useAttendanceTrends } from "@/hooks/useAttendanceTrends";
 import { useAuditLogs } from "@/hooks/useAuditLogs";
+import { useEmployees } from "@/hooks/useEmployees";
 
 export function EnhancedDashboard() {
   const now = new Date();
@@ -79,6 +80,9 @@ export function EnhancedDashboard() {
     refresh: refreshAuditLogs
   } = useAuditLogs({ maxRecords: 10 });
 
+  // Fetch employees for name lookup
+  const { employees } = useEmployees();
+
   // Auto-refresh every minute
   useEffect(() => {
     const interval = setInterval(() => {
@@ -107,28 +111,34 @@ export function EnhancedDashboard() {
   // which could slow down the dashboard. Consider implementing with cached analytics data.
 
   // Transform pending leave requests for the LeaveRequests component
-  const leaveRequestsData = leaves.map(leave => ({
-    id: leave.id,
-    employee: {
-      id: leave.userId,
-      name: leave.userName || "Unknown Employee",
-      email: leave.userEmail || "",
-      department: "Not Specified",
-      avatar: undefined
-    },
-    type: ((leave.leaveType || 'other').toLowerCase().replace(/_/g, '')) as any,
-    startDate: leave.startDate || new Date(),
-    endDate: leave.endDate || new Date(),
-    reason: leave.notes || "",
-    status: leave.status as "pending" | "approved" | "rejected",
-    requestedAt: leave.appliedAt || new Date(),
-    attachments: 0
-  }));
+  const leaveRequestsData = leaves.map(leave => {
+    // Look up employee from employees list
+    const employee = employees.find(e => e.id === leave.userId);
+    return {
+      id: leave.id,
+      employee: {
+        id: leave.userId,
+        name: employee?.fullName || "Unknown Employee",
+        email: employee?.email || "",
+        department: employee?.department || "Not Specified",
+        avatar: employee?.photoURL || undefined
+      },
+      type: ((leave.leaveType || 'other').toLowerCase().replace(/_/g, '')) as any,
+      startDate: leave.startDate || new Date(),
+      endDate: leave.endDate || new Date(),
+      reason: leave.notes || "",
+      status: leave.status as "pending" | "approved" | "rejected",
+      requestedAt: leave.appliedAt || new Date(),
+      attachments: 0
+    };
+  });
 
   // Transform today's attendance records into individual check entries, sorted by time (most recent first)
   const checkInRecords = attendanceRecords
     .flatMap(record => {
       const entries: any[] = [];
+      // Look up employee from employees list
+      const employee = employees.find(e => e.id === record.userId);
 
       if (record.checks && record.checks.length > 0) {
         record.checks.forEach((check) => {
@@ -139,10 +149,10 @@ export function EnhancedDashboard() {
               id: `${record.id}-${checkKey}`,
               employee: {
                 id: record.userId,
-                name: record.userName || "Unknown",
-                email: record.userEmail || "",
-                department: "Not Specified",
-                avatar: undefined
+                name: employee?.fullName || "Unknown",
+                email: employee?.email || "",
+                department: employee?.department || "Not Specified",
+                avatar: employee?.photoURL || undefined
               },
               checkType: checkKey,
               status: (check.status || "missed") as any,

@@ -23,7 +23,6 @@ import {
   Calendar,
   User,
   Building,
-  Clock,
   AlertCircle
 } from "lucide-react";
 import {
@@ -137,20 +136,6 @@ export function AttendanceTable({
   const allSelected = records.length > 0 && selectedRecords.length === records.length;
   const someSelected = selectedRecords.length > 0 && selectedRecords.length < records.length;
 
-  const calculateWorkHours = (checks: AttendanceRecord["checks"]) => {
-    if (!checks.checkIn.time || !checks.checkOut.time) return null;
-
-    const start = checks.checkIn.time.getTime();
-    const end = checks.checkOut.time.getTime();
-    const breakDuration = checks.break?.duration || 0;
-
-    const totalMinutes = (end - start) / (1000 * 60) - breakDuration;
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = Math.round(totalMinutes % 60);
-
-    return `${hours}h ${minutes}m`;
-  };
-
   if (loading) {
     return <AttendanceTableSkeleton />;
   }
@@ -181,7 +166,6 @@ export function AttendanceTable({
             <TableHead className="w-32">Check-in</TableHead>
             <TableHead className="w-32">Break</TableHead>
             <TableHead className="w-32">Check-out</TableHead>
-            <TableHead className="w-28">Hours</TableHead>
             <TableHead className="w-28">Status</TableHead>
             <TableHead className="w-20 text-center">Source</TableHead>
             <TableHead className="w-12"></TableHead>
@@ -191,7 +175,6 @@ export function AttendanceTable({
           {records.map((record) => {
             const isSelected = selectedRecords.includes(record.id);
             const isHovered = hoveredRow === record.id;
-            const workHours = calculateWorkHours(record.checks);
 
             return (
               <TableRow
@@ -304,18 +287,6 @@ export function AttendanceTable({
                       status={record.checks.checkOut.status}
                       location={record.checks.checkOut.location}
                     />
-                  )}
-                </TableCell>
-
-                {/* Work Hours */}
-                <TableCell>
-                  {workHours ? (
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="text-sm font-medium">{workHours}</span>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-400">—</span>
                   )}
                 </TableCell>
 
