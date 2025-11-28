@@ -200,6 +200,16 @@ class PenaltyItem {
     if (value is int) {
       return DateTime.fromMillisecondsSinceEpoch(value);
     }
+    // Handle Firestore Timestamp object format from JSON serialization
+    if (value is Map) {
+      final seconds = value['_seconds'] ?? value['seconds'];
+      if (seconds is int) {
+        final nanoseconds = (value['_nanoseconds'] ?? value['nanoseconds'] ?? 0) as int;
+        return DateTime.fromMillisecondsSinceEpoch(
+          seconds * 1000 + nanoseconds ~/ 1000000,
+        );
+      }
+    }
     return null;
   }
 }
