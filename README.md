@@ -107,27 +107,7 @@ client/
    flutter pub get
    ```
 
-3. **Configure Firebase project**
-   - Enable Authentication (Email/Password), Firestore, and Cloud Storage.
-   - Download a service-account JSON for seeding (Firebase Console → Project settings → Service accounts).
-
-4. **Environment variables**
-   - `admin/.env.local`: contains `NEXT_PUBLIC_FIREBASE_*` keys.
-   - `client`: run `flutterfire configure` to generate `lib/firebase_options.dart`.
-   - `functions/.env` (or `.env.local`):
-     ```dotenv
-     GOOGLE_APPLICATION_CREDENTIALS=C:/path/to/service-account.json
-     SEED_ADMIN_UID=your-admin-uid
-     ```
-
-5. **Seed Firestore (optional but recommended)**
-   ```bash
-   cd functions
-   npm run seed:firestore
-   ```
-   This seeds `USERS/<adminUid>` and `COMPANY_SETTINGS/main`, and applies the `admin` custom claim via the service account.
-
-6. **Run the applications**
+3. **Run the applications**
    ```bash
    # Admin dashboard
    cd admin
@@ -137,6 +117,15 @@ client/
    cd ../client
    flutter run
    ```
+
+### Default Admin Credentials
+
+Use these credentials to log in to the admin dashboard:
+
+| Field | Value |
+| :--- | :--- |
+| **Email** | `panthu200@gmail.com` |
+| **Password** | `Password123!` |
 
 ## 🗺️ Project Roadmap
 
