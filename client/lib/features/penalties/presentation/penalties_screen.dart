@@ -117,12 +117,6 @@ class _PenaltiesViewState extends State<_PenaltiesView> {
                       ),
                       const SizedBox(height: space6),
 
-                      // Loading indicator
-                      if (controller.isLoading)
-                        const LinearProgressIndicator(),
-                      if (controller.isLoading)
-                        const SizedBox(height: space6),
-
                       // Penalty list
                       if (_getFilteredPenalties(controller.items).isEmpty)
                         const EmptyState(
