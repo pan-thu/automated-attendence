@@ -163,9 +163,9 @@ export function AttendanceTable({
             </TableHead>
             <TableHead className="w-40">Date</TableHead>
             <TableHead className="w-64">Employee</TableHead>
-            <TableHead className="w-32">Check-in</TableHead>
-            <TableHead className="w-32">Break</TableHead>
-            <TableHead className="w-32">Check-out</TableHead>
+            <TableHead className="w-32">Check 1</TableHead>
+            <TableHead className="w-32">Check 2</TableHead>
+            <TableHead className="w-32">Check 3</TableHead>
             <TableHead className="w-28">Status</TableHead>
             <TableHead className="w-20 text-center">Source</TableHead>
             <TableHead className="w-12"></TableHead>
@@ -235,7 +235,7 @@ export function AttendanceTable({
                   </div>
                 </TableCell>
 
-                {/* Check-in */}
+                {/* Check 1 (Check-in) */}
                 <TableCell>
                   <TimeDisplay
                     time={record.checks.checkIn.time}
@@ -245,34 +245,15 @@ export function AttendanceTable({
                   />
                 </TableCell>
 
-                {/* Break */}
+                {/* Check 2 (Break) */}
                 <TableCell>
-                  {record.checks.break ? (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs">
-                        <span className="text-gray-500">Out:</span>
-                        <span className="font-medium">
-                          {record.checks.break.out ? format(record.checks.break.out, "hh:mm a") : "—"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs">
-                        <span className="text-gray-500">In:</span>
-                        <span className="font-medium">
-                          {record.checks.break.in ? format(record.checks.break.in, "hh:mm a") : "—"}
-                        </span>
-                      </div>
-                      {record.checks.break.duration && (
-                        <p className="text-xs text-gray-500">
-                          {record.checks.break.duration} min
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-400">—</span>
-                  )}
+                  <TimeDisplay
+                    time={record.checks.break?.out ?? null}
+                    status={null}
+                  />
                 </TableCell>
 
-                {/* Check-out */}
+                {/* Check 3 (Check-out) */}
                 <TableCell>
                   {!record.checks.checkOut.time && record.checks.checkIn.time ? (
                     <div className="flex items-center gap-2">
