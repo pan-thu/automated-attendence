@@ -50,8 +50,3 @@ coverage/
 *.tgz
 .eslintcache
 .npm
-
-# Claude Code
-CLAUDE.md
-.claude/
-repomix-output.xml
