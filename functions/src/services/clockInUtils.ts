@@ -11,7 +11,7 @@ import { getDateKeyInTimezoneFromISO } from '../utils/timezoneUtils';
 
 type CheckSlot = 'check1' | 'check2' | 'check3';
 type CheckStatus = 'on_time' | 'late' | 'early_leave' | 'missed';
-type DailyStatus = 'in_progress' | 'present' | 'half_day_absent' | 'absent';
+type DailyStatus = 'in_progress' | 'present' | 'half_day_absent' | 'absent' | 'on_leave';
 
 interface TimeWindow {
   label: string;
@@ -144,8 +144,15 @@ export const determineCheckOutcome = (
   return null;
 };
 
+/**
+ * Calculates the daily status based on completed checks.
+ * 
+ * @param checkStatuses Map of check slots to their status
+ * @param isFinalizing If true, calculates final status (Present/Absent). If false, forces 'in_progress'.
+ */
 export const computeDailyStatus = (
-  checkStatuses: Partial<Record<CheckSlot, CheckStatus>>
+  checkStatuses: Partial<Record<CheckSlot, CheckStatus>>,
+  isFinalizing: boolean = false
 ): DailyStatus => {
   const completed = CLOCK_ORDER.filter((slot) => {
     const status = checkStatuses[slot];
@@ -153,6 +160,13 @@ export const computeDailyStatus = (
   });
 
   const hasMissedChecks = CLOCK_ORDER.some((slot) => checkStatuses[slot] === 'missed');
+
+  // If not finalizing (mid-day clock in), status remains pending/in_progress
+  if (!isFinalizing) {
+    return 'in_progress';
+  }
+
+  // --- EOD FINALIZATION LOGIC ---
 
   // If no checks completed at all
   if (completed.length === 0) {
@@ -169,14 +183,8 @@ export const computeDailyStatus = (
     return 'half_day_absent';
   }
 
-  // If only 1 check completed
-  // - If there are explicitly missed checks, day is still in progress (windows passed but not finalized)
-  // - If no missed checks (just undefined), treat as absent (end-of-day assessment)
-  if (completed.length === 1) {
-    return hasMissedChecks ? 'in_progress' : 'absent';
-  }
-
-  return 'in_progress';
+  // If only 1 check completed, treated as absent (incomplete day)
+  return 'absent';
 };
 
 const fetchCompanySettings = async () => {
@@ -304,7 +312,9 @@ export const handleClockIn = async ({ userId, payload }: ClockInServiceInput): P
     };
     updatedStatuses[slotOutcome.slot] = slotOutcome.status;
 
-    const dayStatus = computeDailyStatus(updatedStatuses);
+    // PASS FALSE: Live clock-in acts as "Draft" mode. Status remains 'in_progress'.
+    // It will only switch to present/absent/half_day during the EOD finalization.
+    const dayStatus = computeDailyStatus(updatedStatuses, false);
 
     const updates: Record<string, unknown> = {
       userId,
@@ -368,7 +378,7 @@ export const handleClockIn = async ({ userId, payload }: ClockInServiceInput): P
  * Finalize daily attendance for all employees at end of day.
  * - Creates absent records for employees who didn't clock in at all
  * - Marks missing checks as 'missed' for partial attendance records
- * - Updates daily status based on completed checks
+ * - Updates daily status based on completed checks (switching from in_progress to final status)
  */
 export interface FinalizeAttendanceInput {
   date: string; // YYYY-MM-DD
@@ -440,8 +450,12 @@ export const finalizeAttendance = async (input: FinalizeAttendanceInput): Promis
 
       absentRecordsCreated++;
     } else {
-      // Has record - check if any checks are missing and mark as missed
+      // Has record - finalize status and mark missed checks
       const data = existingRecord.data() ?? {};
+      
+      // Skip if user is on approved leave
+      if (data.status === 'on_leave') continue;
+
       const updates: Record<string, unknown> = {};
       let needsUpdate = false;
 
@@ -456,18 +470,19 @@ export const finalizeAttendance = async (input: FinalizeAttendanceInput): Promis
         }
       }
 
-      if (needsUpdate) {
-        // Recalculate daily status with updated check statuses
-        const checkStatuses: Partial<Record<CheckSlot, CheckStatus>> = {
-          check1: (updates.check1_status as CheckStatus) ?? (data.check1_status as CheckStatus),
-          check2: (updates.check2_status as CheckStatus) ?? (data.check2_status as CheckStatus),
-          check3: (updates.check3_status as CheckStatus) ?? (data.check3_status as CheckStatus),
-        };
+      // Recalculate status with isFinalizing = TRUE to graduate from 'in_progress'
+      const checkStatuses: Partial<Record<CheckSlot, CheckStatus>> = {
+        check1: (updates.check1_status as CheckStatus) ?? (data.check1_status as CheckStatus),
+        check2: (updates.check2_status as CheckStatus) ?? (data.check2_status as CheckStatus),
+        check3: (updates.check3_status as CheckStatus) ?? (data.check3_status as CheckStatus),
+      };
 
-        const newDailyStatus = computeDailyStatus(checkStatuses);
+      const newDailyStatus = computeDailyStatus(checkStatuses, true);
+
+      // Update if status changed (e.g., in_progress -> present) OR if we marked checks as missed
+      if (newDailyStatus !== data.status || needsUpdate) {
         updates.status = newDailyStatus;
         updates.updatedAt = FieldValue.serverTimestamp();
-
         batch.update(existingRecord.ref, updates);
         recordsUpdated++;
       }
