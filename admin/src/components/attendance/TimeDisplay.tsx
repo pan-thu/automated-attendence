@@ -36,6 +36,7 @@ const statusConfig = {
     icon: AlertTriangle,
     label: "Early"
   },
+  // Missed config kept for reference but overridden by logic below
   missed: {
     color: "text-red-600",
     dotColor: "bg-red-500",
@@ -52,7 +53,8 @@ export function TimeDisplay({
   label,
   showLocation = false
 }: TimeDisplayProps) {
-  if (!time && status !== "missed") {
+  // If time is missing OR status is explicitly 'missed', return simple dash
+  if (!time || status === "missed") {
     return (
       <div className="flex items-center gap-2">
         <span className="text-sm text-gray-400">—</span>
@@ -60,21 +62,7 @@ export function TimeDisplay({
     );
   }
 
-  if (status === "missed") {
-    const config = statusConfig.missed;
-    const Icon = config.icon;
-
-    return (
-      <div className="flex items-center gap-2">
-        <Icon className={cn("h-4 w-4", config.color)} />
-        <span className={cn("text-sm font-medium", config.color)}>
-          {label || "Missed"}
-        </span>
-      </div>
-    );
-  }
-
-  const config = status ? statusConfig[status] : null;
+  const config = status ? statusConfig[status as keyof typeof statusConfig] : null;
   const Icon = config?.icon;
 
   return (
@@ -85,7 +73,7 @@ export function TimeDisplay({
           "text-sm font-medium",
           config?.color || "text-gray-900"
         )}>
-          {time ? format(time, "hh:mm a") : "—"}
+          {format(time, "hh:mm a")}
         </span>
 
         {/* Status Dot */}
@@ -108,7 +96,7 @@ export function TimeDisplay({
         {Icon && (
           <div className="group relative">
             <Icon className={cn("h-3.5 w-3.5", config?.color)} />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
               <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
                 {config?.label}
               </div>
@@ -131,20 +119,6 @@ export function TimeDisplay({
             <span className="text-red-500 font-medium ml-1">(Mock)</span>
           )}
         </div>
-      )}
-
-      {/* Time difference for late/early */}
-      {status === "late" && time && (
-        <p className="text-xs text-yellow-600">
-          {/* This would calculate actual late minutes */}
-          10 min late
-        </p>
-      )}
-      {status === "early" && time && (
-        <p className="text-xs text-orange-600">
-          {/* This would calculate actual early minutes */}
-          15 min early
-        </p>
       )}
     </div>
   );

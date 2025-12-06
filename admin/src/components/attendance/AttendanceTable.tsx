@@ -20,10 +20,7 @@ import {
   Eye,
   Edit,
   Download,
-  Calendar,
-  User,
-  Building,
-  AlertCircle
+  Calendar
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -58,6 +55,7 @@ interface AttendanceRecord {
       out: Date | null;
       in: Date | null;
       duration?: number;
+      status?: "on_time" | "late" | null;
     };
     checkOut: {
       time: Date | null;
@@ -134,7 +132,6 @@ export function AttendanceTable({
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const allSelected = records.length > 0 && selectedRecords.length === records.length;
-  const someSelected = selectedRecords.length > 0 && selectedRecords.length < records.length;
 
   if (loading) {
     return <AttendanceTableSkeleton />;
@@ -249,35 +246,26 @@ export function AttendanceTable({
                 <TableCell>
                   <TimeDisplay
                     time={record.checks.break?.out ?? null}
-                    status={null}
+                    status={record.checks.break?.status as any ?? null}
                   />
                 </TableCell>
 
                 {/* Check 3 (Check-out) */}
                 <TableCell>
-                  {!record.checks.checkOut.time && record.checks.checkIn.time ? (
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-orange-500" />
-                      <span className="text-sm font-medium text-orange-600">
-                        Not checked out
-                      </span>
-                    </div>
-                  ) : (
-                    <TimeDisplay
-                      time={record.checks.checkOut.time}
-                      status={record.checks.checkOut.status}
-                      location={record.checks.checkOut.location}
-                    />
-                  )}
+                  <TimeDisplay
+                    time={record.checks.checkOut.time}
+                    status={record.checks.checkOut.status}
+                    location={record.checks.checkOut.location}
+                  />
                 </TableCell>
 
                 {/* Status */}
                 <TableCell>
                   <Badge
                     variant="outline"
-                    className={cn("text-xs", statusConfig[record.status].color)}
+                    className={cn("text-xs", statusConfig[record.status]?.color || statusConfig.pending.color)}
                   >
-                    {statusConfig[record.status].label}
+                    {statusConfig[record.status]?.label || "Pending"}
                   </Badge>
                 </TableCell>
 

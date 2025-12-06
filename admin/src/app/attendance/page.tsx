@@ -65,34 +65,19 @@ export default function AttendancePage() {
 
   // Helper to determine display status (includes pending logic)
   const getDisplayStatus = (record: any): "present" | "absent" | "half_day" | "late" | "early_leave" | "on_leave" | "pending" => {
+    const status = record.status?.toLowerCase();
+    
+    if (status === 'in_progress') return 'pending';
+    if (status === 'half_day_absent' || status === 'half-absent') return 'half_day';
+    
+    // Standard statuses
+    if (['present', 'absent', 'late', 'early_leave', 'on_leave', 'pending'].includes(status)) {
+      return status as any;
+    }
+
+    // Default fallback if status is missing but checks exist
     const hasCheckIn = !!record.checks?.[0]?.timestamp;
-    const hasCheckOut = !!record.checks?.[2]?.timestamp;
-    const checkInStatus = record.checks?.[0]?.status;
-    const checkOutStatus = record.checks?.[2]?.status;
-
-    // On leave takes priority
-    if (record.status === "on_leave") return "on_leave";
-
-    // If only check-in exists (no check-out), it's pending
-    if (hasCheckIn && !hasCheckOut) return "pending";
-
-    // Absent - no check-in at all
-    if (!hasCheckIn && record.status === "absent") return "absent";
-
-    // Half day
-    if (record.status === "half_day") return "half_day";
-
-    // Early leave - checked out early
-    if (checkOutStatus === "early") return "early_leave";
-
-    // Late arrival
-    if (checkInStatus === "late") return "late";
-
-    // Present (on time)
-    if (hasCheckIn && hasCheckOut) return "present";
-
-    // Default fallback
-    return record.status || "pending";
+    return hasCheckIn ? 'pending' : 'absent';
   };
 
   // Transform records to match new interface
@@ -196,11 +181,12 @@ export default function AttendancePage() {
               time: record.checks?.[0]?.timestamp || null,
               status: record.checks?.[0]?.status as "on_time" | "late" | null || null
             },
-            break: record.checks?.[1]?.timestamp ? {
-              out: record.checks[1].timestamp,
-              in: null, // Current data model only has single break timestamp
-              duration: undefined
-            } : undefined,
+            break: {
+              out: record.checks?.[1]?.timestamp || null,
+              in: null, 
+              duration: undefined,
+              status: record.checks?.[1]?.status as "on_time" | "late" | null || null
+            },
             checkOut: {
               time: record.checks?.[2]?.timestamp || null,
               status: record.checks?.[2]?.status as "on_time" | "early" | null || null
@@ -216,7 +202,7 @@ export default function AttendancePage() {
       });
   }, [records, filters, employees]);
 
-  // Calculate summary - count by display status (excludes pending from cards)
+  // Calculate summary - count by display status
   const summary = useMemo(() => {
     const stats = {
       present: 0,
@@ -247,13 +233,13 @@ export default function AttendancePage() {
         case "on_leave":
           stats.onLeave++;
           break;
-        // pending is not counted in summary cards
       }
     });
 
     return stats;
   }, [transformedRecords]);
 
+  // ... [Keep rest of the component (handlers, JSX) as is] ...
   const handleManualSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!manualForm.userId || !manualForm.attendanceDate || !manualForm.reason) {
