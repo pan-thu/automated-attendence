@@ -171,7 +171,7 @@ export default function LeavesPage() {
   };
 
   const handleExport = () => {
-    console.log("Exporting leave requests");
+    // TODO: Implement export functionality
   };
 
   const handleViewDetails = (request: any) => {

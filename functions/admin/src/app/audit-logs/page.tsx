@@ -183,7 +183,7 @@ export default function AuditLogsPage() {
   }, [transformedLogs]);
 
   const handleExport = () => {
-    console.log("Exporting audit logs");
+    // TODO: Implement export functionality
   };
 
   const handleViewDetails = (entry: any) => {

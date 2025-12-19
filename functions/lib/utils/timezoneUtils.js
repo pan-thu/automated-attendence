@@ -12,6 +12,7 @@ exports.getCompanyTimezoneDateKey = getCompanyTimezoneDateKey;
 exports.getDateKeyInTimezone = getDateKeyInTimezone;
 exports.getCompanyTimezoneDateKeyFromISO = getCompanyTimezoneDateKeyFromISO;
 exports.getDateKeyInTimezoneFromISO = getDateKeyInTimezoneFromISO;
+exports.getCurrentDateInCompanyTimezone = getCurrentDateInCompanyTimezone;
 const date_fns_tz_1 = require("date-fns-tz");
 const settings_1 = require("../services/settings");
 // Default timezone for the application (India Standard Time)
@@ -90,15 +91,24 @@ async function convertFromCompanyTimezone(localDate, timezone) {
     return (0, date_fns_tz_1.fromZonedTime)(localDate, tz);
 }
 /**
- * Gets the current hour in the company's timezone
+ * Gets the current hour in the company's timezone using Intl API
  * @param utcDate - UTC date to check (optional, defaults to now)
  * @returns Current hour (0-23) in company timezone
  */
 async function getCompanyTimezoneHour(utcDate) {
     const date = utcDate || new Date();
     const timezone = await getEffectiveTimezone();
-    const zonedDate = (0, date_fns_tz_1.toZonedTime)(date, timezone);
-    return zonedDate.getHours();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        hour: 'numeric',
+        hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const hourPart = parts.find(p => p.type === 'hour');
+    if (!hourPart) {
+        throw new Error('Failed to extract hour from date');
+    }
+    return parseInt(hourPart.value, 10);
 }
 /**
  * Formats a date in the company's timezone
@@ -157,7 +167,8 @@ async function getNotificationSlotForTime(utcDate) {
     return null;
 }
 /**
- * Creates a date key (YYYY-MM-DD) in company timezone
+ * Creates a date key (YYYY-MM-DD) in company timezone using Intl API
+ * This is more reliable than date-fns-tz for timezone conversion
  * @param utcDate - UTC date
  * @returns Date key string in company timezone
  * @throws Error if the date is invalid
@@ -168,14 +179,17 @@ async function getCompanyTimezoneDateKey(utcDate) {
         throw new Error(`Invalid date provided to getCompanyTimezoneDateKey: ${date}`);
     }
     const timezone = await getEffectiveTimezone();
-    const zonedDate = (0, date_fns_tz_1.toZonedTime)(date, timezone);
-    if (!isValidDate(zonedDate)) {
-        throw new Error(`toZonedTime produced invalid date. Input: ${date.toISOString()}, timezone: ${timezone}`);
-    }
-    return (0, date_fns_tz_1.format)(zonedDate, 'yyyy-MM-dd');
+    // Use Intl.DateTimeFormat for reliable timezone conversion
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    return formatter.format(date); // Returns "YYYY-MM-DD"
 }
 /**
- * Creates a date key (YYYY-MM-DD) in the specified timezone
+ * Creates a date key (YYYY-MM-DD) in the specified timezone using Intl API
  * Use this when you already have the timezone to avoid redundant settings fetches
  * @param utcDate - UTC date
  * @param timezone - Target timezone
@@ -186,8 +200,13 @@ function getDateKeyInTimezone(utcDate, timezone) {
     if (!isValidDate(utcDate)) {
         throw new Error('Invalid date provided to getDateKeyInTimezone');
     }
-    const zonedDate = (0, date_fns_tz_1.toZonedTime)(utcDate, timezone);
-    return (0, date_fns_tz_1.format)(zonedDate, 'yyyy-MM-dd');
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    return formatter.format(utcDate); // Returns "YYYY-MM-DD"
 }
 /**
  * Creates a date key (YYYY-MM-DD) from an ISO string in company timezone
@@ -215,4 +234,12 @@ function getDateKeyInTimezoneFromISO(isoString, timezone) {
         throw new Error(`Invalid date string: "${isoString}"`);
     }
     return getDateKeyInTimezone(date, timezone);
+}
+/**
+ * Gets the current date as a date key (YYYY-MM-DD) in company timezone
+ * This is the primary function for determining "today's date" in the company's local time
+ * @returns Current date in YYYY-MM-DD format in company timezone
+ */
+async function getCurrentDateInCompanyTimezone() {
+    return getCompanyTimezoneDateKey(new Date());
 }

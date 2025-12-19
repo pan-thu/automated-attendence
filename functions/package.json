@@ -6,9 +6,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "serve": "npm run build && firebase emulators:start",
-    "deploy": "npm run build && firebase deploy",
-    "seed": "npm run build && node lib/scripts/seedTestData.js",
-    "seed:clean": "npm run build && node -e \"require('./lib/scripts/seedTestData').seedTestData(true).then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\""
+    "deploy": "npm run build && firebase deploy"
   },
   "keywords": [],
   "author": "",

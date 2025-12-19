@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupTestData = exports.seedTestData = exports.recordTelemetryEvent = exports.triggerMonthlyAnalyticsAggregation = exports.triggerDailyAnalyticsAggregation = exports.scheduledDailyClockInReminder = exports.calculateDailyViolations = exports.finalizeAttendance = exports.scheduledDailyPenaltyCalculation = exports.scheduledPenaltyAutomation = exports.registerDeviceToken = exports.getPenaltySummary = exports.acknowledgePenalty = exports.listEmployeePenalties = exports.markAllNotificationsAsRead = exports.markNotificationRead = exports.listEmployeeNotifications = exports.getLeaveAttachmentDownloadUrl = exports.registerLeaveAttachment = exports.generateLeaveAttachmentUploadUrl = exports.getLeaveBalance = exports.listEmployeeLeaves = exports.cancelLeaveRequest = exports.submitLeaveRequest = exports.getHolidays = exports.getAttendanceDayDetail = exports.listEmployeeAttendance = exports.updateOwnPassword = exports.registerProfilePhoto = exports.generateProfilePhotoUploadUrl = exports.updateOwnProfile = exports.getOwnProfile = exports.getCompanySettingsPublic = exports.getEmployeeDashboard = exports.getEmployeeProfile = exports.handleClockIn = exports.sendBulkNotification = exports.sendNotification = exports.getDashboardStats = exports.generateAttendanceReport = exports.calculateMonthlyViolations = exports.waivePenalty = exports.updateCompanySettings = exports.handleLeaveApproval = exports.manualSetAttendance = exports.toggleUserStatus = exports.updateEmployee = exports.createEmployee = exports.setUserRole = void 0;
+exports.cleanupTestData = exports.seedTestData = exports.recordTelemetryEvent = exports.triggerMonthlyAnalyticsAggregation = exports.triggerDailyAnalyticsAggregation = exports.scheduledDailyClockInReminder = exports.calculateDailyViolations = exports.finalizeAttendance = exports.scheduledDailyPenaltyCalculation = exports.registerDeviceToken = exports.getPenaltySummary = exports.acknowledgePenalty = exports.listEmployeePenalties = exports.markAllNotificationsAsRead = exports.markNotificationRead = exports.listEmployeeNotifications = exports.getLeaveAttachmentDownloadUrl = exports.registerLeaveAttachment = exports.generateLeaveAttachmentUploadUrl = exports.getLeaveBalance = exports.listEmployeeLeaves = exports.cancelLeaveRequest = exports.submitLeaveRequest = exports.getHolidays = exports.getAttendanceDayDetail = exports.listEmployeeAttendance = exports.updateOwnPassword = exports.registerProfilePhoto = exports.generateProfilePhotoUploadUrl = exports.updateOwnProfile = exports.getOwnProfile = exports.getCompanySettingsPublic = exports.getEmployeeDashboard = exports.getEmployeeProfile = exports.handleClockIn = exports.sendBulkNotification = exports.sendNotification = exports.getDashboardStats = exports.generateAttendanceReport = exports.waivePenalty = exports.updateCompanySettings = exports.handleLeaveApproval = exports.manualSetAttendance = exports.toggleUserStatus = exports.updateEmployee = exports.createEmployee = exports.setUserRole = void 0;
 const functions = __importStar(require("firebase-functions"));
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const https_1 = require("firebase-functions/v2/https");
@@ -328,24 +328,6 @@ exports.waivePenalty = (0, https_1.onCall)((0, callableWrapper_1.wrapCallable)(a
     });
     return { success: true };
 }, 'waivePenalty'));
-exports.calculateMonthlyViolations = (0, https_1.onCall)((0, callableWrapper_1.wrapCallable)(async (request) => {
-    (0, authV2_1.assertAdmin)(request);
-    const payload = (0, validators_1.assertPayload)(request.data);
-    const month = (0, validators_1.assertString)(payload.month, 'month');
-    const result = await (0, penalties_1.calculateMonthlyViolations)({
-        month,
-        userId: payload.userId,
-    });
-    await (0, audit_1.recordAuditLog)({
-        action: 'calculate_monthly_violations',
-        resource: 'VIOLATION_HISTORY',
-        resourceId: month,
-        status: 'success',
-        performedBy: (0, authV2_1.requireAuthUid)(request),
-        metadata: { result },
-    });
-    return result;
-}, 'calculateMonthlyViolations'));
 exports.generateAttendanceReport = (0, https_1.onCall)((0, callableWrapper_1.wrapCallable)(async (request) => {
     (0, authV2_1.assertAdmin)(request);
     const payload = (0, validators_1.assertPayload)(request.data);
@@ -885,28 +867,6 @@ exports.registerDeviceToken = (0, https_1.onCall)((0, callableWrapper_1.wrapCall
     });
     return { success: true };
 }, 'registerDeviceToken'));
-exports.scheduledPenaltyAutomation = (0, scheduler_1.onSchedule)({
-    // Run daily at 2 AM UTC to check if it's the 1st of the month in company timezone
-    schedule: '0 2 * * *',
-    timeZone: 'UTC',
-}, async () => {
-    const now = new Date();
-    // Import timezone utilities
-    const { convertToCompanyTimezone, formatInCompanyTimezone } = await Promise.resolve().then(() => __importStar(require('./utils/timezoneUtils')));
-    // Get current date in company timezone
-    const companyDate = await convertToCompanyTimezone(now);
-    // Check if it's the 1st of the month in company timezone
-    if (companyDate.getDate() !== 1) {
-        return; // Not the 1st of the month in company timezone
-    }
-    // Calculate penalties for the PREVIOUS month (not current month)
-    // On Jan 1st, we calculate December's penalties
-    const previousMonth = new Date(companyDate);
-    previousMonth.setMonth(previousMonth.getMonth() - 1);
-    // Get the previous month string in company timezone
-    const month = await formatInCompanyTimezone(previousMonth, 'yyyy-MM');
-    await (0, penalties_1.calculateMonthlyViolations)({ month });
-});
 /**
  * Daily attendance finalization and penalty calculation - runs after all check windows close
  * 1. Finalizes attendance: Creates absent records for no-shows, marks missed checks
@@ -923,15 +883,14 @@ exports.scheduledDailyPenaltyCalculation = (0, scheduler_1.onSchedule)({
 }, async () => {
     const now = new Date();
     // Import timezone utilities and settings
-    const { convertToCompanyTimezone, formatInCompanyTimezone } = await Promise.resolve().then(() => __importStar(require('./utils/timezoneUtils')));
+    const { getCompanyTimezoneHour, getCurrentDateInCompanyTimezone } = await Promise.resolve().then(() => __importStar(require('./utils/timezoneUtils')));
     const { isWeekend, isCompanyHoliday } = await Promise.resolve().then(() => __importStar(require('./utils/dateUtils')));
     const { getCompanySettings } = await Promise.resolve().then(() => __importStar(require('./services/settings')));
     // Get company settings to check time windows
     const settings = await getCompanySettings();
     const check3Window = settings.timeWindows?.check3;
-    // Get current time in company timezone
-    const companyDate = await convertToCompanyTimezone(now);
-    const companyHour = companyDate.getHours();
+    // Get current hour in company timezone
+    const companyHour = await getCompanyTimezoneHour(now);
     // Determine the finalization hour (1 hour after check-out window ends)
     // Default: check-out ends at 17:30, so finalize at 18:xx
     let finalizationHour = 18;
@@ -943,16 +902,17 @@ exports.scheduledDailyPenaltyCalculation = (0, scheduler_1.onSchedule)({
     if (companyHour !== finalizationHour) {
         return;
     }
-    // Skip weekends
-    if (isWeekend(companyDate)) {
+    // Get current date in company timezone (using Intl API for reliability)
+    const dateKey = await getCurrentDateInCompanyTimezone();
+    // Skip weekends (check using the date we're about to finalize)
+    const dateToCheck = new Date(`${dateKey}T12:00:00Z`); // Use noon UTC to avoid timezone edge cases
+    if (isWeekend(dateToCheck)) {
         return;
     }
     // Skip holidays
-    if (await isCompanyHoliday(companyDate)) {
+    if (await isCompanyHoliday(dateToCheck)) {
         return;
     }
-    // Get today's date string
-    const dateKey = await formatInCompanyTimezone(companyDate, 'yyyy-MM-dd');
     // Check if finalization already ran today (prevent duplicate runs)
     const db = firebase_1.admin.firestore();
     const flagDoc = await db.collection('SYSTEM_FLAGS').doc(`finalization_${dateKey}`).get();

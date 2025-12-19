@@ -31,7 +31,6 @@ import {
 import { updateCompanySettings as updateCompanySettingsService } from './services/settings';
 import {
   waivePenalty as waivePenaltyService,
-  calculateMonthlyViolations as calculateMonthlyViolationsService,
   calculateDailyViolations as calculateDailyViolationsService,
   listEmployeePenalties as listEmployeePenaltiesService,
   acknowledgePenalty as acknowledgePenaltyService,
@@ -423,30 +422,6 @@ export const waivePenalty = onCall(
 
     return { success: true };
   }, 'waivePenalty')
-);
-
-export const calculateMonthlyViolations = onCall(
-  wrapCallable(async (request: CallableRequest<Record<string, unknown>>) => {
-    assertAdminV2(request);
-    const payload = assertPayload<Record<string, unknown>>(request.data);
-    const month = assertString(payload.month, 'month');
-
-    const result = await calculateMonthlyViolationsService({
-      month,
-      userId: payload.userId as string | undefined,
-    });
-
-    await recordAuditLog({
-      action: 'calculate_monthly_violations',
-      resource: 'VIOLATION_HISTORY',
-      resourceId: month,
-      status: 'success',
-      performedBy: requireAuthUidV2(request),
-      metadata: { result },
-    });
-
-    return result;
-  }, 'calculateMonthlyViolations')
 );
 
 export const generateAttendanceReport = onCall(
@@ -1176,38 +1151,6 @@ export const registerDeviceToken = onCall(
   }, 'registerDeviceToken')
 );
 
-export const scheduledPenaltyAutomation = onSchedule(
-  {
-    // Run daily at 2 AM UTC to check if it's the 1st of the month in company timezone
-    schedule: '0 2 * * *',
-    timeZone: 'UTC',
-  },
-  async () => {
-    const now = new Date();
-
-    // Import timezone utilities
-    const { convertToCompanyTimezone, formatInCompanyTimezone } = await import('./utils/timezoneUtils');
-
-    // Get current date in company timezone
-    const companyDate = await convertToCompanyTimezone(now);
-
-    // Check if it's the 1st of the month in company timezone
-    if (companyDate.getDate() !== 1) {
-      return; // Not the 1st of the month in company timezone
-    }
-
-    // Calculate penalties for the PREVIOUS month (not current month)
-    // On Jan 1st, we calculate December's penalties
-    const previousMonth = new Date(companyDate);
-    previousMonth.setMonth(previousMonth.getMonth() - 1);
-
-    // Get the previous month string in company timezone
-    const month = await formatInCompanyTimezone(previousMonth, 'yyyy-MM');
-
-    await calculateMonthlyViolationsService({ month });
-  }
-);
-
 /**
  * Daily attendance finalization and penalty calculation - runs after all check windows close
  * 1. Finalizes attendance: Creates absent records for no-shows, marks missed checks
@@ -1227,7 +1170,7 @@ export const scheduledDailyPenaltyCalculation = onSchedule(
     const now = new Date();
 
     // Import timezone utilities and settings
-    const { convertToCompanyTimezone, formatInCompanyTimezone } = await import('./utils/timezoneUtils');
+    const { getCompanyTimezoneHour, getCurrentDateInCompanyTimezone } = await import('./utils/timezoneUtils');
     const { isWeekend, isCompanyHoliday } = await import('./utils/dateUtils');
     const { getCompanySettings } = await import('./services/settings');
 
@@ -1235,9 +1178,8 @@ export const scheduledDailyPenaltyCalculation = onSchedule(
     const settings = await getCompanySettings();
     const check3Window = settings.timeWindows?.check3;
 
-    // Get current time in company timezone
-    const companyDate = await convertToCompanyTimezone(now);
-    const companyHour = companyDate.getHours();
+    // Get current hour in company timezone
+    const companyHour = await getCompanyTimezoneHour(now);
 
     // Determine the finalization hour (1 hour after check-out window ends)
     // Default: check-out ends at 17:30, so finalize at 18:xx
@@ -1252,18 +1194,19 @@ export const scheduledDailyPenaltyCalculation = onSchedule(
       return;
     }
 
-    // Skip weekends
-    if (isWeekend(companyDate)) {
+    // Get current date in company timezone (using Intl API for reliability)
+    const dateKey = await getCurrentDateInCompanyTimezone();
+
+    // Skip weekends (check using the date we're about to finalize)
+    const dateToCheck = new Date(`${dateKey}T12:00:00Z`); // Use noon UTC to avoid timezone edge cases
+    if (isWeekend(dateToCheck)) {
       return;
     }
 
     // Skip holidays
-    if (await isCompanyHoliday(companyDate)) {
+    if (await isCompanyHoliday(dateToCheck)) {
       return;
     }
-
-    // Get today's date string
-    const dateKey = await formatInCompanyTimezone(companyDate, 'yyyy-MM-dd');
 
     // Check if finalization already ran today (prevent duplicate runs)
     const db = admin.firestore();

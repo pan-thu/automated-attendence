@@ -95,8 +95,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   };
 
   const handleWaivePenalty = async (penaltyId: string) => {
-    // This would call a waive penalty function
-    console.log("Waiving penalty:", penaltyId);
+    // TODO: Implement waive penalty functionality
   };
 
   const handleViewAllPenalties = () => {

@@ -114,12 +114,23 @@ const determineCheckOutcome = (iso, slot, window, graceMinutes, timezone) => {
     return null;
 };
 exports.determineCheckOutcome = determineCheckOutcome;
-const computeDailyStatus = (checkStatuses) => {
+/**
+ * Calculates the daily status based on completed checks.
+ *
+ * @param checkStatuses Map of check slots to their status
+ * @param isFinalizing If true, calculates final status (Present/Absent). If false, forces 'in_progress'.
+ */
+const computeDailyStatus = (checkStatuses, isFinalizing = false) => {
     const completed = CLOCK_ORDER.filter((slot) => {
         const status = checkStatuses[slot];
         return status && status !== 'missed';
     });
     const hasMissedChecks = CLOCK_ORDER.some((slot) => checkStatuses[slot] === 'missed');
+    // If not finalizing (mid-day clock in), status remains pending/in_progress
+    if (!isFinalizing) {
+        return 'in_progress';
+    }
+    // --- EOD FINALIZATION LOGIC ---
     // If no checks completed at all
     if (completed.length === 0) {
         return 'absent';
@@ -132,13 +143,8 @@ const computeDailyStatus = (checkStatuses) => {
     if (completed.length === 2) {
         return 'half_day_absent';
     }
-    // If only 1 check completed
-    // - If there are explicitly missed checks, day is still in progress (windows passed but not finalized)
-    // - If no missed checks (just undefined), treat as absent (end-of-day assessment)
-    if (completed.length === 1) {
-        return hasMissedChecks ? 'in_progress' : 'absent';
-    }
-    return 'in_progress';
+    // If only 1 check completed, treated as absent (incomplete day)
+    return 'absent';
 };
 exports.computeDailyStatus = computeDailyStatus;
 const fetchCompanySettings = async () => {
@@ -225,7 +231,9 @@ const handleClockIn = async ({ userId, payload }) => {
             check3: data?.check3_status,
         };
         updatedStatuses[slotOutcome.slot] = slotOutcome.status;
-        const dayStatus = (0, exports.computeDailyStatus)(updatedStatuses);
+        // PASS FALSE: Live clock-in acts as "Draft" mode. Status remains 'in_progress'.
+        // It will only switch to present/absent/half_day during the EOD finalization.
+        const dayStatus = (0, exports.computeDailyStatus)(updatedStatuses, false);
         const updates = {
             userId,
             status: dayStatus,
@@ -324,8 +332,11 @@ const finalizeAttendance = async (input) => {
             absentRecordsCreated++;
         }
         else {
-            // Has record - check if any checks are missing and mark as missed
+            // Has record - finalize status and mark missed checks
             const data = existingRecord.data() ?? {};
+            // Skip if user is on approved leave
+            if (data.status === 'on_leave')
+                continue;
             const updates = {};
             let needsUpdate = false;
             // Check each slot and mark as missed if not set
@@ -337,14 +348,15 @@ const finalizeAttendance = async (input) => {
                     needsUpdate = true;
                 }
             }
-            if (needsUpdate) {
-                // Recalculate daily status with updated check statuses
-                const checkStatuses = {
-                    check1: updates.check1_status ?? data.check1_status,
-                    check2: updates.check2_status ?? data.check2_status,
-                    check3: updates.check3_status ?? data.check3_status,
-                };
-                const newDailyStatus = (0, exports.computeDailyStatus)(checkStatuses);
+            // Recalculate status with isFinalizing = TRUE to graduate from 'in_progress'
+            const checkStatuses = {
+                check1: updates.check1_status ?? data.check1_status,
+                check2: updates.check2_status ?? data.check2_status,
+                check3: updates.check3_status ?? data.check3_status,
+            };
+            const newDailyStatus = (0, exports.computeDailyStatus)(checkStatuses, true);
+            // Update if status changed (e.g., in_progress -> present) OR if we marked checks as missed
+            if (newDailyStatus !== data.status || needsUpdate) {
                 updates.status = newDailyStatus;
                 updates.updatedAt = firestore_1.FieldValue.serverTimestamp();
                 batch.update(existingRecord.ref, updates);

@@ -88,15 +88,28 @@ export async function convertFromCompanyTimezone(
 }
 
 /**
- * Gets the current hour in the company's timezone
+ * Gets the current hour in the company's timezone using Intl API
  * @param utcDate - UTC date to check (optional, defaults to now)
  * @returns Current hour (0-23) in company timezone
  */
 export async function getCompanyTimezoneHour(utcDate?: Date): Promise<number> {
   const date = utcDate || new Date();
   const timezone = await getEffectiveTimezone();
-  const zonedDate = toZonedTime(date, timezone);
-  return zonedDate.getHours();
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(date);
+  const hourPart = parts.find(p => p.type === 'hour');
+
+  if (!hourPart) {
+    throw new Error('Failed to extract hour from date');
+  }
+
+  return parseInt(hourPart.value, 10);
 }
 
 /**
@@ -173,7 +186,8 @@ export async function getNotificationSlotForTime(
 }
 
 /**
- * Creates a date key (YYYY-MM-DD) in company timezone
+ * Creates a date key (YYYY-MM-DD) in company timezone using Intl API
+ * This is more reliable than date-fns-tz for timezone conversion
  * @param utcDate - UTC date
  * @returns Date key string in company timezone
  * @throws Error if the date is invalid
@@ -184,16 +198,20 @@ export async function getCompanyTimezoneDateKey(utcDate?: Date): Promise<string>
     throw new Error(`Invalid date provided to getCompanyTimezoneDateKey: ${date}`);
   }
   const timezone = await getEffectiveTimezone();
-  const zonedDate = toZonedTime(date, timezone);
-  if (!isValidDate(zonedDate)) {
-    throw new Error(`toZonedTime produced invalid date. Input: ${date.toISOString()}, timezone: ${timezone}`);
-  }
 
-  return format(zonedDate, 'yyyy-MM-dd');
+  // Use Intl.DateTimeFormat for reliable timezone conversion
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+
+  return formatter.format(date); // Returns "YYYY-MM-DD"
 }
 
 /**
- * Creates a date key (YYYY-MM-DD) in the specified timezone
+ * Creates a date key (YYYY-MM-DD) in the specified timezone using Intl API
  * Use this when you already have the timezone to avoid redundant settings fetches
  * @param utcDate - UTC date
  * @param timezone - Target timezone
@@ -204,8 +222,15 @@ export function getDateKeyInTimezone(utcDate: Date, timezone: string): string {
   if (!isValidDate(utcDate)) {
     throw new Error('Invalid date provided to getDateKeyInTimezone');
   }
-  const zonedDate = toZonedTime(utcDate, timezone);
-  return format(zonedDate, 'yyyy-MM-dd');
+
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+
+  return formatter.format(utcDate); // Returns "YYYY-MM-DD"
 }
 
 /**
@@ -235,4 +260,13 @@ export function getDateKeyInTimezoneFromISO(isoString: string, timezone: string)
     throw new Error(`Invalid date string: "${isoString}"`);
   }
   return getDateKeyInTimezone(date, timezone);
+}
+
+/**
+ * Gets the current date as a date key (YYYY-MM-DD) in company timezone
+ * This is the primary function for determining "today's date" in the company's local time
+ * @returns Current date in YYYY-MM-DD format in company timezone
+ */
+export async function getCurrentDateInCompanyTimezone(): Promise<string> {
+  return getCompanyTimezoneDateKey(new Date());
 }

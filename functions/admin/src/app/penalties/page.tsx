@@ -11,15 +11,17 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { callWaivePenalty } from "@/lib/firebase/functions";
 
 // Import new components
-import { PenaltyCard } from "@/components/penalties/PenaltyCard";
-import { PenaltyCardSkeleton } from "@/components/penalties/PenaltyCardSkeleton";
+import { PenaltyTable } from "@/components/penalties/PenaltyTable";
 import { PenaltyFilters } from "@/components/penalties/PenaltyFilters";
 import { DollarSign, AlertCircle, FileText, TrendingUp, Calendar } from "lucide-react";
 import { format } from "date-fns";
 
 export default function PenaltiesPage() {
   const [detailsDialog, setDetailsDialog] = useState<any>(null);
+  const [waiveDialog, setWaiveDialog] = useState<any>(null);
+  const [paidDialog, setPaidDialog] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("all");
+  const [selectedPenalties, setSelectedPenalties] = useState<string[]>([]);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -133,11 +135,31 @@ export default function PenaltiesPage() {
     };
   }, [activePenalties, waivedPenalties, paidPenalties, transformedPenalties]);
 
-  const handleWaive = async (id: string, reason: string) => {
+  const handleSelectPenalty = (id: string) => {
+    setSelectedPenalties(prev =>
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (selected: boolean) => {
+    setSelectedPenalties(selected ? getPenaltiesByTab().map(p => p.id) : []);
+  };
+
+  const handleWaive = (penalty: any) => {
+    setWaiveDialog(penalty);
+  };
+
+  const handleMarkPaid = (penalty: any) => {
+    setPaidDialog(penalty);
+  };
+
+  const confirmWaive = async (reason: string) => {
+    if (!waiveDialog) return;
     setWaiveSubmitting(true);
     try {
-      await callWaivePenalty({ penaltyId: id, waivedReason: reason.trim() });
+      await callWaivePenalty({ penaltyId: waiveDialog.id, waivedReason: reason.trim() });
       await refresh();
+      setWaiveDialog(null);
     } catch (err) {
       console.error("Failed to waive penalty", err);
     } finally {
@@ -145,14 +167,15 @@ export default function PenaltiesPage() {
     }
   };
 
-  const handleMarkPaid = async (id: string, method: string) => {
+  const confirmMarkPaid = async (method: string) => {
+    if (!paidDialog) return;
     // TODO: Implement mark as paid functionality via a Firebase function
-    console.log("Marking penalty as paid", id, method);
     await refresh();
+    setPaidDialog(null);
   };
 
   const handleExport = () => {
-    console.log("Exporting penalties");
+    // TODO: Implement export functionality
   };
 
   const handleViewDetails = (penalty: any) => {
@@ -212,36 +235,16 @@ export default function PenaltiesPage() {
             </TabsList>
 
             <TabsContent value={activeTab} className="mt-6">
-              {loading ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <PenaltyCardSkeleton key={index} />
-                  ))}
-                </div>
-              ) : getPenaltiesByTab().length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-center">
-                  <DollarSign className="h-12 w-12 text-gray-400 mb-3" />
-                  <p className="text-sm font-medium text-gray-900">No penalties found</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {activeTab === "all"
-                      ? "No penalties match your filters"
-                      : `No ${activeTab} penalties`}
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {getPenaltiesByTab().map((penalty) => (
-                    <PenaltyCard
-                      key={penalty.id}
-                      penalty={penalty}
-                      onWaive={activeTab !== "waived" && activeTab !== "paid" ? handleWaive : undefined}
-                      onMarkPaid={activeTab !== "paid" ? handleMarkPaid : undefined}
-                      onViewDetails={handleViewDetails}
-                      isProcessing={waiveSubmitting}
-                    />
-                  ))}
-                </div>
-              )}
+              <PenaltyTable
+                penalties={getPenaltiesByTab()}
+                loading={loading}
+                selectedPenalties={selectedPenalties}
+                onSelectPenalty={handleSelectPenalty}
+                onSelectAll={handleSelectAll}
+                onViewDetails={handleViewDetails}
+                onWaive={activeTab !== "waived" && activeTab !== "paid" ? handleWaive : undefined}
+                onMarkPaid={activeTab !== "paid" ? handleMarkPaid : undefined}
+              />
             </TabsContent>
           </Tabs>
 
@@ -381,6 +384,107 @@ export default function PenaltiesPage() {
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDetailsDialog(null)}>
                   Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Waive Dialog */}
+          <Dialog open={!!waiveDialog} onOpenChange={(open) => !open && setWaiveDialog(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Waive Penalty</DialogTitle>
+                <DialogDescription>
+                  Provide a reason for waiving this penalty
+                </DialogDescription>
+              </DialogHeader>
+              {waiveDialog && (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium mb-1">Employee</p>
+                    <p className="text-sm text-muted-foreground">{waiveDialog.userName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium mb-1">Amount</p>
+                    <p className="text-sm text-muted-foreground">
+                      {waiveDialog.currency} {waiveDialog.amount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Waiver Reason</label>
+                    <textarea
+                      id="waiver-reason"
+                      className="w-full mt-1 px-3 py-2 border rounded-md"
+                      rows={3}
+                      placeholder="Enter reason for waiving..."
+                    />
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setWaiveDialog(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    const reason = (document.getElementById('waiver-reason') as HTMLTextAreaElement)?.value;
+                    if (reason?.trim()) confirmWaive(reason);
+                  }}
+                  disabled={waiveSubmitting}
+                >
+                  Confirm Waive
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Mark as Paid Dialog */}
+          <Dialog open={!!paidDialog} onOpenChange={(open) => !open && setPaidDialog(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Mark as Paid</DialogTitle>
+                <DialogDescription>
+                  Select payment method and confirm
+                </DialogDescription>
+              </DialogHeader>
+              {paidDialog && (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium mb-1">Employee</p>
+                    <p className="text-sm text-muted-foreground">{paidDialog.userName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium mb-1">Amount</p>
+                    <p className="text-sm text-muted-foreground">
+                      {paidDialog.currency} {paidDialog.amount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Payment Method</label>
+                    <select
+                      id="payment-method"
+                      className="w-full mt-1 h-9 px-3 rounded-md border border-input bg-background text-sm"
+                      defaultValue="payroll_deduction"
+                    >
+                      <option value="payroll_deduction">Payroll Deduction</option>
+                      <option value="cash">Cash</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPaidDialog(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    const method = (document.getElementById('payment-method') as HTMLSelectElement)?.value;
+                    confirmMarkPaid(method);
+                  }}
+                >
+                  Confirm Payment
                 </Button>
               </DialogFooter>
             </DialogContent>

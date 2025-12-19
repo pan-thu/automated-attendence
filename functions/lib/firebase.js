@@ -53,10 +53,8 @@ if (!firebaseAdmin.apps.length) {
                 credential: firebaseAdmin.credential.cert(serviceAccount),
                 storageBucket: process.env.STORAGE_BUCKET || 'automated-attendence-6fc07.firebasestorage.app'
             });
-            console.log('✅ Firebase Admin initialized with service account credentials');
         }
         catch (error) {
-            console.warn('⚠️  Failed to load service account, using default initialization:', error);
             firebaseAdmin.initializeApp();
         }
     }

@@ -69,7 +69,6 @@ export default function EmployeesPage() {
 
   const handleExport = () => {
     // TODO: Implement export functionality
-    console.log("Export employee data");
   };
 
   return (
